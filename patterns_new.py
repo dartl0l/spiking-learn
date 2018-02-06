@@ -245,7 +245,7 @@ def plot_weights(weights, show=True):
 
 def plot_animated_weights(weights_history, save, show):
     all_plot = []
-    fig = plt.figure()
+    fig = pl.figure()
 
     for weights in weights_history:
         all_plot.append(plot_weights(weights, False))
@@ -256,7 +256,7 @@ def plot_animated_weights(weights_history, save, show):
     if save is True:
         weights_anim.save(path['result'] + 'weights.mp4')
     if show is True:
-        plt.show()
+        pl.show()
 
     
 def plot_devices(devices):
