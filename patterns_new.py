@@ -415,8 +415,8 @@ def prepare_data_iris(data, settings):
     data_train = {}
     data_test = {}
     
-    data_out = {'train': [],
-                'test': []}
+    data_out = {'train': {},
+                'test': {}}
 
     mask_0 = data['class'] == 0
     mask_1 = data['class'] == 1
@@ -489,8 +489,8 @@ def prepare_data_cancer(data, settings):
     data_train = {}
     data_test = {}
     
-    data_out = {'train': [],
-                'test': []}
+    data_out = {'train': {},
+                'test': {}}
 
     input_train, input_test, y_train, y_test = train_test_split(data['input'], data['class'],
                                                                 shuffle=False,
