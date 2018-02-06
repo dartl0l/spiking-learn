@@ -248,13 +248,14 @@ def plot_animated_weights(weights_history, save, show):
     fig = pl.figure()
 
     for weights in weights_history:
-        all_plot.append(plot_weights(weights, False))
+        print weights
+        all_plot.append(plot_weights(weights['layer_0'], False))
 
     weights_anim = animation.ArtistAnimation(fig, all_plot, interval=40,
                                              repeat_delay=len(weights_history),
                                              blit=True)
     if save is True:
-        weights_anim.save(path['result'] + 'weights.mp4')
+        weights_anim.save('weights.mp4')
     if show is True:
         pl.show()
 
