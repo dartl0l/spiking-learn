@@ -13,6 +13,8 @@ from sklearn import preprocessing
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
+from matplotlib import animation, rc
+
 
 def set_spike_in_generators(data, spike_generators, start_time, end_time, h_time, start_h):
     sp = []
