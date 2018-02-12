@@ -257,28 +257,17 @@ def plot_animated_weights(weights_history, h, save, show):
     all_plot = []
     fig = pl.figure()
 
-<<<<<<< HEAD
     for i in xrange(0, len(weights_history), h):
         weights = weights_history[i]
         all_plot.append(plot_weights_for_anim(weights['layer_0']))
 
     weights_anim = animation.ArtistAnimation(fig, all_plot, blit=True)
-=======
-    for weights in weights_history:
-        print weights
-        all_plot.append(plot_weights(weights['layer_0'], False))
->>>>>>> 9983d6779afa20b5be539e3802498462bf18d1f5
 
     if save is True:
         weights_anim.save('weights.mp4')
-<<<<<<< HEAD
     #     if show is True:
     #         HTML(weights_anim.to_html5_video())
     return weights_anim
-=======
-    if show is True:
-        pl.show()
->>>>>>> 9983d6779afa20b5be539e3802498462bf18d1f5
 
     
 def plot_devices(devices):
