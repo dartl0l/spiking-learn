@@ -56,7 +56,7 @@ def convert_data_to_patterns(x, y, pattern_time, h):
 #     h = 0.1
 #     time = 60
     rad = 2 * np.pi
-    rad_to_deg = 57
+    # rad_to_deg = 57
 
     for xx, yy in zip(x, y):
         pattern = {}
@@ -97,7 +97,7 @@ def convert_data_to_patterns(x, y, pattern_time, h):
 
 def convert_data_to_patterns_spatio_temp(x, y, min_time, h):
     rad = 2 * np.pi
-    rad_to_deg = 57
+    # rad_to_deg = 57
 
     output = []
     for xx, yy in zip(x, y):
@@ -130,7 +130,7 @@ def convert_data_to_patterns_uniform(x, y, pattern_time, h, mult):
         for x in xx:
             time = x * pattern_time
 
-            for j in xrange(mult):
+            for _ in xrange(mult):
                 tmp_dict[i] = np.sort(np.random.uniform(0, int(time), int(time / h)) + 0.1)
                 # get_poisson_train(time, firing_rate, h)
                 # tmp_dict[i] = get_poisson_train(time, firing_rate, h)
@@ -150,7 +150,7 @@ def get_gaussian(x, sigma2, mu):
 def plot_field(sigma2, max_x, n_fields):
     h_mu = max_x / (n_fields - 1)
     mu = 0
-    for i in xrange(n_fields):
+    for _ in xrange(n_fields):
         xx = np.arange(0, max_x, 0.01)
         yy = [get_gaussian(j, sigma2, mu) for j in xx]
         pl.plot(xx, yy)
@@ -220,7 +220,7 @@ def convert_data_to_patterns_poisson(x, y, pattern_time, firing_rate, h, mult):
         for x in xx:
             time = x * pattern_time
 
-            for j in xrange(mult):
+            for _ in xrange(mult):
                 tmp_dict[i] = get_poisson_train(time, firing_rate, h)
                 i += 1
 
@@ -243,20 +243,42 @@ def plot_weights(weights, show=True):
         return pl.plot()
 
 
-def plot_animated_weights(weights_history, save, show):
+def plot_weights_for_anim(weights):
+    neurons = weights.keys()
+    pl.title('Weight distribution')
+
+    plot = pl.plot(range(len(weights[neurons[0]])), weights[neurons[0]], 'r.',
+                   range(len(weights[neurons[1]])), weights[neurons[1]], 'b.')
+
+    return plot
+
+
+def plot_animated_weights(weights_history, h, save, show):
     all_plot = []
     fig = pl.figure()
 
-    for weights in weights_history:
-        all_plot.append(plot_weights(weights, False))
+<<<<<<< HEAD
+    for i in xrange(0, len(weights_history), h):
+        weights = weights_history[i]
+        all_plot.append(plot_weights_for_anim(weights['layer_0']))
 
-    weights_anim = animation.ArtistAnimation(fig, all_plot, interval=40,
-                                             repeat_delay=len(weights_history),
-                                             blit=True)
+    weights_anim = animation.ArtistAnimation(fig, all_plot, blit=True)
+=======
+    for weights in weights_history:
+        print weights
+        all_plot.append(plot_weights(weights['layer_0'], False))
+>>>>>>> 9983d6779afa20b5be539e3802498462bf18d1f5
+
     if save is True:
-        weights_anim.save(path['result'] + 'weights.mp4')
+        weights_anim.save('weights.mp4')
+<<<<<<< HEAD
+    #     if show is True:
+    #         HTML(weights_anim.to_html5_video())
+    return weights_anim
+=======
     if show is True:
         pl.show()
+>>>>>>> 9983d6779afa20b5be539e3802498462bf18d1f5
 
     
 def plot_devices(devices):
@@ -374,7 +396,7 @@ def create_full_latency(latency, neuron_out_ids):
     for latencies in latency:
         tmp_dicts = []
         
-        for i in range(n_neurons):
+        for _ in range(n_neurons):
             tmp_dict = {'latency': ['inf'],
                         'class': latencies['class']}
             tmp_dicts.append(tmp_dict)
@@ -899,14 +921,13 @@ def test_network_acc_cv(data, settings):
 
 
 def test_parameter(data, parameters, settings, n_times):
-    acc = []
     result = {'accuracy': [],
               'std': [],
               'parameter': [],
               'parameter_name': [],
               }
     settings_copy = settings
-    for i in xrange(n_times):
+    for _ in xrange(n_times):
         for key in parameters.keys():
             if isinstance(parameters[key], dict):
                 for key_key in parameters[key].keys():
@@ -927,14 +948,13 @@ def test_parameter(data, parameters, settings, n_times):
 
 
 def test_parameter_network(data, parameters, settings, n_times):
-    acc = []
     result = {'accuracy': [],
               'std': [],
               'parameter': [],
               'parameter_name': [],
               }
     settings_copy = settings
-    for i in xrange(n_times):
+    for _ in xrange(n_times):
         for key in parameters.keys():
             if isinstance(parameters[key], dict):
                 for key_key in parameters[key].keys():
