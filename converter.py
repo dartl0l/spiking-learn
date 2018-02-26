@@ -5,7 +5,7 @@ class Converter:
     def __init__(self):
         pass
 
-    def convert_data_to_patterns(x, y, pattern_time, h):
+    def convert_data_to_patterns(self, x, y, pattern_time, h):
         input_for_nn = []
         #     h = 0.1
         #     time = 60
@@ -48,7 +48,7 @@ class Converter:
             output.append(tmp_dic)
         return output
 
-    def convert_data_to_patterns_spatio_temp(x, y, min_time, h):
+    def convert_data_to_patterns_spatio_temp(self, x, y, min_time, h):
         rad = 2 * np.pi
         # rad_to_deg = 57
 
@@ -69,7 +69,7 @@ class Converter:
             output.append(pattern)
         return output
 
-    def convert_data_to_patterns_uniform(x, y, pattern_time, h, mult):
+    def convert_data_to_patterns_uniform(self, x, y, pattern_time, h, mult):
         output = []
 
         for xx, yy in zip(x, y):
@@ -94,7 +94,7 @@ class Converter:
             output.append(pattern)
         return output
 
-    def convert_data_to_patterns_gaussian_receptive_field(x, y, sigma2, max_x,
+    def convert_data_to_patterns_gaussian_receptive_field(self, x, y, sigma2, max_x,
                                                           n_fields, k_time, k_round, reverse):
         def get_gaussian(x, sigma2, mu):
             return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
@@ -131,7 +131,7 @@ class Converter:
                   'class': np.array(output['class'])}
         return output, max_y
 
-    def convert_data_to_patterns_poisson(x, y, pattern_time, firing_rate, h, mult):
+    def convert_data_to_patterns_poisson(self, x, y, pattern_time, firing_rate, h, mult):
         def get_poisson_train(time, firing_rate, h):
             np.random.seed()
             dt = 1.0 / 1000.0 * h
