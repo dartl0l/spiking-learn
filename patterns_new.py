@@ -392,7 +392,7 @@ def train(settings, data):
                                            synapse_model=settings['syn_dict_stdp']['model'])
                 weight_one = nest.GetStatus(conn, 'weight')
                 tmp_weight.append(weight_one[0])
-            weights['layer_0'][neuron_id] = tmp_weight        
+            weights['layer_0'][neuron_id] = tmp_weight
     
     devices = {
                'voltmeter': voltmeter,
@@ -432,8 +432,9 @@ def test(settings, data, weights):
 
     nest.Connect(spike_generators_1, parrot_layer,
                  'one_to_one', syn_spec='static_synapse')
-    nest.Connect(poisson_layer, parrot_layer,
-                 'one_to_one', syn_spec='static_synapse')
+    if settings['test_with_noise']:
+        nest.Connect(poisson_layer, parrot_layer,
+                    'one_to_one', syn_spec='static_synapse')
 
     nest.Connect(layer_1, spike_detector_1, 'all_to_all')
     nest.Connect(parrot_layer, spike_detector_2, 'all_to_all')
@@ -514,9 +515,9 @@ def test(settings, data, weights):
 
 
 def test_3_neuron_acc(data, settings):
-    print settings['random_state']
+    print(settings['random_state'])
 
-    data_out = prepare_data(data, settings)
+    data_out = prepare_data_iris(data, settings)
 
     data_train_0 = data_out['train']['class_0']
     data_train_1 = data_out['train']['class_1']
@@ -528,7 +529,7 @@ def test_3_neuron_acc(data, settings):
 
     data_test = data_out['test']['full']
 
-    print "Class 0"
+    print("Class 0")
 
     weights_0, latency_train_0, devices, weights_history = train(settings, data_train_0)
     # plot_weights(weights_0['layer_0'])
@@ -537,7 +538,7 @@ def test_3_neuron_acc(data, settings):
     # window_size = 5 * 1 * len(data_test_2['input'])
     # plot_devices(devices_test)
 
-    print "Class 1"
+    print("Class 1")
 
     weights_1, latency_train_1, devices, weights_history = train(settings, data_train_1)
     # plot_weights(weights_1['layer_0'])
@@ -546,7 +547,7 @@ def test_3_neuron_acc(data, settings):
     # window_size = 5 * 1 * len(data_test['input'])
     # plot_devices(devices_test)
 
-    print "Class 2"
+    print("Class 2")
 
     weights_2, latency_train_2, devices, weights_history = train(settings, data_train_2)
     # plot_weights(weights_2['layer_0'])
@@ -556,7 +557,7 @@ def test_3_neuron_acc(data, settings):
     # window_size = 5 * 1 * len(data_test['input'])
     # plot_devices(devices_test)
 
-    print "Test latencies"
+    print("Test latencies")
 
     full_latency = {
                     'neuron_0': latency_0,
@@ -574,7 +575,7 @@ def test_3_neuron_acc_cv(data, settings):
     acc = []
     for rnd_state in settings['random_states']:
         settings['random_state'] = rnd_state
-        accuracy, ouput_list = test_3_neuron_acc(data, settings)
+        accuracy, output_list = test_3_neuron_acc(data, settings)
         acc.append(accuracy)
     return np.mean(acc), np.std(acc)
 
