@@ -41,7 +41,7 @@ class Plotter:
             return pl.plot()
 
     def plot_animated_weights(self, weights_history, h, save, show):
-        def plot_weights_for_anim(self, weights):
+        def plot_weights_for_anim(weights):
             neurons = weights.keys()
             pl.title('Weight distribution')
 
