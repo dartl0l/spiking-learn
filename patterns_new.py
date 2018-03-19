@@ -254,7 +254,7 @@ def train(settings, data):
 
     layer_1 = nest.Create('iaf_psc_exp', settings['n_layer_1'])
 
-    teacher_1 = nest.Create("step_current_generator", settings['n_layer_1'])
+    teacher_1 = nest.Create('step_current_generator', settings['n_layer_1'])
     # teacher_2 = nest.Create("step_current_generator")
     # teacher_3 = nest.Create("step_current_generator")
 
@@ -264,8 +264,9 @@ def train(settings, data):
     voltmeter = nest.Create('voltmeter', 1,
                             {'withgid': True,
                              'withtime': True})
-
-    nest.SetStatus(poisson_layer, {'rate': settings['noise_freq']})
+    
+    nest.SetStatus(poisson_layer, {'rate': settings['noise_freq'],
+                                   'origin': 0.0})
 
     nest.Connect(spike_generators_1, parrot_layer,
                  'one_to_one', syn_spec='static_synapse')
@@ -315,11 +316,13 @@ def train(settings, data):
     
     output_latency = []
     weights_history = []
-
+    
     nest.Simulate(settings['start_delta'])
     d_time = settings['start_delta']
     
-    while d_time < settings['full_time']:
+    full_time = settings['epochs'] * settings['h_time'] + d_time
+    
+    while d_time < full_time:
         set_spike_in_generators(data['input'][i], spike_generators_1,
                                 d_time, d_time + settings['h_time'],
                                 settings['h_time'], settings['h'])
@@ -337,7 +340,11 @@ def train(settings, data):
                 # print np.min(spike_times) + d_time
                 set_teacher_input(np.min(spike_times) + d_time + settings['h'] + settings['reinforce_delta'],
                                   [teacher_1[data['class'][i]]], settings)  
- 
+
+        if settings['noise_after_pattern']:
+            nest.SetStatus(poisson_layer, {'start': np.max(spike_times),
+                                           'stop': d_time + settings['h_time']})
+
         nest.Simulate(settings['h_time'])
         
         ex_class = data['class'][i]
@@ -413,8 +420,6 @@ def test(settings, data, weights):
 
     spike_generators_1 = nest.Create('spike_generator', settings['n_input'])
 
-    poisson_layer = nest.Create('poisson_generator', settings['n_input'])
-
     spike_generators_2 = nest.Create('spike_generator', settings['n_input'])
 
     parrot_layer = nest.Create('parrot_neuron', settings['n_input'])
@@ -428,11 +433,12 @@ def test(settings, data, weights):
                             {'withgid': True,
                              'withtime': True})
 
-    nest.SetStatus(poisson_layer, {'rate': settings['noise_freq']})
-
     nest.Connect(spike_generators_1, parrot_layer,
                  'one_to_one', syn_spec='static_synapse')
+
     if settings['test_with_noise']:
+        poisson_layer = nest.Create('poisson_generator', settings['n_input'])
+        nest.SetStatus(poisson_layer, {'rate': settings['noise_freq']})
         nest.Connect(poisson_layer, parrot_layer,
                     'one_to_one', syn_spec='static_synapse')
 
@@ -606,7 +612,7 @@ def test_network_acc_cv(data, settings):
         settings['random_state'] = rnd_state
         accuracy, ouput_list = test_network_acc(data, settings)
         acc.append(accuracy)
-    return np.mean(acc), np.std(acc)
+    return np.mean(acc), np.std(acc), acc
 
 
 def test_parameter(data, parameters, settings, n_times):
