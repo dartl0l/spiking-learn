@@ -53,20 +53,20 @@ def set_teacher_input(x, teach_input, settings):  # Network
                                  'amplitude_values': ampl_values})
 
     
-def count_acc(full_latency, data_test):
+def count_acc(latency, data):
     acc = 0
     output_list = []
 
-    for i in xrange(len(data_test['input'])):
-        tmp_list = [full_latency[tmp_latency][i]['latency'][:1] for tmp_latency in full_latency]
+    for i in xrange(len(data['input'])):
+        tmp_list = [latency[neuron_number][i]['latency'][:1] for neuron_number in latency]
 
         min_index, min_value = min(enumerate(tmp_list),
                                    key=operator.itemgetter(1))
-        if min_index == data_test['class'][i]:
+        if min_index == data['class'][i]:
             acc += 1
-        output_list.append([tmp_list, data_test['class'][i], min_index])
+        output_list.append([tmp_list, data['class'][i], min_index])
 
-    acc = float(acc) / len(data_test['input'])
+    acc = float(acc) / len(data['input'])
     # print acc
     return acc, output_list
 
@@ -90,7 +90,6 @@ def create_full_latency(latency, neuron_out_ids):
             tmp_dicts.append(tmp_dict)
     
         for lat, sender in zip(latencies['latency'], latencies['senders']):
-        
             for num, neuron_id in enumerate(neuron_out_ids):
                 if sender == [neuron_id]: 
                     tmp_dicts[num]['latency'] = [lat]
@@ -99,6 +98,24 @@ def create_full_latency(latency, neuron_out_ids):
             full_latency[latency_key].append(tmp_dict)
 
     return full_latency
+
+
+def fitness_func(latency, data):
+    fit_list = []
+
+    for i in xrange(len(data['input'])):
+        tmp_list = [latency[neuron_number][i]['latency'][:1] for neuron_number in latency]
+
+        latency_of_desired_neuron = tmp_list.pop(data['class'][i])
+
+        fit = 0
+        for lat in tmp_list:
+            fit += (latency_of_desired_neuron - lat)
+        fit /= len(tmp_list)
+
+        fit_list.append(fit)
+
+    return np.mean(fit_list)            
 
 
 def get_latency(t, h_time, h, max_time):
@@ -190,6 +207,130 @@ def prepare_data_iris(data, settings):
 
 
 def prepare_data_cancer(data, settings):
+    data_train_0 = {}
+    data_test_0 = {}
+
+    data_train_1 = {}
+    data_test_1 = {}
+
+    data_train = {}
+    data_test = {}
+    
+    data_out = {'train': {},
+                'test': {}}
+
+    input_train, input_test, y_train, y_test = train_test_split(data['input'], data['class'],
+                                                                shuffle=False,
+                                                                test_size=settings['test_size'],
+                                                                random_state=settings['random_state'])
+    data_train_0['input'] = input_train[y_train == 0]
+    data_train_0['class'] = y_train[y_train == 0]
+
+    data_test_0['input'] = input_test[y_test == 0]
+    data_test_0['class'] = y_test[y_test == 0]
+
+    data_train_1['input'] = input_train[y_train == 1]
+    data_train_1['class'] = y_train[y_train == 1]
+
+    data_test_1['input'] = input_test[y_test == 1]
+    data_test_1['class'] = y_test[y_test == 1]
+
+    data_test['input'] = input_test
+    data_test['class'] = y_test
+    
+    data_train['input'] = input_train
+    data_train['class'] = y_train
+    
+    data_out['train']['class_0'] = data_train_0
+    data_out['train']['class_1'] = data_train_1
+    
+    data_out['test']['class_0'] = data_test_0
+    data_out['test']['class_1'] = data_test_1
+    
+    data_out['test']['full'] = data_test
+    data_out['train']['full'] = data_train
+    
+    return data_out
+
+
+def prepare_data_iris_genetic(data, settings):
+    data_train_0 = {}
+    data_test_0 = {}
+
+    data_train_1 = {}
+    data_test_1 = {}
+
+    data_train_2 = {}
+    data_test_2 = {}
+
+    data_train = {}
+    data_test = {}
+    
+    data_out = {'train': {},
+                'test': {}}
+
+    mask_0 = data['class'] == 0
+    mask_1 = data['class'] == 1
+    mask_2 = data['class'] == 2
+
+    # print data['class'][mask_0]
+    # print data['class'][mask_1]
+    # print data['class'][mask_2]
+
+    input_train_0, input_test_0, y_train_0, y_test_0 = train_test_split(data['input'][mask_0],
+                                                                        data['class'][mask_0],
+                                                                        test_size=settings['test_size'],
+                                                                        random_state=settings['random_state'])
+
+    data_train_0['input'] = input_train_0
+    data_train_0['class'] = y_train_0
+
+    data_test_0['input'] = input_test_0
+    data_test_0['class'] = y_test_0
+
+    input_train_1, input_test_1, y_train_1, y_test_1 = train_test_split(data['input'][mask_1],
+                                                                        data['class'][mask_1],
+                                                                        test_size=settings['test_size'],
+                                                                        random_state=settings['random_state'])
+
+    data_train_1['input'] = input_train_1
+    data_train_1['class'] = y_train_1
+
+    data_test_1['input'] = input_test_1
+    data_test_1['class'] = y_test_1
+
+    input_train_2, input_test_2, y_train_2, y_test_2 = train_test_split(data['input'][mask_2],
+                                                                        data['class'][mask_2],
+                                                                        test_size=settings['test_size'],
+                                                                        random_state=settings['random_state'])
+
+    data_train_2['input'] = input_train_2
+    data_train_2['class'] = y_train_2
+
+    data_test_2['input'] = input_test_2
+    data_test_2['class'] = y_test_2
+
+    data_test['input'] = np.concatenate((input_test_0, input_test_1, input_test_2))
+    data_test['class'] = np.concatenate((y_test_0, y_test_1, y_test_2))
+    
+    data_train['input'] = np.concatenate((input_train_0, input_train_1, input_train_2))
+    data_train['class'] = np.concatenate((y_train_0, y_train_1, y_train_2))
+    
+    data_out['train']['class_0'] = data_train_0
+    data_out['train']['class_1'] = data_train_1
+    data_out['train']['class_2'] = data_train_2
+    
+    data_out['test']['class_0'] = data_test_0
+    data_out['test']['class_1'] = data_test_1
+    data_out['test']['class_2'] = data_test_2
+    
+    data_out['test']['full'] = data_test
+    data_out['train']['full'] = data_train
+    
+    return data_out
+
+
+def prepare_data_cancer_genetic(data, settings):
     data_train_0 = {}
     data_test_0 = {}
 
@@ -601,9 +742,38 @@ def test_network_acc(data, settings):
 
     latency_test, devices_test = test(settings, data_test, weights)
 
-    full_latency = create_full_latency(latency_test, settings['neuron_out_ids'])
+    full_latency_test = create_full_latency(latency_test, settings['neuron_out_ids'])
 
-    acc, output_list = count_acc(full_latency, data_test)
+    acc, output_list = count_acc(full_latency_test, data_test)
+    return acc, output_list
+
+
+def test_network_acc_cv_for_genetic(data, settings):
+    acc = []
+    for rnd_state in settings['random_states']:
+        settings['random_state'] = rnd_state
+        accuracy, ouput_list = test_network_acc_for_genetic(data, settings)
+        acc.append(accuracy)
+    return np.mean(acc), np.std(acc), acc
+
+
+def test_network_acc_for_genetic(data, settings):
+    data_out = {}
+    if settings['dataset'] == 'cancer':
+        data_out = prepare_data_cancer_genetic(data, settings)
+    elif settings['dataset'] == 'iris':
+        data_out = prepare_data_iris_genetic(data, settings)
+
+    data_train = data_out['train']['full']
+    data_test = data_out['test']['full']
+
+    weights, latency_train, devices_train, weights_history = train(settings, data_train)
+
+    latency_test, devices_test = test(settings, data_test, weights)
+
+    full_latency_test = create_full_latency(latency_test, settings['neuron_out_ids'])
+
+    acc, output_list = count_acc(full_latency_test, data_test)
     return acc, output_list
 
 
@@ -614,7 +784,6 @@ def test_network_acc_cv(data, settings):
         accuracy, ouput_list = test_network_acc(data, settings)
         acc.append(accuracy)
     return np.mean(acc), np.std(acc), acc
-
 
 def test_parameter(data, parameters, settings, n_times):
     result = {'accuracy': [],
