@@ -17,7 +17,7 @@ class AndrewsCurve:
         for th in self.theta():
             j = 1
             f = self._vector[0] / np.sqrt(2)
-            for i in xrange(1, len(self._vector), 2):
+            for i in range(1, len(self._vector), 2):
                 f += self._vector[i] * np.sin(j * th)
                 if i + 1 <= len(self._vector[1::2]):
                     f += self._vector[i + 1] * np.cos(j * th)

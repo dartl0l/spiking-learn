@@ -17,7 +17,7 @@ class Plotter:
 
         h_mu = max_x / (n_fields - 1)
         mu = 0
-        for _ in xrange(n_fields):
+        for _ in range(n_fields):
             xx = np.arange(0, max_x, 0.01)
             yy = [get_gaussian(j, sigma2, mu) for j in xx]
             pl.plot(xx, yy)
@@ -53,7 +53,7 @@ class Plotter:
         all_plot = []
         fig = pl.figure()
 
-        for i in xrange(0, len(weights_history), h):
+        for i in range(0, len(weights_history), h):
             weights = weights_history[i]
             all_plot.append(plot_weights_for_anim(weights['layer_0']))
 

@@ -60,7 +60,7 @@ class Converter:
 
             tmp_dict = dict.fromkeys(np.arange(0, int(rad / h)))
 
-            for i in xrange(int(rad / h)):
+            for i in range(int(rad / h)):
                 tmp_dict[i] = np.round([(curve[i] + min_time) * 20], 1)
 
             pattern['input'] = tmp_dict
@@ -82,7 +82,7 @@ class Converter:
             for x in xx:
                 time = x * pattern_time
 
-                for _ in xrange(mult):
+                for _ in range(mult):
                     tmp_dict[i] = np.sort(np.random.uniform(0, int(time), int(time / h)) + 0.1)
                     # get_poisson_train(time, firing_rate, h)
                     # tmp_dict[i] = get_poisson_train(time, firing_rate, h)
@@ -112,7 +112,7 @@ class Converter:
             tmp_fields = 0
             for x in xx:
                 mu = 0
-                for i in xrange(n_fields):
+                for i in range(n_fields):
                     time = np.round(get_gaussian(x, sigma2, mu), k_round)
                     # time = get_gaussian(x, sigma2, mu)
                     if time > 0.09:
@@ -152,7 +152,7 @@ class Converter:
             for x in xx:
                 time = x * pattern_time
 
-                for _ in xrange(mult):
+                for _ in range(mult):
                     tmp_dict[i] = get_poisson_train(time, firing_rate, h)
                     i += 1
 

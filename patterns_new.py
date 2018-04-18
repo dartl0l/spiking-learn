@@ -57,7 +57,7 @@ def count_acc(latency, data):
     acc = 0
     output_list = []
 
-    for i in xrange(len(data['input'])):
+    for i in range(len(data['input'])):
         tmp_list = [latency[neuron_number][i]['latency'][:1] for neuron_number in latency]
 
         min_index, min_value = min(enumerate(tmp_list),
@@ -103,7 +103,7 @@ def create_full_latency(latency, neuron_out_ids):
 def fitness_func(latency, data):
     fit_list = []
 
-    for i in xrange(len(data['input'])):
+    for i in range(len(data['input'])):
         tmp_list = [latency[neuron_number][i]['latency'][:1] for neuron_number in latency]
 
         latency_of_desired_neuron = tmp_list.pop(data['class'][i])
@@ -256,18 +256,23 @@ def prepare_data_cancer(data, settings):
 def prepare_data_iris_genetic(data, settings):
     data_train_0 = {}
     data_test_0 = {}
+    data_valid_0 = {}
 
     data_train_1 = {}
     data_test_1 = {}
+    data_valid_1 = {}
 
     data_train_2 = {}
     data_test_2 = {}
+    data_valid_2 = {}
 
     data_train = {}
     data_test = {}
+    data_valid = {}
     
     data_out = {'train': {},
-                'test': {}}
+                'test': {},
+                'valid': {}}
 
     mask_0 = data['class'] == 0
     mask_1 = data['class'] == 1
@@ -282,16 +287,29 @@ def prepare_data_iris_genetic(data, settings):
                                                                         test_size=settings['test_size'],
                                                                         random_state=settings['random_state'])
 
+    input_train_0, input_valid_0, y_train_0, y_valid_0 = train_test_split(input_train_0,
+                                                                          y_train_0,
+                                                                          test_size=settings['valid_size'],
+                                                                          random_state=settings['random_state'])
+
     data_train_0['input'] = input_train_0
     data_train_0['class'] = y_train_0
 
     data_test_0['input'] = input_test_0
     data_test_0['class'] = y_test_0
 
+    data_valid_0['input'] = input_valid_0
+    data_valid_0['class'] = y_valid_0
+
     input_train_1, input_test_1, y_train_1, y_test_1 = train_test_split(data['input'][mask_1],
                                                                         data['class'][mask_1],
                                                                         test_size=settings['test_size'],
                                                                         random_state=settings['random_state'])
+
+    input_train_1, input_valid_1, y_train_1, y_valid_1 = train_test_split(input_train_1,
+                                                                          y_train_1,
+                                                                          test_size=settings['valid_size'],
+                                                                          random_state=settings['random_state'])
 
     data_train_1['input'] = input_train_1
     data_train_1['class'] = y_train_1
@@ -299,10 +317,18 @@ def prepare_data_iris_genetic(data, settings):
     data_test_1['input'] = input_test_1
     data_test_1['class'] = y_test_1
 
+    data_valid_1['input'] = input_valid_1
+    data_valid_1['class'] = y_valid_1
+
     input_train_2, input_test_2, y_train_2, y_test_2 = train_test_split(data['input'][mask_2],
                                                                         data['class'][mask_2],
                                                                         test_size=settings['test_size'],
                                                                         random_state=settings['random_state'])
+
+    input_train_2, input_valid_2, y_train_2, y_valid_2 = train_test_split(input_train_2,
+                                                                          y_train_2,
+                                                                          test_size=settings['valid_size'],
+                                                                          random_state=settings['random_state'])
 
     data_train_2['input'] = input_train_2
     data_train_2['class'] = y_train_2
@@ -310,11 +336,17 @@ def prepare_data_iris_genetic(data, settings):
     data_test_2['input'] = input_test_2
     data_test_2['class'] = y_test_2
 
+    data_valid_1['input'] = input_valid_1
+    data_valid_1['class'] = y_valid_1
+
     data_test['input'] = np.concatenate((input_test_0, input_test_1, input_test_2))
     data_test['class'] = np.concatenate((y_test_0, y_test_1, y_test_2))
     
     data_train['input'] = np.concatenate((input_train_0, input_train_1, input_train_2))
     data_train['class'] = np.concatenate((y_train_0, y_train_1, y_train_2))
+
+    data_valid['input'] = np.concatenate((input_valid_0, input_valid_1, input_valid_2))
+    data_valid['class'] = np.concatenate((y_valid_0, y_valid_1, y_valid_2))
     
     data_out['train']['class_0'] = data_train_0
     data_out['train']['class_1'] = data_train_1
@@ -323,9 +355,14 @@ def prepare_data_iris_genetic(data, settings):
     data_out['test']['class_0'] = data_test_0
     data_out['test']['class_1'] = data_test_1
     data_out['test']['class_2'] = data_test_2
+
+    data_out['valid']['class_0'] = data_valid_0
+    data_out['valid']['class_1'] = data_valid_1
+    data_out['valid']['class_2'] = data_valid_2
     
     data_out['test']['full'] = data_test
     data_out['train']['full'] = data_train
+    data_out['valid']['full'] = data_valid
     
     return data_out
 
@@ -341,7 +378,8 @@ def prepare_data_cancer_genetic(data, settings):
     data_test = {}
     
     data_out = {'train': {},
-                'test': {}}
+                'test': {},
+                'valid': {}}
 
     input_train, input_test, y_train, y_test = train_test_split(data['input'], data['class'],
                                                                 shuffle=False,
@@ -750,11 +788,13 @@ def test_network_acc(data, settings):
 
 def test_network_acc_cv_for_genetic(data, settings):
     acc = []
+    fit = []
     for rnd_state in settings['random_states']:
         settings['random_state'] = rnd_state
-        accuracy, ouput_list = test_network_acc_for_genetic(data, settings)
+        accuracy, ouput_list, fitness = test_network_acc_for_genetic(data, settings)
         acc.append(accuracy)
-    return np.mean(acc), np.std(acc), acc
+        fit.append(fitness)
+    return np.mean(acc), np.std(acc), acc, fit
 
 
 def test_network_acc_for_genetic(data, settings):
@@ -766,15 +806,22 @@ def test_network_acc_for_genetic(data, settings):
 
     data_train = data_out['train']['full']
     data_test = data_out['test']['full']
+    data_valid = data_out['valid']['full']
 
     weights, latency_train, devices_train, weights_history = train(settings, data_train)
+
+    latency_valid, devices_valid = test(settings, data_valid, weights)
+
+    full_latency_valid = create_full_latency(latency_valid, settings['neuron_out_ids'])
+
+    fitness = fitness_func(full_latency_valid, data_valid)
 
     latency_test, devices_test = test(settings, data_test, weights)
 
     full_latency_test = create_full_latency(latency_test, settings['neuron_out_ids'])
 
     acc, output_list = count_acc(full_latency_test, data_test)
-    return acc, output_list
+    return acc, output_list, fitness
 
 
 def test_network_acc_cv(data, settings):
@@ -792,7 +839,7 @@ def test_parameter(data, parameters, settings, n_times):
               'parameter_name': [],
               }
     settings_copy = settings
-    for _ in xrange(n_times):
+    for _ in range(n_times):
         for key in parameters.keys():
             if isinstance(parameters[key], dict):
                 for key_key in parameters[key].keys():
@@ -819,7 +866,7 @@ def test_parameter_network(data, parameters, settings, n_times):
               'parameter_name': [],
               }
     settings_copy = settings
-    for _ in xrange(n_times):
+    for _ in range(n_times):
         for key in parameters.keys():
             if isinstance(parameters[key], dict):
                 for key_key in parameters[key].keys():
