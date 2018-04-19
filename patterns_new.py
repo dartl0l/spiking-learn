@@ -3,7 +3,6 @@ import nest
 
 import numpy as np
 import matplotlib.patches as mpatches
-
 import operator
 
 from sys import path
@@ -85,7 +84,7 @@ def create_full_latency(latency, neuron_out_ids):
         tmp_dicts = []
         
         for _ in range(n_neurons):
-            tmp_dict = {'latency': ['inf'],
+            tmp_dict = {'latency': [float('Inf')],
                         'class': latencies['class']}
             tmp_dicts.append(tmp_dict)
     
@@ -100,22 +99,36 @@ def create_full_latency(latency, neuron_out_ids):
     return full_latency
 
 
-def fitness_func(latency, data):
+def fitness_func_time(latency, data):
     fit_list = []
 
     for i in range(len(data['input'])):
-        tmp_list = [latency[neuron_number][i]['latency'][:1] for neuron_number in latency]
-
+        tmp_list = [latency[neuron_number][i]['latency'][:1][0] for neuron_number in latency]
         latency_of_desired_neuron = tmp_list.pop(data['class'][i])
 
-        fit = 0
+        fit = latency_of_desired_neuron
+        fit_list.append(fit)
+
+    return np.mean(fit_list)
+
+
+def fitness_func_sigma(latency, data):
+    def sigmoid(x, alpha):
+        return 1 / (1 + np.exp(-2 * alpha * x))
+
+    fit_list = []
+
+    for i in range(len(data['input'])):
+        tmp_list = [latency[neuron_number][i]['latency'][:1][0] for neuron_number in latency]
+        latency_of_desired_neuron = tmp_list.pop(data['class'][i])
+
+        fit = 1
         for lat in tmp_list:
-            fit += (latency_of_desired_neuron - lat)
-        fit /= len(tmp_list)
+            fit *= sigmoid(lat - latency_of_desired_neuron, 1)
 
         fit_list.append(fit)
 
-    return np.mean(fit_list)            
+    return np.mean(fit_list)
 
 
 def get_latency(t, h_time, h, max_time):
@@ -794,7 +807,7 @@ def test_network_acc_cv_for_genetic(data, settings):
         accuracy, ouput_list, fitness = test_network_acc_for_genetic(data, settings)
         acc.append(accuracy)
         fit.append(fitness)
-    return np.mean(acc), np.std(acc), acc, fit
+    return np.mean(acc), np.std(acc), acc, np.mean(fit), fit
 
 
 def test_network_acc_for_genetic(data, settings):
@@ -814,7 +827,13 @@ def test_network_acc_for_genetic(data, settings):
 
     full_latency_valid = create_full_latency(latency_valid, settings['neuron_out_ids'])
 
-    fitness = fitness_func(full_latency_valid, data_valid)
+    fitness = 0
+    if settings['use_fitness_func'] and settings['fitness_func'] == 'sigma':
+        fitness = fitness_func_sigma(full_latency_valid, data_valid)
+    elif settings['use_fitness_func'] and settings['fitness_func'] == 'time':
+        fitness = fitness_func_time(full_latency_valid, data_valid)
+    elif settings['use_fitness_func'] and settings['fitness_func'] == 'acc':
+        fitness = count_acc(full_latency_valid, data_valid)
 
     latency_test, devices_test = test(settings, data_test, weights)
 
@@ -831,6 +850,7 @@ def test_network_acc_cv(data, settings):
         accuracy, ouput_list = test_network_acc(data, settings)
         acc.append(accuracy)
     return np.mean(acc), np.std(acc), acc
+
 
 def test_parameter(data, parameters, settings, n_times):
     result = {'accuracy': [],
