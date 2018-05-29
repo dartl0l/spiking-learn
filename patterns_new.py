@@ -12,8 +12,8 @@ from sklearn.model_selection import train_test_split
 
 # path.append("./")
 
-import andrews_curve
-import converter
+#import andrews_curve
+#import converter
 
 def set_spike_in_generators(data, spike_generators, start_time, end_time, h_time, start_h):
     sp = []
@@ -106,7 +106,7 @@ def fitness_func_time(latency, data):
         tmp_list = [latency[neuron_number][i]['latency'][:1][0] for neuron_number in latency]
         latency_of_desired_neuron = tmp_list.pop(data['class'][i])
 
-        fit = latency_of_desired_neuron
+        fit = -1 * latency_of_desired_neuron
         fit_list.append(fit)
 
     return np.mean(fit_list)
@@ -791,23 +791,46 @@ def test_network_acc(data, settings):
 
     weights, latency_train, devices_train, weights_history = train(settings, data_train)
 
+    latency_test_train, devices_test_train = test(settings, data_train, weights)
+
+    full_latency_test_train = create_full_latency(latency_test_train, settings['neuron_out_ids'])
+
+    acc_train, output_list_train = count_acc(full_latency_test_train, data_train)
+
     latency_test, devices_test = test(settings, data_test, weights)
 
     full_latency_test = create_full_latency(latency_test, settings['neuron_out_ids'])
 
-    acc, output_list = count_acc(full_latency_test, data_test)
-    return acc, output_list
+    acc_test, output_list_test = count_acc(full_latency_test, data_test)
+
+    out_dict = {
+                'acc_test': acc_test,
+                'acc_train': acc_train,
+                'output_list_test': output_list_test,
+                'output_list_train': output_list_train,
+                }
+    return out_dict
 
 
-def test_network_acc_cv_for_genetic(data, settings):
-    acc = []
-    fit = []
+def test_network_acc_cv(data, settings):
+    acc_test = []
+    acc_train = []
     for rnd_state in settings['random_states']:
         settings['random_state'] = rnd_state
-        accuracy, ouput_list, fitness = test_network_acc_for_genetic(data, settings)
-        acc.append(accuracy)
-        fit.append(fitness)
-    return np.mean(acc), np.std(acc), acc, np.mean(fit), fit
+        result_dict = test_network_acc(data, settings)
+        acc_test.append(result_dict['acc_test'])
+        acc_train.append(result_dict['acc_train'])
+
+    out_dict = {
+                'accs_test': acc_test,
+                'accs_test_mean': np.mean(acc_test),
+                'accs_test_std': np.std(acc_test),
+                'accs_train': acc_train,
+                'accs_train_mean': np.mean(acc_train),
+                'accs_train_std': np.std(acc_train),
+                }
+    # return np.mean(acc), np.std(acc), acc
+    return out_dict['accs_test_mean'], out_dict['accs_test_std'], out_dict['accs_test'], out_dict
 
 
 def test_network_acc_for_genetic(data, settings):
@@ -834,22 +857,54 @@ def test_network_acc_for_genetic(data, settings):
         fitness = fitness_func_time(full_latency_valid, data_valid)
     elif settings['use_fitness_func'] and settings['fitness_func'] == 'acc':
         fitness = count_acc(full_latency_valid, data_valid)
+    elif settings['use_fitness_func'] and settings['fitness_func'] == 'weights':
+        # Get rid of these nasty nested dictionaries
+        final_weights = list(list(weights.values())[0].values())
+        np.savetxt('final_weights.txt', final_weights)
+        desired_weights = np.loadtxt('../desired_weights/final_weights.txt')
+        fitness = -1 * np.linalg.norm(np.subtract(final_weights, desired_weights))
+
+    latency_test_train, devices_test_train = test(settings, data_train, weights)
+    full_latency_test_train = create_full_latency(latency_test_train, settings['neuron_out_ids'])
+    acc_train, output_list_train = count_acc(full_latency_test_train, data_train)
 
     latency_test, devices_test = test(settings, data_test, weights)
-
     full_latency_test = create_full_latency(latency_test, settings['neuron_out_ids'])
+    acc_test, output_list_test = count_acc(full_latency_test, data_test)
 
-    acc, output_list = count_acc(full_latency_test, data_test)
-    return acc, output_list, fitness
+    out_dict = {
+                'fitness': fitness,
+                'acc_test': acc_test,
+                'acc_train': acc_train,
+                'output_list_test': output_list_test,
+                'output_list_train': output_list_train,
+                }
+    
+    return out_dict
 
 
-def test_network_acc_cv(data, settings):
-    acc = []
+def test_network_acc_cv_for_genetic(data, settings):
+    acc_test = []
+    acc_train = []
+    fit = []
     for rnd_state in settings['random_states']:
         settings['random_state'] = rnd_state
-        accuracy, ouput_list = test_network_acc(data, settings)
-        acc.append(accuracy)
-    return np.mean(acc), np.std(acc), acc
+        # accuracy, ouput_list, fitness = test_network_acc_for_genetic(data, settings)
+        result_dict = test_network_acc_for_genetic(data, settings)
+        acc_test.append(result_dict['acc_test'])
+        acc_train.append(result_dict['acc_train'])
+        fit.append(result_dict['fitness'])
+    out_dict = {
+                'fitness': fit,
+                'fitness_mean': np.mean(fit),
+                'accs_test': acc_test,
+                'accs_test_mean': np.mean(acc_test),
+                'accs_test_std': np.std(acc_test),
+                'accs_train': acc_train,
+                'accs_train_mean': np.mean(acc_train),
+                'accs_train_std': np.std(acc_train),
+                }
+    return out_dict
 
 
 def test_parameter(data, parameters, settings, n_times):
