@@ -8,7 +8,7 @@ import operator
 from sys import path
 from sklearn import preprocessing
 from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 
 # path.append("./")
 
@@ -266,7 +266,7 @@ def prepare_data_cancer(data, settings):
     return data_out
 
 
-def prepare_data_iris_genetic(data, settings):
+def prepare_data_iris_genetic_old(data, settings):
     data_train_0 = {}
     data_test_0 = {}
     data_valid_0 = {}
@@ -380,7 +380,7 @@ def prepare_data_iris_genetic(data, settings):
     return data_out
 
 
-def prepare_data_cancer_genetic(data, settings):
+def prepare_data_cancer_genetic_old(data, settings):
     data_train_0 = {}
     data_test_0 = {}
 
@@ -427,6 +427,36 @@ def prepare_data_cancer_genetic(data, settings):
     
     return data_out
 
+
+def prepare_data_genetic(data, train_index, test_index, settings):
+    data_train = {}
+    data_test = {}
+    data_valid = {}
+    
+    data_out = {'train': {},
+                'test': {},
+                'valid': {}}
+
+    input_train, input_valid, y_train, y_valid = train_test_split(data['input'][train_index],
+                                                                  data['class'][train_index],
+                                                                  test_size=settings['valid_size'],
+                                                                  random_state=42)
+
+
+    data_train['input'] = input_train
+    data_train['class'] = y_train
+
+    data_valid['input'] = input_valid
+    data_valid['class'] = y_valid
+
+    data_test['input'] = data['input'][test_index]
+    data_test['class'] = data['class'][test_index]
+
+    data_out['test']['full'] = data_test
+    data_out['train']['full'] = data_train
+    data_out['valid']['full'] = data_valid
+
+    return data_out
 
 def train(settings, data):
     nest.ResetKernel()
@@ -834,15 +864,15 @@ def test_network_acc_cv(data, settings):
 
 
 def test_network_acc_for_genetic(data, settings):
-    data_out = {}
-    if settings['dataset'] == 'cancer':
-        data_out = prepare_data_cancer_genetic(data, settings)
-    elif settings['dataset'] == 'iris':
-        data_out = prepare_data_iris_genetic(data, settings)
+#     data_out = {}
+#     if settings['dataset'] == 'cancer':
+#         data_out = prepare_data_cancer_genetic(data, settings)
+#     elif settings['dataset'] == 'iris':
+#         data_out = prepare_data_iris_genetic(data, settings)
 
-    data_train = data_out['train']['full']
-    data_test = data_out['test']['full']
-    data_valid = data_out['valid']['full']
+    data_train = data['train']['full']
+    data_test = data['test']['full']
+    data_valid = data['valid']['full']
 
     weights, latency_train, devices_train, weights_history = train(settings, data_train)
 
@@ -887,13 +917,24 @@ def test_network_acc_cv_for_genetic(data, settings):
     acc_test = []
     acc_train = []
     fit = []
-    for rnd_state in settings['random_states']:
-        settings['random_state'] = rnd_state
-        # accuracy, ouput_list, fitness = test_network_acc_for_genetic(data, settings)
+    skf = StratifiedKFold(n_splits=settings['n_splits'])
+    
+#     for rnd_state in settings['random_states']:
+#         settings['random_state'] = rnd_state
+#         # accuracy, ouput_list, fitness = test_network_acc_for_genetic(data, settings)
+#         result_dict = test_network_acc_for_genetic(data, settings)
+#         acc_test.append(result_dict['acc_test'])
+#         acc_train.append(result_dict['acc_train'])
+#         fit.append(result_dict['fitness'])
+
+    for train_index, test_index in skf.split(data['input'], data['class']):
+
+        
         result_dict = test_network_acc_for_genetic(data, settings)
         acc_test.append(result_dict['acc_test'])
         acc_train.append(result_dict['acc_train'])
         fit.append(result_dict['fitness'])
+
     out_dict = {
                 'fitness': fit,
                 'fitness_mean': np.mean(fit),
