@@ -928,8 +928,7 @@ def test_network_acc_cv_for_genetic(data, settings):
 #         fit.append(result_dict['fitness'])
 
     for train_index, test_index in skf.split(data['input'], data['class']):
-
-        
+        data_fold = prepare_data_genetic(data, train_index, test_index, settings)
         result_dict = test_network_acc_for_genetic(data, settings)
         acc_test.append(result_dict['acc_test'])
         acc_train.append(result_dict['acc_train'])
