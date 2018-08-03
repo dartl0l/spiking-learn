@@ -109,7 +109,10 @@ def fitness_func_time(latency, data):
         fit = -1 * latency_of_desired_neuron
         fit_list.append(fit)
 
-    return np.mean(fit_list)
+    fitness = np.mean(fit_list)
+    if np.isnan(fitness):
+        fitness = 0
+    return fitness
 
 
 def fitness_func_sigma(latency, data):
@@ -128,7 +131,10 @@ def fitness_func_sigma(latency, data):
 
         fit_list.append(fit)
 
-    return np.mean(fit_list)
+    fitness = np.mean(fit_list)
+    if np.isnan(fitness):
+        fitness = 0
+    return fitness
 
 
 def get_latency(t, h_time, h, max_time):
@@ -917,7 +923,7 @@ def test_network_acc_for_genetic(data, settings):
     elif settings['use_fitness_func'] and settings['fitness_func'] == 'time':
         fitness = fitness_func_time(full_latency_valid, data_valid)
     elif settings['use_fitness_func'] and settings['fitness_func'] == 'acc':
-        fitness = count_acc(full_latency_valid, data_valid)
+        fitness, out = count_acc(full_latency_valid, data_valid)
     elif settings['use_fitness_func'] and settings['fitness_func'] == 'weights':
         # Get rid of these nasty nested dictionaries
         final_weights = list(list(weights.values())[0].values())
@@ -957,6 +963,7 @@ def test_network_acc_cv_for_genetic(data, settings):
         acc_train.append(result_dict['acc_train'])
         fit.append(result_dict['fitness'])
 
+    print(fit)
     out_dict = {
                 'fitness': fit,
                 'fitness_mean': np.mean(fit),
