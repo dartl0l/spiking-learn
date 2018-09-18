@@ -127,7 +127,7 @@ def fitness_func_sigma(latency, data):
 
         fit = 1
         for lat in tmp_list:
-            fit *= sigmoid(lat - latency_of_desired_neuron, 1)
+            fit *= sigmoid(lat - latency_of_desired_neuron, 0.1)
 
         fit_list.append(fit)
 
@@ -584,10 +584,12 @@ def train(settings, data):
     nest.Simulate(settings['start_delta'])
     d_time = settings['start_delta']
     
-    full_time = settings['epochs'] * settings['h_time'] + settings['start_delta']
+    full_time = settings['epochs'] * len(data['input']) * settings['h_time'] + settings['start_delta']
     
+    early_stop = False
 
-    while d_time < full_time:
+    # while d_time < full_time:
+    while not early_stop:
         set_spike_in_generators(data['input'][i], spike_generators_1,
                                 d_time, d_time + settings['h_time'],
                                 settings['h_time'], settings['h'])
@@ -649,6 +651,10 @@ def train(settings, data):
             norms.append(np.linalg.norm(tmp_weight))
         weights_history.append(tmp_weights)
         norm_history.append(np.linalg.norm(norms))
+
+        if len(norm_history) > 5 * len(data['input']):
+            early_stop = np.std(norm_history[-5 * len(data['input']):]) < 0.025
+        early_stop = d_time > full_time or early_stop
 
     weights = {'layer_0': {}}
 

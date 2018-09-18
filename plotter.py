@@ -40,14 +40,28 @@ class Plotter:
         else:
             return pl.plot()
 
+
+    def plot_norm(self, norm_history, show=True):
+        pl.clf()
+        pl.title('Weight norm')
+        # norm_history = np.array(norm_history).T.tolist()
+        # print(norm_history)
+        pl.plot(list(range(len(norm_history))),
+                norm_history, '-')
+        # pl.legend()
+        if show:
+            pl.show()
+        else:           
+            return pl.plot()
+
     def plot_norms(self, norm_history, show=True):
         pl.clf()
         pl.title('Weight norms')
         colors = ['-r', '-g', '-b', '-y']
-        norm_history = np.array(norm_history).T.tolist()
+        # norm_history = np.array(norm_history).T.tolist()
         # print(norm_history)
         for i, norms in enumerate(norm_history):
-            pl.plot(list(range(len(norms))),
+            pl.plot(list(range(len(norms.tolist()))),
                     norms, colors[i], label=str(i))
         pl.legend()
         if show:
