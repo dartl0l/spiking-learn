@@ -576,6 +576,8 @@ def train(settings, data):
     i = 0
     hi = 1
     
+    last_norms = []
+    norm_history = []
     output_latency = []
     weights_history = []
     
@@ -584,6 +586,7 @@ def train(settings, data):
     
     full_time = settings['epochs'] * settings['h_time'] + settings['start_delta']
     
+
     while d_time < full_time:
         set_spike_in_generators(data['input'][i], spike_generators_1,
                                 d_time, d_time + settings['h_time'],
@@ -634,6 +637,7 @@ def train(settings, data):
             
         tmp_weights = {'layer_0': {}}
         
+        norms = []
         for neuron_id in layer_1:
             tmp_weight = []
             for input_id in parrot_layer:
@@ -642,7 +646,9 @@ def train(settings, data):
                 weight_one = nest.GetStatus(conn, 'weight')
                 tmp_weight.append(weight_one[0])
             tmp_weights['layer_0'][neuron_id] = tmp_weight
+            norms.append(np.linalg.norm(tmp_weight))
         weights_history.append(tmp_weights)
+        norm_history.append(np.linalg.norm(norms))
 
     weights = {'layer_0': {}}
 
@@ -669,7 +675,7 @@ def train(settings, data):
                'spike_detector_2': spike_detector_2,
               }
 
-    return weights, output_latency, devices, weights_history
+    return weights, output_latency, devices, weights_history, norm_history
 
 
 def test(settings, data, weights):
@@ -800,7 +806,7 @@ def test_3_neuron_acc(data, settings):
 
     print("Class 0")
 
-    weights_0, latency_train_0, devices, weights_history = train(settings, data_train_0)
+    weights_0, latency_train_0, devices, weights_history, norm_history = train(settings, data_train_0)
     # plot_weights(weights_0['layer_0'])
     latency_0, devices_test = test(settings, data_test, weights_0)
     # plot_latencies(latency_0)
@@ -809,7 +815,7 @@ def test_3_neuron_acc(data, settings):
 
     print("Class 1")
 
-    weights_1, latency_train_1, devices, weights_history = train(settings, data_train_1)
+    weights_1, latency_train_1, devices, weights_history, norm_history = train(settings, data_train_1)
     # plot_weights(weights_1['layer_0'])
     latency_1, devices_test = test(settings, data_test, weights_1)
     # plot_latencies(latency_1)
@@ -818,7 +824,7 @@ def test_3_neuron_acc(data, settings):
 
     print("Class 2")
 
-    weights_2, latency_train_2, devices, weights_history = train(settings, data_train_2)
+    weights_2, latency_train_2, devices, weights_history, norm_history = train(settings, data_train_2)
     # plot_weights(weights_2['layer_0'])
     latency_2, devices_test = test(settings, data_test, weights_2)
     # plot_latencies(latency_2)
@@ -859,7 +865,7 @@ def test_network_acc(data, settings):
     data_train = data['train']['full']
     data_test = data['test']['full']
 
-    weights, latency_train, devices_train, weights_history = train(settings, data_train)
+    weights, latency_train, devices_train, weights_history, norm_history = train(settings, data_train)
 
     latency_test_train, devices_test_train = test(settings, data_train, weights)
 
@@ -911,7 +917,7 @@ def test_network_acc_for_genetic(data, settings):
     data_test = data['test']['full']
     data_valid = data['valid']['full']
 
-    weights, latency_train, devices_train, weights_history = train(settings, data_train)
+    weights, latency_train, devices_train, weights_history, norm_history = train(settings, data_train)
 
     latency_valid, devices_valid = test(settings, data_valid, weights)
 

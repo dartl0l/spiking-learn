@@ -32,12 +32,27 @@ class Plotter:
     def plot_weights(self, weights, show=True):
         pl.title('Weight distribution')
         for neuron in weights:
-            pl.plot(range(len(weights[neuron])),
+            pl.plot(list(range(len(weights[neuron]))),
                     weights[neuron], '.', label=str(neuron))
         pl.legend()
         if show:
             pl.show()
         else:
+            return pl.plot()
+
+    def plot_norms(self, norm_history, show=True):
+        pl.clf()
+        pl.title('Weight norms')
+        colors = ['-r', '-g', '-b', '-y']
+        norm_history = np.array(norm_history).T.tolist()
+        # print(norm_history)
+        for i, norms in enumerate(norm_history):
+            pl.plot(list(range(len(norms))),
+                    norms, colors[i], label=str(i))
+        pl.legend()
+        if show:
+            pl.show()
+        else:           
             return pl.plot()
 
     def plot_animated_weights(self, weights_history, h, save, show):
