@@ -148,312 +148,44 @@ def interconnect_layer(layer, syn_dict):
                 nest.Connect([neuron_1], [neuron_2], syn_spec=syn_dict)
 
 
-def prepare_data_iris(data, settings):
-    data_train_0 = {}
-    data_test_0 = {}
-
-    data_train_1 = {}
-    data_test_1 = {}
-
-    data_train_2 = {}
-    data_test_2 = {}
-
-    data_train = {}
-    data_test = {}
-    
-    data_out = {'train': {},
-                'test': {}}
-
-    mask_0 = data['class'] == 0
-    mask_1 = data['class'] == 1
-    mask_2 = data['class'] == 2
-
-    # print data['class'][mask_0]
-    # print data['class'][mask_1]
-    # print data['class'][mask_2]
-
-    input_train_0, input_test_0, y_train_0, y_test_0 = train_test_split(data['input'][mask_0],
-                                                                        data['class'][mask_0],
-                                                                        test_size=settings['test_size'],
-                                                                        random_state=settings['random_state'])
-
-    data_train_0['input'] = input_train_0
-    data_train_0['class'] = y_train_0
-
-    data_test_0['input'] = input_test_0
-    data_test_0['class'] = y_test_0
-
-    input_train_1, input_test_1, y_train_1, y_test_1 = train_test_split(data['input'][mask_1],
-                                                                        data['class'][mask_1],
-                                                                        test_size=settings['test_size'],
-                                                                        random_state=settings['random_state'])
-
-    data_train_1['input'] = input_train_1
-    data_train_1['class'] = y_train_1
-
-    data_test_1['input'] = input_test_1
-    data_test_1['class'] = y_test_1
-
-    input_train_2, input_test_2, y_train_2, y_test_2 = train_test_split(data['input'][mask_2],
-                                                                        data['class'][mask_2],
-                                                                        test_size=settings['test_size'],
-                                                                        random_state=settings['random_state'])
-
-    data_train_2['input'] = input_train_2
-    data_train_2['class'] = y_train_2
-
-    data_test_2['input'] = input_test_2
-    data_test_2['class'] = y_test_2
-
-    data_test['input'] = np.concatenate((input_test_0, input_test_1, input_test_2))
-    data_test['class'] = np.concatenate((y_test_0, y_test_1, y_test_2))
-    
-    data_train['input'] = np.concatenate((input_train_0, input_train_1, input_train_2))
-    data_train['class'] = np.concatenate((y_train_0, y_train_1, y_train_2))
-    
-    data_out['train']['class_0'] = data_train_0
-    data_out['train']['class_1'] = data_train_1
-    data_out['train']['class_2'] = data_train_2
-    
-    data_out['test']['class_0'] = data_test_0
-    data_out['test']['class_1'] = data_test_1
-    data_out['test']['class_2'] = data_test_2
-    
-    data_out['test']['full'] = data_test
-    data_out['train']['full'] = data_train
-    
-    return data_out
-
-
-def prepare_data_cancer(data, settings):
-    data_train_0 = {}
-    data_test_0 = {}
-
-    data_train_1 = {}
-    data_test_1 = {}
-
-    data_train = {}
-    data_test = {}
-    
-    data_out = {'train': {},
-                'test': {}}
-
-    input_train, input_test, y_train, y_test = train_test_split(data['input'], data['class'],
-                                                                shuffle=False,
-                                                                test_size=settings['test_size'],
-                                                                random_state=settings['random_state'])
-    data_train_0['input'] = input_train[y_train == 0]
-    data_train_0['class'] = y_train[y_train == 0]
-
-    data_test_0['input'] = input_test[y_test == 0]
-    data_test_0['class'] = y_test[y_test == 0]
-
-    data_train_1['input'] = input_train[y_train == 1]
-    data_train_1['class'] = y_train[y_train == 1]
-
-    data_test_1['input'] = input_test[y_test == 1]
-    data_test_1['class'] = y_test[y_test == 1]
-
-    data_test['input'] = input_test
-    data_test['class'] = y_test
-    
-    data_train['input'] = input_train
-    data_train['class'] = y_train
-    
-    data_out['train']['class_0'] = data_train_0
-    data_out['train']['class_1'] = data_train_1
-    
-    data_out['test']['class_0'] = data_test_0
-    data_out['test']['class_1'] = data_test_1
-    
-    data_out['test']['full'] = data_test
-    data_out['train']['full'] = data_train
-    
-    return data_out
-
-
-def prepare_data_iris_genetic_old(data, settings):
-    data_train_0 = {}
-    data_test_0 = {}
-    data_valid_0 = {}
-
-    data_train_1 = {}
-    data_test_1 = {}
-    data_valid_1 = {}
-
-    data_train_2 = {}
-    data_test_2 = {}
-    data_valid_2 = {}
-
-    data_train = {}
-    data_test = {}
-    data_valid = {}
-    
-    data_out = {'train': {},
-                'test': {},
-                'valid': {}}
-
-    mask_0 = data['class'] == 0
-    mask_1 = data['class'] == 1
-    mask_2 = data['class'] == 2
-
-    # print data['class'][mask_0]
-    # print data['class'][mask_1]
-    # print data['class'][mask_2]
-
-    input_train_0, input_test_0, y_train_0, y_test_0 = train_test_split(data['input'][mask_0],
-                                                                        data['class'][mask_0],
-                                                                        test_size=settings['test_size'],
-                                                                        random_state=settings['random_state'])
-
-    input_train_0, input_valid_0, y_train_0, y_valid_0 = train_test_split(input_train_0,
-                                                                          y_train_0,
-                                                                          test_size=settings['valid_size'],
-                                                                          random_state=settings['random_state'])
-
-    data_train_0['input'] = input_train_0
-    data_train_0['class'] = y_train_0
-
-    data_test_0['input'] = input_test_0
-    data_test_0['class'] = y_test_0
-
-    data_valid_0['input'] = input_valid_0
-    data_valid_0['class'] = y_valid_0
-
-    input_train_1, input_test_1, y_train_1, y_test_1 = train_test_split(data['input'][mask_1],
-                                                                        data['class'][mask_1],
-                                                                        test_size=settings['test_size'],
-                                                                        random_state=settings['random_state'])
-
-    input_train_1, input_valid_1, y_train_1, y_valid_1 = train_test_split(input_train_1,
-                                                                          y_train_1,
-                                                                          test_size=settings['valid_size'],
-                                                                          random_state=settings['random_state'])
-
-    data_train_1['input'] = input_train_1
-    data_train_1['class'] = y_train_1
-
-    data_test_1['input'] = input_test_1
-    data_test_1['class'] = y_test_1
-
-    data_valid_1['input'] = input_valid_1
-    data_valid_1['class'] = y_valid_1
-
-    input_train_2, input_test_2, y_train_2, y_test_2 = train_test_split(data['input'][mask_2],
-                                                                        data['class'][mask_2],
-                                                                        test_size=settings['test_size'],
-                                                                        random_state=settings['random_state'])
-
-    input_train_2, input_valid_2, y_train_2, y_valid_2 = train_test_split(input_train_2,
-                                                                          y_train_2,
-                                                                          test_size=settings['valid_size'],
-                                                                          random_state=settings['random_state'])
-
-    data_train_2['input'] = input_train_2
-    data_train_2['class'] = y_train_2
-
-    data_test_2['input'] = input_test_2
-    data_test_2['class'] = y_test_2
-
-    data_valid_1['input'] = input_valid_1
-    data_valid_1['class'] = y_valid_1
-
-    data_test['input'] = np.concatenate((input_test_0, input_test_1, input_test_2))
-    data_test['class'] = np.concatenate((y_test_0, y_test_1, y_test_2))
-    
-    data_train['input'] = np.concatenate((input_train_0, input_train_1, input_train_2))
-    data_train['class'] = np.concatenate((y_train_0, y_train_1, y_train_2))
-
-    data_valid['input'] = np.concatenate((input_valid_0, input_valid_1, input_valid_2))
-    data_valid['class'] = np.concatenate((y_valid_0, y_valid_1, y_valid_2))
-    
-    data_out['train']['class_0'] = data_train_0
-    data_out['train']['class_1'] = data_train_1
-    data_out['train']['class_2'] = data_train_2
-    
-    data_out['test']['class_0'] = data_test_0
-    data_out['test']['class_1'] = data_test_1
-    data_out['test']['class_2'] = data_test_2
-
-    data_out['valid']['class_0'] = data_valid_0
-    data_out['valid']['class_1'] = data_valid_1
-    data_out['valid']['class_2'] = data_valid_2
-    
-    data_out['test']['full'] = data_test
-    data_out['train']['full'] = data_train
-    data_out['valid']['full'] = data_valid
-    
-    return data_out
-
-
-def prepare_data_cancer_genetic_old(data, settings):
-    data_train_0 = {}
-    data_test_0 = {}
-
-    data_train_1 = {}
-    data_test_1 = {}
-
-    data_train = {}
-    data_test = {}
-    
-    data_out = {'train': {},
-                'test': {},
-                'valid': {}}
-
-    input_train, input_test, y_train, y_test = train_test_split(data['input'], data['class'],
-                                                                shuffle=False,
-                                                                test_size=settings['test_size'],
-                                                                random_state=settings['random_state'])
-    data_train_0['input'] = input_train[y_train == 0]
-    data_train_0['class'] = y_train[y_train == 0]
-
-    data_test_0['input'] = input_test[y_test == 0]
-    data_test_0['class'] = y_test[y_test == 0]
-
-    data_train_1['input'] = input_train[y_train == 1]
-    data_train_1['class'] = y_train[y_train == 1]
-
-    data_test_1['input'] = input_test[y_test == 1]
-    data_test_1['class'] = y_test[y_test == 1]
-
-    data_test['input'] = input_test
-    data_test['class'] = y_test
-    
-    data_train['input'] = input_train
-    data_train['class'] = y_train
-    
-    data_out['train']['class_0'] = data_train_0
-    data_out['train']['class_1'] = data_train_1
-    
-    data_out['test']['class_0'] = data_test_0
-    data_out['test']['class_1'] = data_test_1
-    
-    data_out['test']['full'] = data_test
-    data_out['train']['full'] = data_train
-    
-    return data_out
-
-
 def prepare_data(data, train_index, test_index, settings):
     data_train = {}
     data_test = {}
-    
-    data_out = {'train': {},
-                'test': {}}
+    data_out = {}
 
-    input_train, input_valid, y_train, y_valid = train_test_split(data['input'][train_index],
-                                                                  data['class'][train_index],
-                                                                  test_size=settings['valid_size'],
-                                                                  random_state=42)
+    if settings['use_valid']:
+        data_valid = {}
+        
+        data_out = {'train': {},
+                    'test': {},
+                    'valid': {}}
+        input_train, input_valid, y_train, y_valid = train_test_split(data['input'][train_index],
+                                                                      data['class'][train_index],
+                                                                      test_size=settings['valid_size'],
+                                                                      random_state=42)
+        data_train['input'] = input_train
+        data_train['class'] = y_train
 
-    data_train['input'] = data['input'][train_index]
-    data_train['class'] = data['class'][train_index]
+        data_valid['input'] = input_valid
+        data_valid['class'] = y_valid
 
-    data_test['input'] = data['input'][test_index]
-    data_test['class'] = data['class'][test_index]
+        data_test['input'] = data['input'][test_index]
+        data_test['class'] = data['class'][test_index]
 
-    data_out['test']['full'] = data_test
-    data_out['train']['full'] = data_train
+        data_out['test']['full'] = data_test
+        data_out['train']['full'] = data_train
+        data_out['valid']['full'] = data_valid
+    else:
+        data_out = {'train': {},
+                    'test': {}}
+        data_train['input'] = data['input'][train_index]
+        data_train['class'] = data['class'][train_index]
+
+        data_test['input'] = data['input'][test_index]
+        data_test['class'] = data['class'][test_index]
+
+        data_out['test']['full'] = data_test
+        data_out['train']['full'] = data_train
 
     return data_out
 
@@ -471,16 +203,6 @@ def prepare_data_genetic(data, train_index, test_index, settings):
                                                                   data['class'][train_index],
                                                                   test_size=settings['valid_size'],
                                                                   random_state=42)
-
-    # y_train_set = set(y_train)
-    # y_train_new = []
-    # input_train_new = []
-
-    # for curr_class in y_train_set:
-    #     for inp, cl in zip(input_train, y_train):
-    #         if cl == curr_class:
-    #             input_train_new.append(inp)
-    #             y_train_new.append(cl)
 
     data_train['input'] = input_train
     data_train['class'] = y_train
@@ -634,36 +356,78 @@ def train(settings, data):
             i = 0
         else:
             i += hi
-            
-        tmp_weights = {'layer_0': {}}
         
-        norms = []
-        for neuron_id in layer_1:
+        if settings['two_layers']:
+            tmp_weights = {'layer_0': {},
+                           'layer_hid': {}}
+
+            norms = []
+            for neuron_id in layer_hid:
+                tmp_weight = []
+                for input_id in parrot_layer:
+                    conn = nest.GetConnections([input_id], [neuron_id], 
+                                               synapse_model=settings['syn_dict_stdp']['model'])
+                    weight_one = nest.GetStatus(conn, 'weight')
+                    tmp_weight.append(weight_one[0])
+                tmp_weights['layer_hid'][neuron_id] = tmp_weight
+                norms.append(np.linalg.norm(tmp_weight))
+            
+            for neuron_id in layer_1:
+                tmp_weight = []
+                for input_id in layer_hid:
+                    conn = nest.GetConnections([input_id], [neuron_id], 
+                                               synapse_model=settings['syn_dict_stdp']['model'])
+                    weight_one = nest.GetStatus(conn, 'weight')
+                    tmp_weight.append(weight_one[0])
+                tmp_weights['layer_0'][neuron_id] = tmp_weight
+                norms.append(np.linalg.norm(tmp_weight))
+            weights_history.append(tmp_weights)
+            norm_history.append(np.linalg.norm(norms))
+        else:
+            tmp_weights = {'layer_0': {}}
+
+            norms = []
+            for neuron_id in layer_1:
+                tmp_weight = []
+                for input_id in parrot_layer:
+                    conn = nest.GetConnections([input_id], [neuron_id], 
+                                               synapse_model=settings['syn_dict_stdp']['model'])
+                    weight_one = nest.GetStatus(conn, 'weight')
+                    tmp_weight.append(weight_one[0])
+                tmp_weights['layer_0'][neuron_id] = tmp_weight
+                norms.append(np.linalg.norm(tmp_weight))
+            weights_history.append(tmp_weights)
+            norm_history.append(np.linalg.norm(norms))
+
+        if len(norm_history) > 5 * len(data['input']):
+            early_stop = np.std(norm_history[-5 * len(data['input']):]) < 0.025
+        early_stop = d_time > full_time or early_stop
+
+    weights = {}
+
+    if settings['two_layers']:
+        weights = {'layer_0': {},
+                  'layer_hid': {}}
+        
+        for neuron_id in layer_hid:
             tmp_weight = []
             for input_id in parrot_layer:
                 conn = nest.GetConnections([input_id], [neuron_id], 
                                            synapse_model=settings['syn_dict_stdp']['model'])
                 weight_one = nest.GetStatus(conn, 'weight')
                 tmp_weight.append(weight_one[0])
-            tmp_weights['layer_0'][neuron_id] = tmp_weight
-            norms.append(np.linalg.norm(tmp_weight))
-        weights_history.append(tmp_weights)
-        norm_history.append(np.linalg.norm(norms))
-
-        if len(norm_history) > 5 * len(data['input']):
-            early_stop = np.std(norm_history[-5 * len(data['input']):]) < 0.025
-        early_stop = d_time > full_time or early_stop
-
-    weights = {'layer_0': {}}
-
-    if settings['two_layers']:
-        weights['layer_0'] = nest.GetStatus(nest.GetConnections(layer_1,
-                                            synapse_model=settings['syn_dict_stdp']['model']),
-                                            'weight')
-        weights['layer_1'] = nest.GetStatus(nest.GetConnections(layer_hid,
-                                            synapse_model=settings['syn_dict_stdp']['model']),
-                                            'weight')
+            weights['layer_hid'][neuron_id] = tmp_weight
+            
+        for neuron_id in layer_1:
+            tmp_weight = []
+            for input_id in layer_hid:
+                conn = nest.GetConnections([input_id], [neuron_id], 
+                                           synapse_model=settings['syn_dict_stdp']['model'])
+                weight_one = nest.GetStatus(conn, 'weight')
+                tmp_weight.append(weight_one[0])
+            weights['layer_0'][neuron_id] = tmp_weight
     else:
+        weights = {'layer_0': {}}
         for neuron_id in layer_1:
             tmp_weight = []
             for input_id in parrot_layer:
@@ -731,7 +495,7 @@ def test(settings, data, weights):
 
         layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
 
-        interconnect_layer(layer_hid, settings['syn_dict_inh'])
+#         interconnect_layer(layer_hid, settings['syn_dict_inh'])
 
         nest.Connect(parrot_layer, layer_hid,
                      'all_to_all', syn_spec='static_synapse')
@@ -747,6 +511,11 @@ def test(settings, data, weights):
         nest.SetStatus(nest.GetConnections(parrot_layer,
                                            target=[neuron_id]),
                        'weight', weights['layer_0'][neuron_id])
+    if settings['two_layers']:
+        for neuron_id in weights['layer_hid']:
+            nest.SetStatus(nest.GetConnections(layer_hid,
+                                               target=[neuron_id]),
+                           'weight', weights['layer_hid'][neuron_id])
 
     np.random.seed(500)
 
@@ -792,129 +561,6 @@ def test(settings, data, weights):
                'spike_detector_2': spike_detector_2,
               }
     return output_latency, devices
-
-
-def test_3_neuron_acc(data, settings):  # deprecated
-    print(settings['random_state'])
-
-    data_out = prepare_data_iris(data, settings)
-
-    data_train_0 = data_out['train']['class_0']
-    data_train_1 = data_out['train']['class_1']
-    data_train_2 = data_out['train']['class_2']
-
-    # data_test_0 = data_out['test']['class_0']
-    # data_test_1 = data_out['test']['class_1']
-    # data_test_2 = data_out['test']['class_2']
-
-    data_test = data_out['test']['full']
-
-    print("Class 0")
-
-    weights_0, latency_train_0, devices, weights_history, norm_history = train(settings, data_train_0)
-    # plot_weights(weights_0['layer_0'])
-    latency_0, devices_test = test(settings, data_test, weights_0)
-    # plot_latencies(latency_0)
-    # window_size = 5 * 1 * len(data_test_2['input'])
-    # plot_devices(devices_test)
-
-    print("Class 1")
-
-    weights_1, latency_train_1, devices, weights_history, norm_history = train(settings, data_train_1)
-    # plot_weights(weights_1['layer_0'])
-    latency_1, devices_test = test(settings, data_test, weights_1)
-    # plot_latencies(latency_1)
-    # window_size = 5 * 1 * len(data_test['input'])
-    # plot_devices(devices_test)
-
-    print("Class 2")
-
-    weights_2, latency_train_2, devices, weights_history, norm_history = train(settings, data_train_2)
-    # plot_weights(weights_2['layer_0'])
-    latency_2, devices_test = test(settings, data_test, weights_2)
-    # plot_latencies(latency_2)
-    # print latency_2
-    # window_size = 5 * 1 * len(data_test['input'])
-    # plot_devices(devices_test)
-
-    print("Test latencies")
-
-    full_latency = {
-                    'neuron_0': latency_0,
-                    'neuron_1': latency_1,
-                    'neuron_2': latency_2,
-                   }
-
-    acc, output_list = count_acc(full_latency, data_test)
-    # for res in output_list:
-    #     print res
-    return acc, output_list
-
-
-def test_3_neuron_acc_cv(data, settings):  # deprecated
-    acc = []
-    for rnd_state in settings['random_states']:
-        settings['random_state'] = rnd_state
-        accuracy, output_list = test_3_neuron_acc(data, settings)
-        acc.append(accuracy)
-    return np.mean(acc), np.std(acc)
-
-
-def test_network_acc(data, settings):  # deprecated
-    data_out = {}
-    # if settings['dataset'] == 'cancer':
-    #     data_out = prepare_data_cancer(data, settings)
-    # elif settings['dataset'] == 'iris':
-    #     data_out = prepare_data_iris(data, settings)
-
-    data_train = data['train']['full']
-    data_test = data['test']['full']
-
-    weights, latency_train, devices_train, weights_history, norm_history = train(settings, data_train)
-
-    latency_test_train, devices_test_train = test(settings, data_train, weights)
-
-    full_latency_test_train = create_full_latency(latency_test_train, settings['neuron_out_ids'])
-
-    acc_train, output_list_train = count_acc(full_latency_test_train, data_train)
-
-    latency_test, devices_test = test(settings, data_test, weights)
-
-    full_latency_test = create_full_latency(latency_test, settings['neuron_out_ids'])
-
-    acc_test, output_list_test = count_acc(full_latency_test, data_test)
-
-    out_dict = {
-                'acc_test': acc_test,
-                'acc_train': acc_train,
-                'output_list_test': output_list_test,
-                'output_list_train': output_list_train,
-                }
-    return out_dict
-
-
-def test_network_acc_cv(data, settings):  # deprecated
-    acc_test = []
-    acc_train = []
-
-    skf = StratifiedKFold(n_splits=settings['n_splits'])
-
-    for train_index, test_index in skf.split(data['input'], data['class']):
-        data_fold = prepare_data(data, train_index, test_index, settings)
-        result_dict = test_network_acc(data_fold, settings)
-        acc_test.append(result_dict['acc_test'])
-        acc_train.append(result_dict['acc_train'])
-
-    out_dict = {
-                'accs_test': acc_test,
-                'accs_test_mean': np.mean(acc_test),
-                'accs_test_std': np.std(acc_test),
-                'accs_train': acc_train,
-                'accs_train_mean': np.mean(acc_train),
-                'accs_train_std': np.std(acc_train),
-                }
-    # return np.mean(acc), np.std(acc), acc
-    return out_dict
 
 
 def test_network_acc_for_genetic(data, settings):
