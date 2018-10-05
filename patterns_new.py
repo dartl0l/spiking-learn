@@ -10,10 +10,6 @@ from sklearn import preprocessing
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split, StratifiedKFold
 
-# path.append("./")
-
-#import andrews_curve
-#import converter
 
 def set_spike_in_generators(data, spike_generators, start_time, end_time, h_time, start_h):
     sp = []
@@ -287,8 +283,9 @@ def train(settings, data):
     else:
         nest.Connect(parrot_layer, layer_1,
                      'all_to_all', syn_spec=settings['syn_dict_stdp'])
-        if settings['use_inhibition']:
-                interconnect_layer(layer_1, settings['syn_dict_inh'])
+
+	if settings['use_inhibition']:
+		interconnect_layer(layer_1, settings['syn_dict_inh'])
 
     np.random.seed(500)
 
@@ -634,55 +631,55 @@ def test_network_acc_cv_for_genetic(data, settings):
     return out_dict
 
 
-def test_parameter(data, parameters, settings, n_times):
-    result = {'accuracy': [],
-              'std': [],
-              'parameter': [],
-              'parameter_name': [],
-              }
-    settings_copy = settings
-    for _ in range(n_times):
-        for key in parameters.keys():
-            if isinstance(parameters[key], dict):
-                for key_key in parameters[key].keys():
-                    result['parameter'].append(settings_copy[key][key_key])
-                    result['parameter_name'].append(key_key)
-                    acc, std = test_3_neuron_acc_cv(data, settings_copy)
-                    result['accuracy'].append(acc)
-                    result['std'].append(std)
-                    settings_copy[key][key_key] += parameters[key][key_key]
-            else:
-                result['parameter'].append(settings_copy[key])
-                result['parameter_name'].append(key)
-                acc, std = test_3_neuron_acc_cv(data, settings_copy)
-                result['accuracy'].append(acc)
-                result['std'].append(std)
-                settings_copy[key] += parameters[key]
-    return result
+# def test_parameter(data, parameters, settings, n_times):
+#     result = {'accuracy': [],
+#               'std': [],
+#               'parameter': [],
+#               'parameter_name': [],
+#               }
+#     settings_copy = settings
+#     for _ in range(n_times):
+#         for key in parameters.keys():
+#             if isinstance(parameters[key], dict):
+#                 for key_key in parameters[key].keys():
+#                     result['parameter'].append(settings_copy[key][key_key])
+#                     result['parameter_name'].append(key_key)
+#                     acc, std = test_3_neuron_acc_cv(data, settings_copy)
+#                     result['accuracy'].append(acc)
+#                     result['std'].append(std)
+#                     settings_copy[key][key_key] += parameters[key][key_key]
+#             else:
+#                 result['parameter'].append(settings_copy[key])
+#                 result['parameter_name'].append(key)
+#                 acc, std = test_3_neuron_acc_cv(data, settings_copy)
+#                 result['accuracy'].append(acc)
+#                 result['std'].append(std)
+#                 settings_copy[key] += parameters[key]
+#     return result
 
 
-def test_parameter_network(data, parameters, settings, n_times):
-    result = {'accuracy': [],
-              'std': [],
-              'parameter': [],
-              'parameter_name': [],
-              }
-    settings_copy = settings
-    for _ in range(n_times):
-        for key in parameters.keys():
-            if isinstance(parameters[key], dict):
-                for key_key in parameters[key].keys():
-                    result['parameter'].append(settings_copy[key][key_key])
-                    result['parameter_name'].append(key_key)
-                    acc, std = test_network_acc_cv(data, settings_copy)
-                    result['accuracy'].append(acc)
-                    result['std'].append(std)
-                    settings_copy[key][key_key] += parameters[key][key_key]
-            else:
-                result['parameter'].append(settings_copy[key])
-                result['parameter_name'].append(key)
-                acc, std = test_network_acc_cv(data, settings_copy)
-                result['accuracy'].append(acc)
-                result['std'].append(std)
-                settings_copy[key] += parameters[key]
-    return result
+# def test_parameter_network(data, parameters, settings, n_times):
+#     result = {'accuracy': [],
+#               'std': [],
+#               'parameter': [],
+#               'parameter_name': [],
+#               }
+#     settings_copy = settings
+#     for _ in range(n_times):
+#         for key in parameters.keys():
+#             if isinstance(parameters[key], dict):
+#                 for key_key in parameters[key].keys():
+#                     result['parameter'].append(settings_copy[key][key_key])
+#                     result['parameter_name'].append(key_key)
+#                     acc, std = test_network_acc_cv(data, settings_copy)
+#                     result['accuracy'].append(acc)
+#                     result['std'].append(std)
+#                     settings_copy[key][key_key] += parameters[key][key_key]
+#             else:
+#                 result['parameter'].append(settings_copy[key])
+#                 result['parameter_name'].append(key)
+#                 acc, std = test_network_acc_cv(data, settings_copy)
+#                 result['accuracy'].append(acc)
+#                 result['std'].append(std)
+#                 settings_copy[key] += parameters[key]
+#     return result
