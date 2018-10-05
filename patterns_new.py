@@ -504,6 +504,7 @@ def train(settings, data):
     rng = np.random.randint(500)
     nest.SetKernelStatus({'local_num_threads': settings['num_threads'],
                           'resolution': settings['h'],
+                          # 'total_num_virtual_procs': 1,
                           'rng_seeds': range(rng, rng + settings['num_threads'])})
 
     spike_generators_1 = nest.Create('spike_generator', settings['n_input'])
@@ -527,8 +528,9 @@ def train(settings, data):
                             {'withgid': True,
                              'withtime': True})
     
-    nest.SetStatus(poisson_layer, {'rate': settings['noise_freq'],
-                                   'origin': 0.0})
+    if not settings['noise_after_pattern']:
+	    nest.SetStatus(poisson_layer, {'rate': settings['noise_freq'],
+	                                   'origin': 0.0})
 
     nest.Connect(spike_generators_1, parrot_layer,
                  'one_to_one', syn_spec='static_synapse')
@@ -536,11 +538,6 @@ def train(settings, data):
                  'one_to_one', syn_spec='static_synapse')
     
     if settings['use_teacher']:
-        # for teacher, neuron in zip(teacher_1, layer_1):
-        #     print teacher, neuron
-        #     nest.Connect([teacher], [neuron],
-        #                  'one_to_one', syn_spec='static_synapse')
-            
         nest.Connect(teacher_1, layer_1,
                      'one_to_one', syn_spec='static_synapse')
     
@@ -556,8 +553,8 @@ def train(settings, data):
     if settings['two_layers']:
         layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
 
-        if settings['use_inhibition']:
-            interconnect_layer(layer_hid, settings['syn_dict_inh'])
+        # if settings['use_inhibition']:
+        #     interconnect_layer(layer_hid, settings['syn_dict_inh'])
 
         nest.Connect(parrot_layer, layer_hid,
                      'all_to_all', syn_spec=settings['syn_dict_stdp'])
@@ -610,7 +607,8 @@ def train(settings, data):
 
         if settings['noise_after_pattern']:
             nest.SetStatus(poisson_layer, {'start': d_time + np.max(spike_times),
-                                           'stop': float(d_time + settings['h_time'])})
+                                           'stop': float(d_time + settings['h_time']),
+                                           'rate': settings['noise_freq']})
 
         nest.Simulate(settings['h_time'])
         
@@ -690,6 +688,7 @@ def test(settings, data, weights):
     rng = np.random.randint(500)
     nest.SetKernelStatus({'local_num_threads': settings['num_threads'],
                           'resolution': settings['h'],
+                          # 'total_num_virtual_procs': 1,
                           'rng_seeds': range(rng, rng + settings['num_threads'])})
 
     spike_generators_1 = nest.Create('spike_generator', settings['n_input'])
@@ -795,7 +794,7 @@ def test(settings, data, weights):
     return output_latency, devices
 
 
-def test_3_neuron_acc(data, settings):
+def test_3_neuron_acc(data, settings):  # deprecated
     print(settings['random_state'])
 
     data_out = prepare_data_iris(data, settings)
@@ -852,7 +851,7 @@ def test_3_neuron_acc(data, settings):
     return acc, output_list
 
 
-def test_3_neuron_acc_cv(data, settings):
+def test_3_neuron_acc_cv(data, settings):  # deprecated
     acc = []
     for rnd_state in settings['random_states']:
         settings['random_state'] = rnd_state
@@ -861,7 +860,7 @@ def test_3_neuron_acc_cv(data, settings):
     return np.mean(acc), np.std(acc)
 
 
-def test_network_acc(data, settings):
+def test_network_acc(data, settings):  # deprecated
     data_out = {}
     # if settings['dataset'] == 'cancer':
     #     data_out = prepare_data_cancer(data, settings)
@@ -894,7 +893,7 @@ def test_network_acc(data, settings):
     return out_dict
 
 
-def test_network_acc_cv(data, settings):
+def test_network_acc_cv(data, settings):  # deprecated
     acc_test = []
     acc_train = []
 
