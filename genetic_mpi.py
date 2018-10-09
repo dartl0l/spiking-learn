@@ -10,32 +10,23 @@ import MultiNEAT as neat
 import traits
 
 
-comm = MPI.COMM_WORLD
-
-
-wd = getcwd() #'/home/sag/mnt/Serenko/Genetic_xor/Iris/Look_for_STDP_params-random_inh'
-
-def evaluate(genome, executor):
+def prepare_genomes(genome):
     current_trait_values = genome.GetGenomeTraits()
     network_trait_values = {trait_name: trait_value
-        for trait_name, trait_value in current_trait_values.items()
-            if trait_name in traits.network_traits
-    }
+                            for trait_name, trait_value in current_trait_values.items()
+                                if trait_name in traits.network_traits}
     neuron_trait_values = {trait_name: trait_value
-        for trait_name, trait_value in current_trait_values.items()
-            if trait_name in traits.neuron_traits
-    }
+                           for trait_name, trait_value in current_trait_values.items()
+                                if trait_name in traits.neuron_traits}
     synapse_trait_values = {trait_name: trait_value
-         for trait_name, trait_value in current_trait_values.items()
-             if trait_name in traits.synapse_traits
-    }
+                            for trait_name, trait_value in current_trait_values.items()
+                                if trait_name in traits.synapse_traits}
     
     settings = json.load(open('settings.json', 'r'))
-    
     # settings['n_coding_neurons'] = network_trait_values['n_coding_neurons']
     # settings['epochs'] = network_trait_values['epochs']
     # settings['h_time'] = network_trait_values['h_time']
-    settings['noise'] = network_trait_values['noise']
+    settings['noise_freq'] = network_trait_values['noise_freq']
     
     settings['neuron_out']['tau_minus'] = neuron_trait_values['tau_minus']
     settings['neuron_out']['C_m'] = neuron_trait_values['C_m']
@@ -45,38 +36,34 @@ def evaluate(genome, executor):
     settings['syn_dict_stdp']['alpha'] = synapse_trait_values['alpha']
     settings['syn_dict_stdp']['lambda'] = synapse_trait_values['lambda']
     settings['syn_dict_stdp']['tau_plus'] = synapse_trait_values['tau_plus']
+    print(settings)
 
 
     mkdir('genome' + str(genome.GetID()))
     chdir('genome' + str(genome.GetID()))
     json.dump(settings, open('settings.json', 'w'), indent=4)
-    
-    executor.submit(simulate, wd + '/genome' + str(genome.GetID()))
     chdir('..') # out of genomeID
 
 
-def simulate(directory_name):
-    # from iris_for_genetic import solve_task
+def evaluate(genome):
+    from iris_for_genetic import solve_task
+    directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
     print("Start sim in " + str(directory_name))
-    # solve_task(directory_name + '/')
-    system('cd "' + directory_name + '" ; '
-           'python ./../../iris_for_genetic.py > out.txt 2>err.txt ; ')
+    return solve_task(directory_name)
 
 
-
-
-def get_evaluation_result(genome):
-    print('Evalutaion genome' + str(genome.GetID()))
-    chdir('genome' + str(genome.GetID()))
-    print(getcwd())
-    with open('fitness.txt', 'r') as fit_file:
-        fitness = float(fit_file.readline())
-    # fitness = float(numpy.loadtxt('fitness.txt'))
-    #desired_weights = numpy.loadtxt('../desired_weights/final_weights.txt')
-    #actual_weights = numpy.loadtxt('final_weights.txt')
-    print(fitness)
-    chdir('..') # out of genomeID
-    return fitness
+# def get_evaluation_result(genome):
+#     print('Evalutaion genome' + str(genome.GetID()))
+#     chdir('genome' + str(genome.GetID()))
+#     print(getcwd())
+#     with open('fitness.txt', 'r') as fit_file:
+#         fitness = float(fit_file.readline())
+#     # fitness = float(numpy.loadtxt('fitness.txt'))
+#     #desired_weights = numpy.loadtxt('../desired_weights/final_weights.txt')
+#     #actual_weights = numpy.loadtxt('final_weights.txt')
+#     print(fitness)
+#     chdir('..') # out of genomeID
+#     return fitness
 
 #parallel_executor = concurrent.futures.ProcessPoolExecutor(max_workers=15)
 # Change to MPI as below to run on a cluster.
@@ -85,6 +72,8 @@ def get_evaluation_result(genome):
 # outfile = open('output/fitness.txt', 'w')
 
 def main(workers=1):
+    sys.stdout = open('out.txt', 'w')
+    sys.stderr = open('err.txt', 'w')
     print("Prepare traits and genomes")
 
     neat_params = neat.Parameters()
@@ -128,21 +117,17 @@ def main(workers=1):
     print("Start solving generations with " + str(workers) + " workers")
 
     with open('output/fitness.txt', 'w') as outfile:
-        for generation_number in range(10):
+        for generation_number in range(2):
             print("Generation " + str(generation_number) + " started")
             genome_list = neat.GetGenomeList(population)
-
-            #fitnesses_list = neat.EvaluateGenomeList_Parallel(genome_list, evaluate,
-            #   cores=15, display=True, ipython_client=None)
-            #fitnesses_list = parallel_executor.map(evaluate, genome_list)
-            with fut.MPIPoolExecutor(max_workers=workers) as executor:
-                for genome in genome_list:
-                    # cannot use map() because it does not actually compute evaluate(),
-                    # just returns an iterator object instead
-                    evaluate(genome, executor)
-            fitnesses_list = map(get_evaluation_result, genome_list)
-            fitnesses_list = list(fitnesses_list) # because map() returns an iterator
-            
+            for genome in genome_list:
+                prepare_genomes(genome)
+            executor = fut.MPIPoolExecutor(max_workers=workers)
+            result = executor.map(evaluate, genome_list)
+            # fitnesses_list = map(get_evaluation_result, genome_list)
+            print(result)
+            fitnesses_list = list(result)
+            print("Waiting for result")
             print(fitnesses_list)
 
             neat.ZipFitness(genome_list, fitnesses_list)
@@ -154,9 +139,6 @@ def main(workers=1):
                         + '\n' + str(population.GetBestGenome().GetGenomeTraits())
                     )
                     genomefile.close()
-                # system('cp -R '
-                #     + 'genome' + str(population.GetBestGenome().GetID())
-                #     + ' output/generation' + str(generation_number) + '_best_genome')
                 copytree('genome' + str(population.GetBestGenome().GetID()), 
                          'output/generation' + str(generation_number) + '_best_genome')
 
@@ -179,6 +161,7 @@ def main(workers=1):
 
 
 if __name__ == '__main__':
+    comm = MPI.COMM_WORLD
     if comm.Get_rank() == 0:
         if len(sys.argv) > 1:
             main(int(sys.argv[1]))
