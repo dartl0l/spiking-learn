@@ -3,6 +3,7 @@ import nest.voltage_trace
 import pylab as pl
 import numpy as np
 from matplotlib import animation, rc
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class Plotter:
@@ -37,9 +38,6 @@ class Plotter:
         pl.legend()
         if show:
             pl.show()
-        else:
-            return pl.plot()
-
 
     def plot_norm(self, norm_history, show=True):
         pl.clf()
@@ -51,8 +49,6 @@ class Plotter:
         # pl.legend()
         if show:
             pl.show()
-        else:           
-            return pl.plot()
 
     def plot_norms(self, norm_history, show=True):
         pl.clf()
@@ -66,8 +62,6 @@ class Plotter:
         pl.legend()
         if show:
             pl.show()
-        else:           
-            return pl.plot()
 
     def plot_animated_weights(self, weights_history, h, save, show):
         def plot_weights_for_anim(weights):
@@ -130,8 +124,8 @@ class Plotter:
         pl.xlim(settings['full_time'] - settings['h_time'], settings['full_time'])
         pl.show()
 
-    def plot_latencies(self, latencies):
-        pl.title('Output latencies')
+    def plot_latencies(self, latencies, title, show=True):
+        pl.title(title)
         for latency in latencies:
             if list(latency['latency']):
                 if latency['class'] == 0:
@@ -140,16 +134,31 @@ class Plotter:
                     pl.plot(latency['latency'][:1], 2, 'gx')
                 elif latency['class'] == 2:
                     pl.plot(latency['latency'][:1], 3, 'bx')
-        pl.show()
+                elif latency['class'] == 3:
+                    pl.plot(latency['latency'][:1], 4, 'bx')
+                elif latency['class'] == 4:
+                    pl.plot(latency['latency'][:1], 5, 'bx')
+                elif latency['class'] == 5:
+                    pl.plot(latency['latency'][:1], 6, 'bx')
+                elif latency['class'] == 6:
+                    pl.plot(latency['latency'][:1], 7, 'bx')
+                elif latency['class'] == 7:
+                    pl.plot(latency['latency'][:1], 8, 'bx')
+                elif latency['class'] == 8:
+                    pl.plot(latency['latency'][:1], 9, 'bx')
+                elif latency['class'] == 8:
+                    pl.plot(latency['latency'][:1], 10, 'bx')
+        if show:
+            pl.show()
 
-    def plot_train_latency(self, latency_train):
+    def plot_train_latency(self, latency_train, title, show=True):
         latency_paint = {'latency': [],
                          'epoch': []}
 
         epoch = 1
 
         for latency in latency_train:
-            if latency['latency']:
+            if list(latency['latency']):
                 for lat in latency['latency']:
                     latency_paint['latency'].append(lat)
                     latency_paint['epoch'].append(epoch)
@@ -161,13 +170,42 @@ class Plotter:
         pl.plot(latency_paint['epoch'], latency_paint['latency'], 'b.')
         pl.xlabel('Epochs')
         pl.ylabel('Latency')
-        pl.show()
+        pl.title(title)
+        if show:
+            pl.show()
 
-    def plot_pattern(self, pattern):
+    def plot_pattern(self, pattern, show=True):
         pl.ylim(0, 30)
         pl.xlim(0, len(pattern))
         pl.title('Temporal pattern')
         for neuron in pattern.keys():
             if pattern[neuron]:
                 pl.plot(neuron, pattern[neuron], 'b.')
-        pl.show()
+        if show:
+            pl.show()
+
+    def plot_image(self, image_spikes, image_size, show=True):
+        # pl.xlim(0, image_size[0])
+        # pl.ylim(0, image_size[1])
+
+        pl.title('Image spikes')
+
+        spike_pos_x = 0
+        spike_pos_y = image_size[1]
+        new_image = []
+        for neuron in image_spikes.keys():
+            if image_spikes[neuron]:
+                new_image.append(image_spikes[neuron][0])
+            else:
+                new_image.append(0)
+        new_image = np.array(new_image).reshape(image_size)
+
+        X = np.arange(0, image_size[0], 1)
+        Y = np.arange(0, image_size[1], 1)
+        X, Y = np.meshgrid(X, Y)
+
+        pl.scatter(X, Y, new_image)
+
+        if show:
+            pl.show()
+

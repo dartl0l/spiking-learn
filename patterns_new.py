@@ -218,6 +218,8 @@ def train(settings, data):
                           'rng_seeds': range(rng, rng + settings['num_threads'])})
 
     layer_out = nest.Create('iaf_psc_exp', settings['n_layer_out'])
+    if settings['two_layers']:
+        layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
     spike_generators_1 = nest.Create('spike_generator', settings['n_input'])
     poisson_layer = nest.Create('poisson_generator', settings['n_input'])
     parrot_layer = nest.Create('parrot_neuron', settings['n_input'])
@@ -248,16 +250,16 @@ def train(settings, data):
     nest.SetStatus(layer_out, settings['neuron_out'])
 
     if settings['two_layers']:
-        layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
-        # if settings['use_inhibition']:
-        #     interconnect_layer(layer_hid, settings['syn_dict_inh'])
+        # layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
+        if settings['use_inhibition']:
+            interconnect_layer(layer_hid, settings['syn_dict_inh'])
 
         nest.Connect(parrot_layer, layer_hid,
-                     'all_to_all', syn_spec=settings['syn_dict_stdp'])
+                     'all_to_all', syn_spec=settings['syn_dict_stdp_hid'])
         nest.Connect(layer_hid, layer_out,
                      'all_to_all', syn_spec=settings['syn_dict_stdp'])
         nest.Connect(layer_hid, spike_detector_2, 'all_to_all')
-        nest.SetStatus(layer_hid, settings['neuron_out'])
+        nest.SetStatus(layer_hid, settings['neuron_hid'])
     else:
         nest.Connect(parrot_layer, layer_out,
                      'all_to_all', syn_spec=settings['syn_dict_stdp'])
@@ -332,7 +334,7 @@ def train(settings, data):
                 tmp_weight = []
                 for input_id in parrot_layer:
                     conn = nest.GetConnections([input_id], [neuron_id], 
-                                               synapse_model=settings['syn_dict_stdp']['model'])
+                                               synapse_model=settings['syn_dict_stdp_hid']['model'])
                     weight_one = nest.GetStatus(conn, 'weight')
                     tmp_weight.append(weight_one[0])
                 tmp_weights['layer_hid'][neuron_id] = tmp_weight
@@ -366,7 +368,7 @@ def train(settings, data):
             weights_history.append(tmp_weights)
             norm_history.append(np.linalg.norm(norms))
 
-        if len(norm_history) > 5 * len(data['input']):
+        if len(norm_history) > 5 * len(data['input']) and settings['early_stop']:
             early_stop = np.std(norm_history[-5 * len(data['input']):]) < 0.025
         early_stop = d_time > full_time or early_stop
 
@@ -378,7 +380,7 @@ def train(settings, data):
             tmp_weight = []
             for input_id in parrot_layer:
                 conn = nest.GetConnections([input_id], [neuron_id], 
-                                           synapse_model=settings['syn_dict_stdp']['model'])
+                                           synapse_model=settings['syn_dict_stdp_hid']['model'])
                 weight_one = nest.GetStatus(conn, 'weight')
                 tmp_weight.append(weight_one[0])
             weights['layer_hid'][neuron_id] = tmp_weight
@@ -421,12 +423,15 @@ def test(settings, data, weights):
                           'rng_seeds': range(rng, rng + settings['num_threads'])})
 
     layer_out = nest.Create('iaf_psc_exp', settings['n_layer_out'])
+    if settings['two_layers']:
+        layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
     spike_generators_1 = nest.Create('spike_generator', settings['n_input'])
     poisson_layer = nest.Create('poisson_generator', settings['n_input'])
     spike_generators_2 = nest.Create('spike_generator', settings['n_input'])
     parrot_layer = nest.Create('parrot_neuron', settings['n_input'])
     spike_detector_1 = nest.Create('spike_detector')
     spike_detector_2 = nest.Create('spike_detector')
+    spike_detector_3 = nest.Create('spike_detector')
     voltmeter = nest.Create('voltmeter', 1,
                             {'withgid': True,
                              'withtime': True})
@@ -442,7 +447,6 @@ def test(settings, data, weights):
 
     nest.Connect(layer_out, spike_detector_1, 'all_to_all')
     nest.Connect(parrot_layer, spike_detector_2, 'all_to_all')
-    # nest.Connect(layer_hid, spike_detector_2, 'all_to_all')
 
     if settings['use_inhibition']:
         interconnect_layer(layer_out, settings['syn_dict_inh'])
@@ -451,26 +455,36 @@ def test(settings, data, weights):
     nest.SetStatus(layer_out, settings['neuron_out'])
 
     if settings['two_layers']:
-        layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
-#         interconnect_layer(layer_hid, settings['syn_dict_inh'])
+        # layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
+        if settings['use_inhibition']:
+            interconnect_layer(layer_hid, settings['syn_dict_inh'])
+        
         nest.Connect(parrot_layer, layer_hid,
                      'all_to_all', syn_spec='static_synapse')
         nest.Connect(layer_hid, layer_out,
                      'all_to_all', syn_spec='static_synapse')
-        nest.SetStatus(layer_hid, settings['neuron_out'])
+        nest.SetStatus(layer_hid, settings['neuron_hid'])
+        nest.Connect(layer_hid, spike_detector_3, 'all_to_all')
+        
     else:
         nest.Connect(parrot_layer, layer_out,
                      'all_to_all', syn_spec='static_synapse')
 
-    for neuron_id in weights['layer_out']:
-        nest.SetStatus(nest.GetConnections(parrot_layer,
-                                           target=[neuron_id]),
-                       'weight', weights['layer_out'][neuron_id])
     if settings['two_layers']:
         for neuron_id in weights['layer_hid']:
-            nest.SetStatus(nest.GetConnections(layer_hid,
+            nest.SetStatus(nest.GetConnections(parrot_layer,
                                                target=[neuron_id]),
                            'weight', weights['layer_hid'][neuron_id])
+
+        for neuron_id in weights['layer_out']:
+            nest.SetStatus(nest.GetConnections(layer_hid,
+                                               target=[neuron_id]),
+                           'weight', weights['layer_out'][neuron_id])
+    else:
+        for neuron_id in weights['layer_out']:
+            nest.SetStatus(nest.GetConnections(parrot_layer,
+                                               target=[neuron_id]),
+                           'weight', weights['layer_out'][neuron_id])
 
     np.random.seed(500)
     output_latency = []
@@ -504,6 +518,7 @@ def test(settings, data, weights):
                'voltmeter': voltmeter,
                'spike_detector_1': spike_detector_1,
                'spike_detector_2': spike_detector_2,
+               'spike_detector_3': spike_detector_3,
               }
     return output_latency, devices
 
