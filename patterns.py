@@ -1,13 +1,9 @@
-# import csv
 import nest
 
 import numpy as np
-import matplotlib.patches as mpatches
 import operator
 
 from sys import path
-from sklearn import preprocessing
-from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split, StratifiedKFold
 
 
@@ -20,8 +16,7 @@ def set_spike_in_generators(data, spike_generators, start_time, end_time, h_time
                   'spike_weights': []}
 
         while d_time < end_time:
-            sp_tmp['spike_times'] += map(lambda x: x + d_time + start_h,
-                                         data[gen_num])
+            sp_tmp['spike_times'] += map(lambda x: x + d_time + start_h, data[gen_num])
             sp_tmp['spike_weights'] += np.ones_like(data[gen_num]).tolist()
             d_time += h_time
         # print gen_num, sp_tmp
@@ -32,7 +27,7 @@ def set_spike_in_generators(data, spike_generators, start_time, end_time, h_time
         nest.SetStatus([spike_generators[gen_num - 1]], [spp])
 
         
-def set_teacher_input(x, teach_input, settings):  # Network
+def set_teacher_input(x, teacher, settings):  # Network
     ampl_times = []
     ampl_values = []
 
@@ -44,7 +39,7 @@ def set_teacher_input(x, teach_input, settings):  # Network
     ampl_values.append(settings['teacher_amplitude'])  # 1 mA 1000000.0
     ampl_values.append(0.0)  # 0 pA
     
-    nest.SetStatus(teach_input, {'amplitude_times': ampl_times,
+    nest.SetStatus(teacher, {'amplitude_times': ampl_times,
                                  'amplitude_values': ampl_values})
 
     
@@ -179,43 +174,14 @@ def prepare_data(data, train_index, test_index, settings):
     return data_out
 
 
-def prepare_data_genetic(data, train_index, test_index, settings):
-    data_train = {}
-    data_test = {}
-    data_valid = {}
-    
-    data_out = {'train': {},
-                'test': {},
-                'valid': {}}
-
-    input_train, input_valid, y_train, y_valid = train_test_split(data['input'][train_index],
-                                                                  data['class'][train_index],
-                                                                  test_size=settings['valid_size'],
-                                                                  random_state=42)
-
-    data_train['input'] = input_train
-    data_train['class'] = y_train
-
-    data_valid['input'] = input_valid
-    data_valid['class'] = y_valid
-
-    data_test['input'] = data['input'][test_index]
-    data_test['class'] = data['class'][test_index]
-
-    data_out['test']['full'] = data_test
-    data_out['train']['full'] = data_train
-    data_out['valid']['full'] = data_valid
-
-    return data_out
-
-
 def train(settings, data):
     nest.ResetKernel()
     np.random.seed()
     rng = np.random.randint(500)
     nest.SetKernelStatus({'local_num_threads': settings['num_threads'],
+                          'total_num_virtual_procs': settings['num_threads'] * settings['num_procs'],
                           'resolution': settings['h'],
-                          'rng_seeds': range(rng, rng + settings['num_threads'])})
+                          'rng_seeds': range(rng, rng + settings['num_threads'] * settings['num_procs'])})
 
     layer_out = nest.Create('iaf_psc_exp', settings['n_layer_out'])
     if settings['two_layers']:
@@ -226,6 +192,7 @@ def train(settings, data):
     teacher_1 = nest.Create('step_current_generator', settings['n_layer_out'])
     spike_detector_1 = nest.Create('spike_detector')
     spike_detector_2 = nest.Create('spike_detector')
+    spike_detector_3 = nest.Create('spike_detector')
 
     voltmeter = nest.Create('voltmeter', 1,
                             {'withgid': True,
@@ -250,15 +217,15 @@ def train(settings, data):
     nest.SetStatus(layer_out, settings['neuron_out'])
 
     if settings['two_layers']:
-        # layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
         if settings['use_inhibition']:
             interconnect_layer(layer_hid, settings['syn_dict_inh'])
 
+        nest.Connect(parrot_layer, spike_detector_3, 'all_to_all')
         nest.Connect(parrot_layer, layer_hid,
                      'all_to_all', syn_spec=settings['syn_dict_stdp_hid'])
         nest.Connect(layer_hid, layer_out,
                      'all_to_all', syn_spec=settings['syn_dict_stdp'])
-        nest.Connect(layer_hid, spike_detector_2, 'all_to_all')
+        nest.Connect(layer_hid, spike_detector_3, 'all_to_all')
         nest.SetStatus(layer_hid, settings['neuron_hid'])
     else:
         nest.Connect(parrot_layer, layer_out,
@@ -362,6 +329,7 @@ def train(settings, data):
                     conn = nest.GetConnections([input_id], [neuron_id], 
                                                synapse_model=settings['syn_dict_stdp']['model'])
                     weight_one = nest.GetStatus(conn, 'weight')
+                    print(weight_one)
                     tmp_weight.append(weight_one[0])
                 tmp_weights['layer_out'][neuron_id] = tmp_weight
                 norms.append(np.linalg.norm(tmp_weight))
@@ -408,6 +376,7 @@ def train(settings, data):
                'voltmeter': voltmeter,
                'spike_detector_1': spike_detector_1,
                'spike_detector_2': spike_detector_2,
+               'spike_detector_3': spike_detector_3,
               }
 
     return weights, output_latency, devices, weights_history, norm_history
@@ -418,9 +387,9 @@ def test(settings, data, weights):
     np.random.seed()
     rng = np.random.randint(500)
     nest.SetKernelStatus({'local_num_threads': settings['num_threads'],
+                          'total_num_virtual_procs': settings['num_threads'] * settings['num_procs'],
                           'resolution': settings['h'],
-                          # 'total_num_virtual_procs': 1,
-                          'rng_seeds': range(rng, rng + settings['num_threads'])})
+                          'rng_seeds': range(rng, rng + settings['num_threads'] * settings['num_procs'])})
 
     layer_out = nest.Create('iaf_psc_exp', settings['n_layer_out'])
     if settings['two_layers']:
@@ -565,19 +534,30 @@ def test_network_acc_for_genetic(data, settings):
 
 
 def test_network_acc_cv_for_genetic(data, settings):
+    def solve_fold(input_data):
+        data_fold = prepare_data_genetic(input_data['data'],       input_data['train_index'],
+                                         input_data['test_index'], input_data['settings'])
+        return test_network_acc_for_genetic(data_fold, input_data['settings'])
+
+    fit = []
     acc_test = []
     acc_train = []
-    fit = []
-    skf = StratifiedKFold(n_splits=settings['n_splits'])
+    data_list = []
 
+    skf = StratifiedKFold(n_splits=settings['n_splits'])
     for train_index, test_index in skf.split(data['input'], data['class']):
-        data_fold = prepare_data_genetic(data, train_index, test_index, settings)
-        result_dict = test_network_acc_for_genetic(data_fold, settings)
-        acc_test.append(result_dict['acc_test'])
-        acc_train.append(result_dict['acc_train'])
-        fit.append(result_dict['fitness'])
-        if settings['early_stop'] and result_dict['acc_test'] < 0.4:
-            break
+        input_data = {
+                      'data': data,
+                      'settings': settings,
+                      'test_index': test_index,
+                      'train_index': train_index,
+                    }
+        data_list.append(input_data)
+
+    for result in map(solve_fold, data_list):
+        acc_test.append(result['acc_test'])
+        acc_train.append(result['acc_train'])
+        fit.append(result['fitness'])
 
     print(fit)
     out_dict = {
