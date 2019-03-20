@@ -5,7 +5,7 @@ import operator
 import json
 import sys
 
-from math import exp
+from math import exp, floor
 from mpi4py import MPI
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -19,9 +19,9 @@ class Settings(object):
 
 
 class Topology(object):
-    """docstring for Toplogy"""
+    """docstring for Topology"""
     def __init__(self, settings):
-        super(Toplogy, self).__init__()
+        super(Topology, self).__init__()
         self.settings = settings
 
 
@@ -42,104 +42,153 @@ class Network(object):
         return
 
 
-def set_spike_in_generators(data, spike_generators, start_time, end_time, h_time, start_h):
-    spikes = []
-    spike_times = []
+# def set_spike_in_generators(data, spike_generators, start_time,
+#                             end_time, h_time, start_h):  # deprecated
+#     spikes = []
+#     spike_times = []
 
-    for generator_num in data:
-        d_time = start_time
-        spike_dict = {'spike_times': [],
-                      'spike_weights': []}
+#     for generator_num in data:
+#         d_time = start_time
+#         spike_dict = {'spike_times': [],
+#                       'spike_weights': []}
 
-        if data[generator_num]:
-            spike_times.append(data[generator_num][0])
+#         if data[generator_num]:
+#             spike_times.append(data[generator_num][0])
 
-        while d_time < end_time:
-            spike_dict['spike_times'] += map(lambda x: x + d_time + start_h, data[generator_num])
-            spike_dict['spike_weights'] += np.ones_like(data[generator_num]).tolist()
-            d_time += h_time
-        # print gen_num, sp_tmp
-        spikes.append(spike_dict)     
-
-    for gen_num, spp in zip(data, spikes):
-        # print gen_num, spike_generators_1[gen_num - 1]
-        nest.SetStatus([spike_generators[gen_num - 1]], [spp])
-
-    return spike_times, spikes
-
-
-def prepare_spike_generator(data, start_time, end_time):
-    spikes = []
-    spike_times = []
-
-    for generator_num in data:
-        d_time = start_time
-        spike_dict = {'spike_times': [],
-                      'spike_weights': []}
-
-        if data[generator_num]:
-            spike_times.append(data[generator_num][0])
-
-        while d_time < end_time:
-            spike_dict['spike_times'] += map(lambda x: x + d_time + start_h, data[generator_num])
-            spike_dict['spike_weights'] += np.ones_like(data[generator_num]).tolist()
-            d_time += h_time
-        # print gen_num, sp_tmp
-        spikes.append(spike_dict)     
-
-    # for gen_num, spp in zip(data, spikes):
-    #     # print gen_num, spike_generators_1[gen_num - 1]
-    #     nest.SetStatus([spike_generators[gen_num - 1]], [spp])
-
-    return spikes
+#         while d_time < end_time:
+#             spike_dict['spike_times'] \
+#                 += map(lambda x: x + d_time + start_h, data[generator_num])
+#             spike_dict['spike_weights'] \
+#                 += np.ones_like(data[generator_num]).tolist()
+#             d_time += h_time
+#         # print gen_num, sp_tmp
+#         spikes.append(spike_dict)
+#     for gen_num, spp in zip(data, spikes):
+#         # print gen_num, spike_generators_1[gen_num - 1]
+#         nest.SetStatus([spike_generators[gen_num - 1]], [spp])
+#     return spike_times, spikes
 
 
-def create_spike_dict(dataset, epochs):
-    epochs = settings['learning']['epochs'] if train else 1
+def create_spike_dict(dataset, train, settings):
     spike_dict = {}
+    spikes = []
+    d_time = settings['network']['start_delta']
+    epochs = settings['learning']['epochs'] if train else 1
     for input_neuron in dataset[0]:
         spike_dict[input_neuron] = {'spike_times': [],
                                     'spike_weights': []}
-    print(spike_dict)
-
-    d_time = settings['network']['start_delta']
     for _ in range(epochs):
         for example in dataset:
+            tmp_spikes = []
             for input_neuron in example:
-                spike_dict[input_neuron]['spike_times'] 
+                spike_dict[input_neuron]['spike_times'] \
                     += map(lambda x: x + d_time, example[input_neuron])
-                spike_dict[input_neuron]['spike_weights']
+                spike_dict[input_neuron]['spike_weights'] \
                     += np.ones_like(example[input_neuron]).tolist()
+                tmp_spikes.append(example[input_neuron])
+            spikes.append(tmp_spikes)
             d_time += settings['network']['h_time']
-    print(spike_dict)
-    return spike_dict, d_time
+    return spike_dict, d_time, spikes
 
 
-def set_spike_input(dataset, spike_generators, settings, train):
-    spike_dict, d_time = create_spike_dict(dataset, train, settings)
+def set_input_spikes(dataset, spike_generators, settings, train):
+    spike_dict, d_time, spikes = create_spike_dict(dataset, train, settings)
     for input_neuron in spike_dict:
-        # print gen_num, spike_generators_1[gen_num - 1]
         nest.SetStatus([spike_generators[input_neuron - 1]],
                        [spike_dict[input_neuron]])
-    return d_time
+    return d_time, spikes
 
 
-def set_teacher_input(start_of_stimulation, teacher, settings):  # Network
-    ampl_times = []
-    ampl_values = []
-
+def create_teacher_dict(spikes_list, classes, teachers, settings):  # Network
+    teacher_dicts = {}
     h = settings['network']['h']
+    h_time = settings['network']['h_time']
+    epochs = settings['learning']['epochs']
+    d_time = settings['network']['start_delta']
+    single_neuron = settings['topology']['n_layer_out'] == 1
+    reinforce_time = settings['learning']['reinforce_time']
+    reinforce_delta = settings['learning']['reinforce_delta']
+    teacher_amplitude = settings['learning']['teacher_amplitude']
+    for teacher in teachers:
+        teacher_dicts[teacher] = {
+                                  'amplitude_times': [],
+                                  'amplitude_values': []
+                                 }
+    for _ in range(epochs):
+        for spikes, cl in zip(spikes_list, classes):
+            current_teacher_id = teachers[0] if single_neuron else teachers[cl]
+            current_teacher = teacher_dicts[current_teacher_id]
+            start_of_stimulation = np.min(spikes) \
+                                 + d_time \
+                                 + reinforce_delta         
+            end_of_stimulation = start_of_stimulation \
+                               + reinforce_time \
+                               + h 
+            current_teacher['amplitude_times'].append(start_of_stimulation)
+            current_teacher['amplitude_times'].append(end_of_stimulation)
+
+            current_teacher['amplitude_values'].append(teacher_amplitude)
+            current_teacher['amplitude_values'].append(0.0)
+            d_time += h_time
+    return teacher_dicts
+
+
+def set_teachers_input(spikes_list, classes, teachers, settings):
+    teacher_dicts = create_teacher_dict(spikes_list, classes,
+                                        teachers, settings)
+    for teacher in teacher_dicts:
+        nest.SetStatus([teacher], teacher_dicts[teacher])
+
+
+# def set_teacher_input(start_of_stimulation, teacher, settings):  # Deprecated
+#     ampl_times = []
+#     ampl_values = []
+
+#     h = settings['network']['h']
     
-    end_of_stimulation = start_of_stimulation \
-                       + 2 * h \
-                       + settings['learning']['reinforce_time']  # x + 0.2
-    ampl_times.append(start_of_stimulation - h)  # x - 1.1
-    ampl_times.append(end_of_stimulation - h)  # x - 1.1
-    ampl_values.append(settings['learning']['teacher_amplitude'])  # 1 mA 1000000.0
-    ampl_values.append(0.0)  # 0 pA
+#     end_of_stimulation = start_of_stimulation \
+#                        + 2 * h \
+#                        + settings['learning']['reinforce_time']  # x + 0.2
+#     ampl_times.append(start_of_stimulation - h)  # x - 1.1
+#     ampl_times.append(end_of_stimulation - h)  # x - 1.1
+#     ampl_values.append(settings['learning']['teacher_amplitude'])  # 1 mA 1000000.0
+#     ampl_values.append(0.0)  # 0 pA
     
-    nest.SetStatus(teacher, {'amplitude_times': ampl_times,
-                             'amplitude_values': ampl_values})
+#     nest.SetStatus(teacher, {'amplitude_times': ampl_times,
+#                              'amplitude_values': ampl_values})
+
+
+def create_poisson_noise(spikes_list, settings):  # Network
+    h = settings['network']['h']
+    h_time = settings['network']['h_time']
+    epochs = settings['learning']['epochs']
+    d_time = settings['network']['start_delta']
+    noise_frequency = settings['network']['noise_freq']
+
+    # noise_dict = {}
+
+    for _ in range(epochs):
+        for spikes in spikes_list:
+            start_of_noise = np.max(spikes) + d_time
+            end_of_noise = h_time + d_time
+            noise_len = abs(start_of_noise - end_of_noise)
+            poisson_spike_bins = floor(noise_len / h)
+            uniform_distribution = np.random.uniform(0, 1, (len(spikes), poisson_spike_bins))
+            # poisson_spike_mask = uniform_distribution < noise_frequency * h  # + d_time
+            # poisson_spike_times = uniform_distribution[0, ]  # + d_time
+            raw_spikes = np.array([np.arange(start_of_noise, end_of_noise, h) for _ in range(len(spikes))])
+            mask = uniform_distribution < noise_frequency * h
+            poisson_spike_times = raw_spikes[mask]
+            print("one pattern")
+            print(poisson_spike_times)
+            # print(poisson_spike_times.shape())
+            # print(raw_spikes.shape())
+            print("-----------")
+            # print(raw_spikes[mask])
+
+            d_time += h_time
+        print("epochs")
+    return
 
 
 def get_spikes_of_pattern(spike_detector, estimated_time, example_class):
@@ -163,7 +212,6 @@ def save_latency_to_file(raw_latency, filename):
 
 
 def merge_spikes_and_senders(raw_latency_list):
-    # raw_latency = json.load(open('latency_0.json', 'r'))
     raw_latency = {
                    'spikes': [],
                    'senders': []
@@ -208,7 +256,8 @@ def convert_latency(latency_list, settings):
         tmp_latency_dict = base_latency_dict.copy()
         for lat, sender in zip(latencies['spikes'], latencies['senders']):
             for neuron_name, neuron_id in zip(neuron_names, neuron_out_ids):
-                if sender == [neuron_id] and [lat] < tmp_latency_dict[neuron_name]:
+                if sender == [neuron_id] \
+                        and [lat] < tmp_latency_dict[neuron_name]:
                     tmp_latency_dict[neuron_name] = [lat] 
         output_list.append(tmp_latency_dict)
     return output_list
@@ -217,7 +266,8 @@ def convert_latency(latency_list, settings):
 def predict_from_latency(latency_list):
     output_list = []
     for latency in latency_list:
-        tmp_list = [latency[neuron][:1] for neuron in sorted(latency.keys())]
+        tmp_list = [latency[neuron][:1] 
+                    for neuron in sorted(latency.keys())]
         min_index, min_value = min(enumerate(tmp_list),
                                    key=operator.itemgetter(1))
         output_list.append(min_index)
@@ -228,7 +278,8 @@ def fitness_func_time(latency_list, data):
     fit_list = []
 
     for latency, y in zip(latency_list, data['class']):
-        tmp_list = [latency[neuron_number][:1][0] for neuron_number in sorted(latency.keys())]
+        tmp_list = [latency[neuron_number][:1][0] 
+                    for neuron_number in sorted(latency.keys())]
         latency_of_desired_neuron = tmp_list.pop(y)
 
         fit = -1 * latency_of_desired_neuron
@@ -246,7 +297,8 @@ def fitness_func_sigma(latency_list, data):
 
     fit_list = []
     for latency, y in zip(latency_list, data['class']):
-        tmp_list = [latency[neuron_number][:1][0] for neuron_number in sorted(latency.keys())]
+        tmp_list = [latency[neuron_number][:1][0] 
+                    for neuron_number in sorted(latency.keys())]
         latency_of_desired_neuron = tmp_list.pop(y)
         fit = 1
         for lat in tmp_list:
@@ -261,15 +313,14 @@ def fitness_func_sigma(latency_list, data):
 def fitness_func_exp(latency_list, data):
     fit_list = []
     for latency, y in zip(latency_list, data['class']):
-        tmp_list = [latency[neuron_number][:1][0] for neuron_number in sorted(latency.keys())]
+        tmp_list = [latency[neuron_number][:1][0] 
+                    for neuron_number in sorted(latency.keys())]
         latency_of_desired_neuron = tmp_list.pop(y)
         fit = 1
         for lat in tmp_list:
             fit -= exp(latency_of_desired_neuron - lat)
         fit_list.append(fit)
     fitness = np.mean(fit_list)
-    # print(fit_list)
-    # print(fitness)
     if np.isnan(fitness):
         fitness = 0
     return fitness, fit_list
@@ -277,6 +328,7 @@ def fitness_func_exp(latency_list, data):
 
 def save_weigths(layers, settings):
     weights = {}
+    synapse_model = settings['model']['syn_dict_stdp']['model']
     for i, layer in enumerate(layers[1:]):
         previous_layer = layers[i]
         layer_name = 'layer_' + str(i)
@@ -284,8 +336,10 @@ def save_weigths(layers, settings):
         for neuron_id in layer:
             tmp_weight = []
             for input_id in previous_layer:
-                conn = nest.GetConnections([input_id], [neuron_id], 
-                                           synapse_model=settings['model']['syn_dict_stdp_hid']['model'])
+                conn = nest.GetConnections(
+                    [input_id], [neuron_id], 
+                    synapse_model=synapse_model
+                )
                 weight_one = nest.GetStatus(conn, 'weight')
                 if len(weight_one) != 0:
                     tmp_weight.append(weight_one[0])
@@ -314,48 +368,44 @@ def interconnect_layer(layer, syn_dict):
 def prepare_data(data, train_index, test_index, settings):
     data_train = {}
     data_test = {}
-    data_out = {}
-
+    # data_out = {}
+    data_out = {'train': {},
+                'test': {}}
     if settings['data']['use_valid']:
         data_valid = {}
-        
-        data_out = {'train': {},
-                    'test': {},
-                    'valid': {}}
-        input_train, input_valid, y_train, y_valid = train_test_split(data['input'][train_index],
-                                                                      data['class'][train_index],
-                                                                      test_size=settings['data']['valid_size'],
-                                                                      random_state=42)
+        data_out['valid'] = {}
+
+        input_train, \
+        input_valid, \
+        y_train, \
+        y_valid = train_test_split(data['input'][train_index],
+                                   data['class'][train_index],
+                                   test_size=settings['data']['valid_size'],
+                                   random_state=42)
         data_train['input'] = input_train
         data_train['class'] = y_train
 
         data_valid['input'] = input_valid
         data_valid['class'] = y_valid
 
-        data_test['input'] = data['input'][test_index]
-        data_test['class'] = data['class'][test_index]
-
-        data_out['test']['full'] = data_test
         data_out['train']['full'] = data_train
         data_out['valid']['full'] = data_valid
     else:
-        data_out = {'train': {},
-                    'test': {}}
         data_train['input'] = data['input'][train_index]
         data_train['class'] = data['class'][train_index]
 
-        data_test['input'] = data['input'][test_index]
-        data_test['class'] = data['class'][test_index]
-
-        data_out['test']['full'] = data_test
         data_out['train']['full'] = data_train
 
+    data_test['input'] = data['input'][test_index]
+    data_test['class'] = data['class'][test_index]
+
+    data_out['test']['full'] = data_test
     return data_out
 
 
 def train(settings, data):
     np.random.seed()
-    rank = nest.Rank()
+    # rank = nest.Rank()
     rng = np.random.randint(500)
     num_v_procs = settings['network']['num_threads'] \
                 * settings['network']['num_procs']
@@ -388,8 +438,7 @@ def train(settings, data):
     spike_detector_3 = nest.Create('spike_detector')
 
     voltmeter = nest.Create(
-        'voltmeter', 
-        1,
+        'voltmeter', 1,
         {
          'withgid': True,
          'withtime': True
@@ -397,9 +446,13 @@ def train(settings, data):
     )
 
     if not settings['network']['noise_after_pattern']:
-        nest.SetStatus(poisson_layer,
-                       {'rate': settings['network']['noise_freq'],
-                        'origin': 0.0})
+        nest.SetStatus(
+            poisson_layer,
+            {
+             'rate': settings['network']['noise_freq'],
+             'origin': 0.0
+            }
+        )
 
     nest.Connect(spike_generators_1, parrot_layer, 'one_to_one', 
                  syn_spec='static_synapse')
@@ -441,101 +494,118 @@ def train(settings, data):
 
     np.random.seed(500)
 
-    i = 0
-    hi = 1
-    # last_norms = []
-    norm_history = []
+    # i = 0
+    # hi = 1
+    # # last_norms = []
+    # norm_history = []
     output_latency = []
-    weights_history = []
+    # weights_history = []
     
-    early_stop = False
-    d_time = settings['network']['start_delta']
-    full_time = settings['learning']['epochs'] \
-              * len(data['input']) \
-              * settings['network']['h_time'] \
-              + settings['network']['start_delta']
+    # early_stop = False
+    # d_time = settings['network']['start_delta']
+    # full_time = settings['learning']['epochs'] \
+    #           * len(data['input']) \
+    #           * settings['network']['h_time'] \
+    #           + settings['network']['start_delta']
     
-    # if settings['two_layers']:
-    #     initial_weights = save_weigths_two_layers(parrot_layer, layer_hid, layer_out, settings)
-    # else:
-    #     initial_weights = save_weights_one_layer(parrot_layer, layer_out, settings)
+    # # if settings['two_layers']:
+    # #     initial_weights = save_weigths_two_layers(parrot_layer, layer_hid, layer_out, settings)
+    # # else:
+    # #     initial_weights = save_weights_one_layer(parrot_layer, layer_out, settings)
 
-    single_neuron = settings['topology']['n_layer_out'] == 1
+    # single_neuron = settings['topology']['n_layer_out'] == 1
 
-    nest.Simulate(settings['network']['start_delta'])
+    # nest.Simulate(settings['network']['start_delta'])
 
-    while not early_stop:
-        spike_times, spikes = set_spike_in_generators(
-            data['input'][i],
-            spike_generators_1,
-            d_time,
-            d_time + settings['network']['h_time'],
-            settings['network']['h_time'],
-            settings['network']['h']
-        )
-        # spike_times_1 = []
-        # for neuron_number in data['input'][i]:
-        #     if data['input'][i][neuron_number]:
-        #         spike_times_1.append(data['input'][i][neuron_number][0])
+    # while not early_stop:
+    #     spike_times, spikes = set_spike_in_generators(
+    #         data['input'][i],
+    #         spike_generators_1,
+    #         d_time,
+    #         d_time + settings['network']['h_time'],
+    #         settings['network']['h_time'],
+    #         settings['network']['h']
+    #     )
+    #     # spike_times_1 = []
+    #     # for neuron_number in data['input'][i]:
+    #     #     if data['input'][i][neuron_number]:
+    #     #         spike_times_1.append(data['input'][i][neuron_number][0])
         
-        # print(spike_times)
-        # print(spike_times_1)
+    #     # print(spike_times)
+    #     # print(spike_times_1)
 
-        if settings['learning']['use_teacher']:
-            current_teacher = teacher_1 if single_neuron else [teacher_1[data['class'][i]]]
-            teacher_impulse_time = np.min(spike_times) \
-                                 + d_time \
-                                 + settings['network']['h'] \
-                                 + settings['learning']['reinforce_delta']
-            set_teacher_input(teacher_impulse_time, current_teacher, settings)
+    #     if settings['learning']['use_teacher']:
+    #         current_teacher = teacher_1 if single_neuron else [teacher_1[data['class'][i]]]
+    #         teacher_impulse_time = np.min(spike_times) \
+    #                              + d_time \
+    #                              + settings['network']['h'] \
+    #                              + settings['learning']['reinforce_delta']
+    #         set_teacher_input(teacher_impulse_time, current_teacher, settings)
 
-        if settings['network']['noise_after_pattern']:
-            nest.SetStatus(
-                poisson_layer,
-                {
-                 'start': d_time + np.max(spike_times),
-                 'stop': d_time + settings['network']['h_time'],
-                 'rate': settings['network']['noise_freq']
-                })
+    #     if settings['network']['noise_after_pattern']:
+    #         nest.SetStatus(
+    #             poisson_layer,
+    #             {
+    #              'start': d_time + np.max(spike_times),
+    #              'stop': d_time + settings['network']['h_time'],
+    #              'rate': settings['network']['noise_freq']
+    #             })
 
-        nest.Simulate(settings['network']['h_time'])
+    #     nest.Simulate(settings['network']['h_time'])
         
-        tmp_dict = get_spikes_of_pattern(spike_detector_1, d_time, data['class'][i])
-        output_latency.append(tmp_dict)
+    #     tmp_dict = get_spikes_of_pattern(spike_detector_1, d_time, data['class'][i])
+    #     output_latency.append(tmp_dict)
 
-        d_time += settings['network']['h_time']
-        if i + hi + 1 > len(data['input']):
-            i = 0
-        else:
-            i += hi
+    #     d_time += settings['network']['h_time']
+    #     if i + hi + 1 > len(data['input']):
+    #         i = 0
+    #     else:
+    #         i += hi
         
-        if settings['network']['save_history']:
+    #     if settings['network']['save_history']:
 
-            layers = [parrot_layer, layer_hid, layer_out] if settings['topology']['two_layers'] \
-                else [parrot_layer, layer_out]
+    #         layers = [parrot_layer, layer_hid, layer_out] if settings['topology']['two_layers'] \
+    #             else [parrot_layer, layer_out]
 
-            tmp_weights = save_weigths(layers, settings)
-            tmp_norm = weight_norm(tmp_weights)
+    #         tmp_weights = save_weigths(layers, settings)
+    #         tmp_norm = weight_norm(tmp_weights)
 
-            norm_history.append(tmp_norm)
-            weights_history.append(tmp_weights)
-        early_stop = d_time > full_time
+    #         norm_history.append(tmp_norm)
+    #         weights_history.append(tmp_weights)
+    #     early_stop = d_time > full_time
+    is_train = True
+    d_time, \
+    input_spikes = set_input_spikes(data['input'], 
+                                    spike_generators_1,
+                                    settings, is_train)
 
-    layers = [parrot_layer, layer_hid, layer_out] if settings['topology']['two_layers'] \
+    set_teachers_input(input_spikes, data['class'],
+                       teacher_1, settings)
+
+    create_poisson_noise(input_spikes, settings)
+
+    nest.SetStatus(
+        poisson_layer,
+        {
+         'rate': settings['network']['noise_freq'],
+         'origin': 0.0
+        }
+    )
+
+    nest.Simulate(d_time)
+
+    layers = [parrot_layer, layer_hid, layer_out] \
+        if settings['topology']['two_layers'] \
         else [parrot_layer, layer_out]
 
     weights = save_weigths(layers, settings)
-
-    # print(weights['layer_out'].keys())
-    # with open('weights' + str(weights['layer_out'].keys()) + '.json', 'w') as outfile:
-    #     json.dump(weights, outfile, indent=4)
     devices = {
                'voltmeter': voltmeter,
                'spike_detector_1': spike_detector_1,
                'spike_detector_2': spike_detector_2,
                'spike_detector_3': spike_detector_3,
               }
-    return weights, output_latency, devices, weights_history, norm_history
+    return weights, output_latency, devices  #, weights_history, norm_history
 
 
 def test(settings, data, weights):
@@ -571,8 +641,7 @@ def test(settings, data, weights):
     spike_detector_3 = nest.Create('spike_detector')
 
     voltmeter = nest.Create(
-        'voltmeter', 
-        1,
+        'voltmeter', 1,
         {
          'withgid': True,
          'withtime': True
@@ -595,7 +664,8 @@ def test(settings, data, weights):
 
     if settings['topology']['two_layers']:
         if settings['topology']['use_inhibition']:
-            interconnect_layer(layer_hid, settings['model']['syn_dict_inh'])
+            interconnect_layer(layer_hid,
+                               settings['model']['syn_dict_inh'])
             # nest.Connect(layer_out, layer_hid,
             #              'all_to_all', syn_spec=settings['syn_dict_inh'])
         
@@ -607,48 +677,40 @@ def test(settings, data, weights):
         nest.SetStatus(layer_hid, settings['model']['neuron_hid'])
     else:
         if settings['topology']['use_inhibition']:
-            interconnect_layer(layer_out, settings['model']['syn_dict_inh'])
+            interconnect_layer(layer_out, 
+                               settings['model']['syn_dict_inh'])
         nest.Connect(parrot_layer, layer_out,
                      'all_to_all', syn_spec='static_synapse')
 
     for neuron_id in weights['layer_0']:
-        connection = nest.GetConnections(parrot_layer, target=[neuron_id])
-        nest.SetStatus(connection, 'weight', weights['layer_0'][neuron_id])
+        connection = nest.GetConnections(parrot_layer, 
+                                         target=[neuron_id])
+        nest.SetStatus(connection, 'weight', 
+                       weights['layer_0'][neuron_id])
+
     if settings['topology']['two_layers']:
         for neuron_id in weights['layer_1']:
-            connection = nest.GetConnections(layer_hid, target=[neuron_id])
-            nest.SetStatus(connection, 'weight', weights['layer_1'][neuron_id])
+            connection = nest.GetConnections(layer_hid, 
+                                             target=[neuron_id])
+            nest.SetStatus(connection, 'weight',
+                           weights['layer_1'][neuron_id])
 
     np.random.seed(500)
-    output_latency = []
-    # d_time = settings['network']['start_delta']
-    # nest.Simulate(settings['network']['start_delta'])
+    is_train = False
+    full_time, input_spikes = set_input_spikes(data['input'], 
+                                               spike_generators_1,
+                                               settings, is_train)
+    nest.Simulate(full_time)
 
-    # for example, ex_class in zip(data['input'], data['class']):
-    #     set_spike_in_generators(
-    #         example,
-    #         spike_generators_1,
-    #         d_time,
-    #         d_time + settings['network']['h_time'],
-    #         settings['network']['h_time'],
-    #         settings['network']['h']
-    #     )
-    #     # nest.SetStatus(poisson_layer, {'start': 30.})
-    #     nest.Simulate(settings['network']['h_time'])
-    #     d_time += settings['network']['h_time']
-    d_time = set_spike_input(data['input'], 
-                             spike_generators_1,
-                             settings,
-                             False)
-    nest.Simulate(d_time)
+    spikes = nest.GetStatus(spike_detector_1,
+                            keys="events")[0]['times'].tolist()
+    senders = nest.GetStatus(spike_detector_1,
+                             keys="events")[0]['senders'].tolist()
 
-    spikes = nest.GetStatus(spike_detector_1, keys="events")[0]['times'].tolist()
-    senders = nest.GetStatus(spike_detector_1, keys="events")[0]['senders'].tolist()
-
-    output_latency = {
-                      'spikes': spikes,
-                      'senders': senders
-                     }
+    output = {
+              'spikes': spikes,
+              'senders': senders
+             }
 
     devices = {
                'voltmeter': voltmeter,
@@ -656,7 +718,7 @@ def test(settings, data, weights):
                'spike_detector_2': spike_detector_2,
                'spike_detector_3': spike_detector_3,
               }
-    return output_latency, devices
+    return output, devices
 
 
 def test_network_acc(data, settings):
@@ -664,8 +726,7 @@ def test_network_acc(data, settings):
 
     data_train = data['train']['full']
     weights, \
-    latency_train, devices_train, \
-    weights_history, norm_history = train(settings, data_train)
+    latency_train, devices_train = train(settings, data_train)
     
     fitness = 0
     if settings['data']['use_valid']:
@@ -674,26 +735,39 @@ def test_network_acc(data, settings):
         all_latency_valid = comm.allgather(raw_latency_valid)
         comm.Barrier()
         raw_latency_valid = merge_spikes_and_senders(all_latency_valid)
-        latency_valid = split_spikes_and_senders(raw_latency_valid, len(data_valid['class']), settings)
+        latency_valid = split_spikes_and_senders(raw_latency_valid,
+                                                 len(data_valid['class']),
+                                                 settings)
         full_latency_valid = convert_latency(latency_valid, settings)
-        if settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'exp':
-            fitness, fit_list = fitness_func_exp(full_latency_valid, data_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'sigma':
-            fitness, fit_list = fitness_func_sigma(full_latency_valid, data_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'time':
+        if settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'exp':
+            fitness, fit_list = fitness_func_exp(full_latency_valid,
+                                                 data_valid)
+        elif settings['learning']['use_fitness_func']  \
+                and settings['learning']['fitness_func'] == 'sigma':
+            fitness, fit_list = fitness_func_sigma(full_latency_valid,
+                                                   data_valid)
+        elif settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'time':
             fitness = fitness_func_time(full_latency_valid, data_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'acc':
+        elif settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'acc':
             y_valid = predict_from_latency(full_latency_valid)
             fitness = accuracy_score(data_valid['class'], y_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'f1':
+        elif settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'f1':
             y_valid = predict_from_latency(full_latency_valid)
             fitness = f1_score(data_valid['class'], y_valid, average='micro')
 
-    raw_latency_test_train, devices_test_train = test(settings, data_train, weights)
+    raw_latency_test_train, devices_test_train = test(settings,
+                                                      data_train,
+                                                      weights)
     all_latency_test_train = comm.allgather(raw_latency_test_train)
     comm.Barrier()
     raw_latency_test_train = merge_spikes_and_senders(all_latency_test_train)
-    latency_test_train = split_spikes_and_senders(raw_latency_test_train, len(data_train['class']), settings)
+    latency_test_train = split_spikes_and_senders(raw_latency_test_train,
+                                                  len(data_train['class']),
+                                                  settings)
     full_latency_test_train = convert_latency(latency_test_train, settings)
     y_train = predict_from_latency(full_latency_test_train)
 
@@ -708,7 +782,9 @@ def test_network_acc(data, settings):
     all_latency_test = comm.allgather(raw_latency_test)
     comm.Barrier()
     raw_latency_test = merge_spikes_and_senders(all_latency_test)
-    latency_test = split_spikes_and_senders(raw_latency_test, len(data_test['class']), settings)
+    latency_test = split_spikes_and_senders(raw_latency_test,
+                                            len(data_test['class']),
+                                            settings)
 
     full_latency_test = convert_latency(latency_test, settings)
     y_test = predict_from_latency(full_latency_test)
