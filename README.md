@@ -9,5 +9,5 @@ Dependencies:
   * sklearn
   * numpy
   * matplotlib
-  * mpi4py (if needed)
+  * mpi4py
   * MultiNEAT http://multineat.com/index.html (if needed)
