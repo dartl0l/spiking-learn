@@ -10,7 +10,7 @@ import MultiNEAT as neat
 import mpi4py.futures as fut
 from mpi4py import MPI 
 from spiking_network_learning_alghorithm import traits
-from spiking_network_learning_alghorithm.genetic_solver import solve_task
+from spiking_network_learning_alghorithm.solver import solve_task
 
 
 
