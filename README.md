@@ -12,6 +12,7 @@ Dependencies:
   * mpi4py
   * MultiNEAT http://multineat.com/index.html (needed for genetic.py)
 
+## Running
 To start simulation create your own py file and add
 
 ```
