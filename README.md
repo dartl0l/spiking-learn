@@ -28,7 +28,7 @@ or run from command line
 python solver path-to-folder-with-settings-file
 ```
 
-here is example of settings file for Fisher's Iris Classification settings.json
+here is example of settings file for Fisher's Iris Classification settings.json with 
 
 ```
 {
