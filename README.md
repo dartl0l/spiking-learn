@@ -1,5 +1,5 @@
 # spiking_network_learning_algorithm
-This is "framework" for machine learning with spiking neural networks using Fisher' Iris, Wisconsin Breast Bancer and skelarn Digits datasets.
+This is "framework" for spiking neural networks machine learning based on temporal encoding using Fisher' Iris, Wisconsin Breast Bancer and skelarn Digits datasets.
 You can optimize model parameters using MultiNEAT neuroevolution library.
 It can be running with mpi.
 
@@ -17,6 +17,8 @@ or run from command line
 ```
 python solver path-to-folder-with-settings-file
 ```
+
+here is example of settings file for Fisher's Iris Classification
 
 
 Dependencies:
