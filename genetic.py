@@ -1,18 +1,30 @@
+# coding: utf-8
+
 import sys
-from os import system, chdir, getcwd, mkdir
+from os import system, chdir, getcwd, mkdir, path
 from shutil import copytree
 
 import numpy
 import json # to read parameters from file
-# import mpi4py.futures as fut
-# from mpi4py import MPI
 import MultiNEAT as neat
-import traits
-from iris_for_genetic import solve_task
+import mpi4py.futures as fut
+from mpi4py import MPI 
+from spiking_network_learning_alghorithm import traits
+from spiking_network_learning_alghorithm.genetic_solver import solve_task
+
 
 
 def prepare_genomes(genome):
     current_trait_values = genome.GetGenomeTraits()
+
+    print(traits.data_traits)
+    print(traits.neuron_traits)
+    print(traits.network_traits)
+    print(traits.synapse_traits)
+
+    data_trait_values = {trait_name: trait_value
+                         for trait_name, trait_value in current_trait_values.items()
+                            if trait_name in traits.data_traits}
     network_trait_values = {trait_name: trait_value
                             for trait_name, trait_value in current_trait_values.items()
                                 if trait_name in traits.network_traits}
@@ -24,21 +36,23 @@ def prepare_genomes(genome):
                                 if trait_name in traits.synapse_traits}
     
     settings = json.load(open('settings.json', 'r'))
-    # settings['n_coding_neurons'] = network_trait_values['n_coding_neurons']
-    # settings['epochs'] = network_trait_values['epochs']
-    # settings['h_time'] = network_trait_values['h_time']
-    settings['noise_freq'] = network_trait_values['noise_freq']
-    
-    settings['neuron_out']['tau_minus'] = neuron_trait_values['tau_minus']
-    settings['neuron_out']['C_m'] = neuron_trait_values['C_m']
-    settings['neuron_out']['tau_m'] = neuron_trait_values['tau_m']
-    settings['neuron_out']['t_ref'] = neuron_trait_values['t_ref']
+    for trait in data_trait_values:
+        settings['data'][trait] = data_trait_values[trait]
 
-    settings['syn_dict_stdp']['alpha'] = synapse_trait_values['alpha']
-    settings['syn_dict_stdp']['lambda'] = synapse_trait_values['lambda']
-    settings['syn_dict_stdp']['tau_plus'] = synapse_trait_values['tau_plus']
+    for trait in network_trait_values:
+        settings['network'][trait] = network_trait_values[trait]
 
-    mkdir('genome' + str(genome.GetID()))
+    for trait in neuron_trait_values:
+        settings['model']['neuron_out'][trait] = neuron_trait_values[trait]
+
+    for trait in synapse_trait_values:
+        settings['model']['syn_dict_stdp'][trait] = synapse_trait_values[trait]
+
+    try:
+        mkdir('genome' + str(genome.GetID()))
+    except FileExistsError:
+        print('folder genome' + str(genome.GetID()) + 'exists')
+
     chdir('genome' + str(genome.GetID()))
     json.dump(settings, open('settings.json', 'w'), indent=4)
     chdir('..') # out of genomeID
@@ -52,20 +66,40 @@ def evaluate(genome):
     return fitness
 
 
-def main():
+def evaluate_futures(genome):
+    directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
+    print("Start sim in " + str(directory_name))
+    os.system("cd " + directory_name + " ;"
+              "python genetic_solver.py " + directory_name + "; ")
+    with open('fitness.txt') as fitness_file:
+        fitness = fitness_file.readline()
+    os.chdir('..')
+    print("Stop sim in " + str(directory_name))
+    return fitness
+
+
+def main(use_futures):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    # mode = MPI.MODE_CREATE | MPI.MODE_WRONLY
+
     sys.stdout = open('out.txt', 'w')
     sys.stderr = open('err.txt', 'w')
     
     print("Prepare traits and genomes")
 
     neat_params = neat.Parameters()
-    # system("grep -v '//' < input/neat_parameters.txt | grep . > input/neat_parameters.filtered.txt")
+    system("grep -v '//' < input/neat_parameters.txt | grep . > input/neat_parameters.filtered.txt")
     neat_params.Load('input/neat_parameters.filtered.txt')
-    # system("rm input/neat_parameters.filtered.txt")
+    system("rm input/neat_parameters.filtered.txt")
 
     # system("grep -v '//' < input/global_parameters.json | grep . > input/global_parameters.filtered.json")
-    network_parameters = json.load(open('input/global_parameters.filtered.json', 'r'))
+    # network_parameters = json.load(open('input/global_parameters.filtered.json', 'r'))
     # system("rm input/global_parameters.filtered.json")
+    # mode = MPI.MODE_RDONLY
+    network_parameters = json.load(open('input/global_parameters.json', 'r'))
+    # network_parameters = json.load(open(comm, 'input/global_parameters.json', mode))
 
     for trait_name, trait_value in traits.network_traits.items():
         neat_params.SetGenomeTraitParameters(trait_name, trait_value)
@@ -74,7 +108,7 @@ def main():
         neat_params.SetGenomeTraitParameters(trait_name, trait_value)
     for trait_name, trait_value in traits.synapse_traits.items():
         # change to SetLinkTraitParameters to let the synapse parameters mutate individually for each synapse
-         neat_params.SetGenomeTraitParameters(trait_name, trait_value)
+        neat_params.SetGenomeTraitParameters(trait_name, trait_value)
 
     genome = neat.Genome(
         0, # Some genome ID, I don't know what it means.
@@ -97,48 +131,76 @@ def main():
         0 # the RNG seed
     )
 
-    print("Start solving generations")
 
-    with open('output/fitness.txt', 'w') as outfile:
-        for generation_number in range(1):
-            print("Generation " + str(generation_number) + " started")
-            genome_list = neat.GetGenomeList(population)
-            fitnesses_list = []
+    # fh = MPI.File.Open(comm, "datafile", mode) 
+    # line1 = str(comm.rank)*(comm.rank+1) + '\n' 
+    # line2 = chr(ord('a')+comm.rank)*(comm.rank+1) + '\n' 
+    # fh.Write_ordered(line1) 
+    # fh.Write_ordered(line2) 
+    # fh.Close() 
+    print("Start solving generations")
+    outfile = open('output/fitness.txt', 'w')
+    # mode = MPI.MODE_CREATE | MPI.MODE_WRONLY
+    # outfile = MPI.File.Open(comm, 'output/fitness.txt', mode) 
+    # with open('output/fitness.txt', 'w') as outfile:
+    for generation_number in range(network_parameters['generations']):
+        print("Generation " + str(generation_number) + " started")
+        genome_list = neat.GetGenomeList(population)
+        fitnesses_list = []
+
+        # map(prepare_genomes, genome_list)
+        for genome in genome_list:
+            prepare_genomes(genome)
+
+        if use_futures:
+            executor = fut.MPIPoolExecutor()
+            # fitnesses_list = executor.map(evaluate_futures, genome_list)
+            for fitness in executor.map(evaluate_futures, genome_list):
+                fitnesses_list.append(fitness)
+        else:
+            # fitnesses_list = map(evaluate, genome_list)
             for genome in genome_list:
-                prepare_genomes(genome)
                 fitnesses_list.append(evaluate(genome))
 
-            neat.ZipFitness(genome_list, fitnesses_list)
-            if generation_number % network_parameters['result_watching_step'] == 0:
-                population.GetBestGenome().Save('output/best_genome.txt')
-                with open('output/best_genome.txt', 'a') as genomefile:
-                    genomefile.write(
-                        '\n' + str(population.GetBestGenome().GetNeuronTraits())
-                        + '\n' + str(population.GetBestGenome().GetGenomeTraits())
-                    )
-                    genomefile.close()
-                copytree('genome' + str(population.GetBestGenome().GetID()), 
-                         'output/generation' + str(generation_number) + '_best_genome')
+        neat.ZipFitness(genome_list, fitnesses_list)
 
-            outfile.write(
-                str(generation_number)
-                + '\t' + str(max(fitnesses_list))
-                + '\n'
-            )
-            outfile.flush()
-            sys.stderr.write(
-                '\rGeneration ' + str(generation_number)
-                + ': fitness = ' + str(population.GetBestGenome().GetFitness())
-            )
+        population.GetBestGenome().Save('output/best_genome.txt')
+        # mode = MPI.MODE_APPEND
+        # genomefile = MPI.File.Open(comm, 'output/best_genome.txt', mode) 
+        # genomefile.Write_ordered('\n' + str(population.GetBestGenome().GetNeuronTraits()) + 
+        #                          '\n' + str(population.GetBestGenome().GetGenomeTraits()))
+        # genomefile.Close()
+        genomefile = open('output/best_genome.txt', 'a')
+        genomefile.write('\n' + str(population.GetBestGenome().GetNeuronTraits()) + 
+                         '\n' + str(population.GetBestGenome().GetGenomeTraits()))
+        genomefile.close()
+        # copytree('genome' + str(population.GetBestGenome().GetID()), 
+        #          'output/generation' + str(generation_number) + '_best_genome')
+        try:
+            copytree('genome' + str(population.GetBestGenome().GetID()), 
+                     'output/generation' + str(generation_number) + '_best_genome')
+        except FileExistsError:
+            print('folder generation' + str(generation_number) + '_best_genome exists')
 
-            # advance to the next generation
-            print("Generation " + str(generation_number) + 
-                  ": fitness = " + str(population.GetBestGenome().GetFitness()))
-            print("Generation " + str(generation_number) + "finished")
-            population.Epoch()
+        # outfile.Write_ordered(str(generation_number) + '\t' + str(max(fitnesses_list)) + '\n')
+        outfile.write(str(generation_number) + '\t' + str(max(fitnesses_list)) + '\n')
+        outfile.flush()
+        # sys.stderr.write(
+        #     '\rGeneration ' + str(generation_number)
+        #     + ': fitness = ' + str(population.GetBestGenome().GetFitness())
+        # )
+
+        # advance to the next generation
+        print("Generation " + str(generation_number) + \
+              ": fitness = " + str(population.GetBestGenome().GetFitness()))
+        print("Generation " + str(generation_number) + " finished")
+        population.Epoch()
+    # outfile.Close()
+    outfile.close()
 
 
 if __name__ == '__main__':
-    main()
+    use_futures = True
+    main(use_futures)
 
 

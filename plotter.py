@@ -1,8 +1,7 @@
-import nest.raster_plot
-import nest.voltage_trace
 import pylab as pl
 import numpy as np
-from matplotlib import animation, rc
+from math import cos, sin, pi
+from matplotlib import animation, rc, cm
 from mpl_toolkits.mplot3d import Axes3D
 
 
@@ -82,13 +81,16 @@ class Plotter:
 
         weights_anim = animation.ArtistAnimation(fig, all_plot, blit=True)
 
-        if save is True:
+        if save:
             weights_anim.save('weights.mp4')
         #     if show is True:
         #         HTML(weights_anim.to_html5_video())
         return weights_anim
 
     def plot_devices(self, devices):
+        import nest.voltage_trace
+        import nest.raster_plot
+
         nest.voltage_trace.from_device(devices['voltmeter'])
         pl.show()
 
@@ -99,6 +101,9 @@ class Plotter:
         pl.show()
 
     def plot_devices_start(self, devices, settings):
+        import nest.voltage_trace
+        import nest.raster_plot
+
         nest.voltage_trace.from_device(devices['voltmeter'])
         pl.xlim(settings['start_delta'], settings['start_delta'] + settings['h_time'])
         pl.show()
@@ -112,6 +117,9 @@ class Plotter:
         pl.show()
 
     def plot_devices_end(self, devices, settings):
+        import nest.voltage_trace
+        import nest.raster_plot
+
         nest.voltage_trace.from_device(devices['voltmeter'])
         pl.xlim(settings['full_time'] - settings['h_time'], settings['full_time'])
         pl.show()
@@ -184,11 +192,12 @@ class Plotter:
         if show:
             pl.show()
 
-    def plot_image(self, image_spikes, image_size, show=True):
+    def plot_image(self, image_spikes, image_size, title, show=True):
         # pl.xlim(0, image_size[0])
         # pl.ylim(0, image_size[1])
 
-        pl.title('Image spikes')
+        scale = 100
+        pl.title(title)
 
         spike_pos_x = 0
         spike_pos_y = image_size[1]
@@ -204,8 +213,72 @@ class Plotter:
         Y = np.arange(0, image_size[1], 1)
         X, Y = np.meshgrid(X, Y)
 
-        pl.scatter(X, Y, new_image)
+        pl.scatter(X, Y, new_image * scale)
 
         if show:
             pl.show()
 
+    def plot_params(self, parameters_acc_pairs, title='Parameters distribution', normalize_colors=True, show=True):
+        def get_polar(r, fi):
+                x = r * cos(fi)
+                y = r * sin(fi)
+                return x, y
+
+        def get_polars(parameters):
+            x_list = []
+            y_list = []
+            h_fi = 2 * pi / len(parameters)
+
+            for i, parameter in enumerate(parameters):
+                x, y = get_polar(parameter, h_fi * i)
+                x_list.append(x)
+                y_list.append(y)
+            x_list.append(x_list[0])
+            y_list.append(y_list[0])
+            return x_list, y_list
+
+        def get_axes(n_axes):
+            h_fi = 2 * pi / n_axes
+            
+            axes = []
+
+            for i in range(n_axes):
+                x, y = get_polar(1.0, h_fi * i)
+                x_list = [0, x]
+                y_list = [0, y]
+                axes.append((x_list, y_list))
+            return axes
+
+        accs = []
+        all_params = []
+        param_names = sorted(list(parameters_acc_pairs[0][0].keys()))
+
+        for parameters, acc in parameters_acc_pairs:
+            accs.append(acc)
+            all_params.append([x for _, x in sorted(zip(list(parameters.keys()), list(parameters.values())))])
+
+        pl.title(title)
+
+        pl.ylim(-1.5, 1.5)
+        pl.xlim(-1.5, 1.5)
+
+        axes = get_axes(len(param_names))
+
+        for (x, y), param in zip(axes, param_names):
+            pl.plot(x, y, 'k-')
+            pl.text(x[1], y[1], param)
+
+        cmap = cm.get_cmap('viridis')
+        for acc, parameters in sorted(zip(accs, all_params)):
+            x, y = get_polars(parameters)
+            if normalize_colors:
+                color = cmap((acc - 0.8) / 0.2)
+            else:
+                color = cmap(acc)
+            pl.plot(x, y, '-', color=color)
+        if show:
+            pl.show()
+
+    # def plot_pca(self, X, y, show=False):
+    #     pca = 
+    #     X = 

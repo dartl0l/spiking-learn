@@ -386,14 +386,19 @@ def test(settings, data, weights):
     nest.ResetKernel()
     np.random.seed()
     rng = np.random.randint(500)
-    nest.SetKernelStatus({'local_num_threads': settings['num_threads'],
-                          'total_num_virtual_procs': settings['num_threads'] * settings['num_procs'],
-                          'resolution': settings['h'],
-                          'rng_seeds': range(rng, rng + settings['num_threads'] * settings['num_procs'])})
+    nest.SetKernelStatus(
+        {
+            'resolution': settings['h'],
+            'local_num_threads': settings['num_threads'],
+            'total_num_virtual_procs': settings['num_threads'] * settings['num_procs'],
+            'rng_seeds': range(rng, rng + settings['num_threads'] * settings['num_procs'])
+        }
+    )
 
     layer_out = nest.Create('iaf_psc_exp', settings['n_layer_out'])
     if settings['two_layers']:
         layer_hid = nest.Create('iaf_psc_exp', settings['n_layer_hid'])
+
     spike_generators_1 = nest.Create('spike_generator', settings['n_input'])
     poisson_layer = nest.Create('poisson_generator', settings['n_input'])
     spike_generators_2 = nest.Create('spike_generator', settings['n_input'])
@@ -502,13 +507,17 @@ def test_network_acc_for_genetic(data, settings):
     full_latency_valid = create_full_latency(latency_valid, settings)
 
     fitness = 0
-    if settings['use_fitness_func'] and settings['fitness_func'] == 'sigma':
+    if settings['use_fitness_func'] \
+            and settings['fitness_func'] == 'sigma':
         fitness = fitness_func_sigma(full_latency_valid, data_valid)
-    elif settings['use_fitness_func'] and settings['fitness_func'] == 'time':
+    elif settings['use_fitness_func'] \
+            and settings['fitness_func'] == 'time':
         fitness = fitness_func_time(full_latency_valid, data_valid)
-    elif settings['use_fitness_func'] and settings['fitness_func'] == 'acc':
+    elif settings['use_fitness_func'] \
+            and settings['fitness_func'] == 'acc':
         fitness, out = count_acc(full_latency_valid, data_valid)
-    elif settings['use_fitness_func'] and settings['fitness_func'] == 'weights':
+    elif settings['use_fitness_func'] \
+            and settings['fitness_func'] == 'weights':
         final_weights = list(list(weights.values())[0].values())
         np.savetxt('final_weights.txt', final_weights)
         desired_weights = np.loadtxt('../desired_weights/final_weights.txt')
@@ -535,7 +544,7 @@ def test_network_acc_for_genetic(data, settings):
 
 def test_network_acc_cv_for_genetic(data, settings):
     def solve_fold(input_data):
-        data_fold = prepare_data_genetic(input_data['data'],       input_data['train_index'],
+        data_fold = prepare_data_genetic(input_data['data'], input_data['train_index'],
                                          input_data['test_index'], input_data['settings'])
         return test_network_acc_for_genetic(data_fold, input_data['settings'])
 

@@ -95,7 +95,7 @@ class Converter:
         return output
 
     def convert_data_to_patterns_gaussian_receptive_field(self, x, y, sigma2, max_x,
-                                                          n_fields, k_round):
+                                                          n_fields, k_round, duplicate=False):
         def get_gaussian(x, sigma2, mu):
             return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
 
@@ -114,14 +114,11 @@ class Converter:
                 mu = 0
                 for i in range(n_fields):
                     time = np.round(get_gaussian(x, sigma2, mu), k_round)
-                    # time = get_gaussian(x, sigma2, mu)
-                    # if time > 0.09:
-                    #     tmp_dict[i + tmp_fields] = [k_time * (max_y - time)]
-                    # else:
-                    #     tmp_dict[i + tmp_fields] = []
-
-                    tmp_dict[i + tmp_fields] = [max_y - time]
-
+                    spike_time = max_y - time
+                    if duplicate:
+                        tmp_dict[i + tmp_fields] = [spike_time, spike_time + max_y / 2]
+                    else:
+                        tmp_dict[i + tmp_fields] = [spike_time]
                     mu += h_mu
                 tmp_fields += n_fields
             output['input'].append(tmp_dict)
@@ -132,7 +129,8 @@ class Converter:
 
     def convert_image_to_patterns_gaussian_receptive_field(self, x, y, sigma2, k_round):
         def get_gaussian(x, sigma2, mu):
-            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+            return (1 / np.sqrt(2 * sigma2 * np.pi)) \
+                * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
 
         output = {'input': [],
                   'class': []}
@@ -143,7 +141,6 @@ class Converter:
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
             for i, x in enumerate(xx):
                 time = np.round(get_gaussian(x, sigma2, mu), k_round)
-                # print(time)
                 tmp_dict[i] = [time]
             output['input'].append(tmp_dict)
             output['class'].append(yy)
@@ -151,7 +148,7 @@ class Converter:
                   'class': np.array(output['class'])}
         return output  # , max_y
 
-    def convert_data_to_patterns_poisson(self, x, y, pattern_time, firing_rate, h, mult):
+    def convert_data_to_patterns_poisson(self, x, y, pattern_time, firing_rate, h):
         def get_poisson_train(time, firing_rate, h):
             np.random.seed()
             dt = 1.0 / 1000.0 * h
@@ -160,24 +157,16 @@ class Converter:
             spike_times = times[mask]
             return spike_times
 
-        output = []
+        output = {'input': [],
+                  'class': []}
 
         for xx, yy in zip(x, y):
-            pattern = {}
-
-            tmp_dict = dict.fromkeys(np.arange(0, len(xx) * mult))
-
-            i = 0
-
-            for x in xx:
+            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
+            for i, x in enumerate(xx):
                 time = x * pattern_time
-
-                for _ in range(mult):
-                    tmp_dict[i] = get_poisson_train(time, firing_rate, h)
-                    i += 1
-
-            pattern['input'] = tmp_dict
-            pattern['class'] = yy
-
-            output.append(pattern)
+                tmp_dict[i] = get_poisson_train(time, firing_rate, h)
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
         return output

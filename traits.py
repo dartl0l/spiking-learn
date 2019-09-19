@@ -15,13 +15,12 @@
 #   weight_initial_mean: 0.3
 #   weight_initial_sigma: 0.01
 #   initial_inhibitory_weight: 1.0 # if positive, wrong-class neurons get excitatory signal
-
-network_traits = {
+data_traits = {
     # 'n_coding_neurons': {
     #   'details': {
     #       'min': 5,
-    #       'max': 50,
-    #       'mut_power': 5, # the highest possible amount of change during one mutation
+    #       'max': 30,
+    #       'mut_power': 1, # the highest possible amount of change during one mutation
     #       'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
     #   },
     #   'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
@@ -32,27 +31,30 @@ network_traits = {
 
     # 'coding_sigma': {
     #   'details': {
-    #       'min': 0.0001,
-    #       'max': 1.0,
-    #       'mut_power': 5, # the highest possible amount of change during one mutation
+    #       'min': 0.005,
+    #       'max': 0.1,
+    #       'mut_power': 0.005, # the highest possible amount of change during one mutation
     #       'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
     #   },
     #   'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
     #   'mutation_prob': 0.1,
     #   'type': 'float'
     # },
+}
 
-    #'h_time': {
+
+network_traits = {
+    # 'h_time': {
     #   'details': {
     #       'min': 5,
-    #       'max': 50,
+    #       'max': 30,
     #       'mut_power': 5, # the highest possible amount of change during one mutation
     #       'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
     #   },
     #   'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
     #   'mutation_prob': 0.1,
     #   'type': 'int'
-    #},
+    # },
 
 
     #'epochs': {
@@ -67,17 +69,17 @@ network_traits = {
     #   'type': 'int'
     #}
 
-    'noise_freq': {
-        'details': {
-            'min': 1.0,
-            'max': 5.0,
-            'mut_power': 1.0, # the highest possible amount of change during one mutation
-            'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
-        },
-        'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
-        'mutation_prob': 0.1,
-        'type': 'float'
-    }
+    # 'noise_freq': {
+    #     'details': {
+    #         'min': 1.0,
+    #         'max': 5.0,
+    #         'mut_power': 1.0, # the highest possible amount of change during one mutation
+    #         'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
+    #     },
+    #     'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
+    #     'mutation_prob': 0.1,
+    #     'type': 'float'
+    # }
 }
 
 
@@ -101,7 +103,7 @@ neuron_traits = {
 
     'tau_minus': {
         'details': {
-            'min': 15.0, # 40
+            'min': 1.0, # 40
             'max': 40.0, # 10
             'mut_power': 1.0,
             'mut_replace_prob': 0.25
@@ -114,7 +116,7 @@ neuron_traits = {
     'C_m': {
         'details': {
             'min': 1.0, # 40
-            'max': 5.0, # 10
+            'max': 25.0, # 10
             'mut_power': 1.0,
             'mut_replace_prob': 0.25
         },
@@ -126,7 +128,7 @@ neuron_traits = {
     'tau_m': {
         'details': {
             'min': 1.0, # 40
-            'max': 10.0, # 10
+            'max': 25.0, # 10
             'mut_power': 1.0,
             'mut_replace_prob': 0.25
         },
@@ -138,7 +140,7 @@ neuron_traits = {
     't_ref': {
         'details': {
             'min': 1.0, # 40
-            'max': 10.0, # 10
+            'max': 25.0, # 10
             'mut_power': 1.0,
             'mut_replace_prob': 0.25
         },
@@ -219,18 +221,6 @@ neuron_traits = {
 synapse_traits = {
     
     # Wmax is always 1, not to be mutable, so skipped there.
-    
-    'lambda': {
-      'details': {
-          'min': 0.05,
-          'max': 0.1,
-          'mut_power': 0.01, # the highest possible amount of change during one mutation
-          'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
-      },
-      'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
-      'mutation_prob': 0.1,
-      'type': 'float'
-    },
 
     'alpha': {
       'details': {
@@ -240,6 +230,18 @@ synapse_traits = {
           'mut_replace_prob': 0.25
       },
       'importance_coeff': 1.0,
+      'mutation_prob': 0.1,
+      'type': 'float'
+    },
+    
+    'lambda': {
+      'details': {
+          'min': 0.05,
+          'max': 0.1,
+          'mut_power': 0.01, # the highest possible amount of change during one mutation
+          'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
+      },
+      'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
       'mutation_prob': 0.1,
       'type': 'float'
     },
@@ -270,8 +272,8 @@ synapse_traits = {
 
     'tau_plus': {
       'details': {
-          'min': 5.0, #40.0,
-          'max': 15.0, #10.0,
+          'min': 1.0, #40.0,
+          'max': 25.0, #10.0,
           'mut_power': 1.0,
           'mut_replace_prob': 0.25
       },

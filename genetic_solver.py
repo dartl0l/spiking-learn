@@ -8,7 +8,9 @@ from spiking_network_learning_alghorithm.patterns_mpi_new import *
 from spiking_network_learning_alghorithm.converter import *
 
 from sklearn import preprocessing
-from sklearn.datasets import load_iris, load_breast_cancer
+from sklearn.datasets import load_iris, load_breast_cancer, load_digits
+from sklearn.decomposition import PCA
+
 
 
 def solve_task(task_path):
@@ -24,15 +26,18 @@ def solve_task(task_path):
         data = load_iris()
     elif settings['data']['dataset'] == 'cancer':
         data = load_breast_cancer()
+    elif settings['data']['dataset'] == 'digits':
+        data = {}
+        digits = load_digits()
+        data['data'] = digits.images.reshape((len(digits.images), -1))
+        data['target'] = digits.target
 
     X = data['data']
     y = data['target']
 
-    # X = preprocessing.normalize(X)
-    # if settings['data']['normalization'] == 'normalize':
-    #     X = preprocessing.normalize(X)
-    # elif settings['data']['normalization'] == 'minmax':
-    #     X = preprocessing.minmax_scale(X)
+    if 'pca' in settings['data']['preprocessing']:
+        pca = PCA(n_components=4)
+        X = pca.fit_transform(X)
     if 'normalize' in settings['data']['normalization']:
         X = preprocessing.normalize(X)
         print('normalize')
@@ -75,5 +80,8 @@ def solve_task(task_path):
 
 
 if __name__ == '__main__':
-    solve_task("./")
+    if sys.argv[1]:
+        solve_task(sys.argv[1])
+    else:
+        solve_task("./")
  

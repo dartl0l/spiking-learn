@@ -536,12 +536,9 @@ def test(settings, data, weights):
     spike_detector_3 = nest.Create('spike_detector')
 
     voltmeter = nest.Create(
-        'voltmeter', 
-        1,
-        {
-         'withgid': True,
-         'withtime': True
-        }
+        'voltmeter', 1,
+        {'withgid': True,
+         'withtime': True}
     )
     nest.Connect(spike_generators_1, parrot_layer,
                  'one_to_one', syn_spec='static_synapse')
@@ -594,13 +591,12 @@ def test(settings, data, weights):
     d_time = settings['network']['start_delta']
     nest.Simulate(settings['network']['start_delta'])
 
-    for example, ex_class in zip(data['input'], data['class']):
+    for example, examples_class in zip(data['input'], data['class']):
         set_spike_in_generators(
             example,
             spike_generators_1,
             d_time,
-            d_time \
-            + settings['network']['h_time'],
+            d_time + settings['network']['h_time'],
             settings['network']['h_time'],
             settings['network']['h'])
         # nest.SetStatus(poisson_layer, {'start': 30.})
@@ -643,13 +639,17 @@ def test_network_acc(data, settings):
         latency_valid = create_latency(raw_latency_valid, data_valid, settings)
         full_latency_valid = create_full_latency(latency_valid, settings)
 
-        if settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'exp':
+        if settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'exp':
             fitness, fit_list = fitness_func_exp(full_latency_valid, data_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'sigma':
+        elif settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'sigma':
             fitness = fitness_func_sigma(full_latency_valid, data_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'time':
+        elif settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'time':
             fitness = fitness_func_time(full_latency_valid, data_valid)
-        elif settings['learning']['use_fitness_func'] and settings['learning']['fitness_func'] == 'acc':
+        elif settings['learning']['use_fitness_func'] \
+                and settings['learning']['fitness_func'] == 'acc':
             fitness, out = count_acc(full_latency_valid, data_valid)
         # elif settings['use_fitness_func'] and settings['fitness_func'] == 'weights':
         #     final_weights = list(list(weights.values())[0].values())
@@ -673,7 +673,7 @@ def test_network_acc(data, settings):
     latency_test = create_latency(raw_latency_test, data_test, settings)
     full_latency_test = create_full_latency(latency_test, settings)
     acc_test, output_list_test = count_acc(full_latency_test, data_test)
-    print(output_list_test)
+    # print(output_list_test)
     comm.Barrier()
 
     weights_all = comm.allgather(weights)
