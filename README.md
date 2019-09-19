@@ -5,17 +5,19 @@ It can be running with mpi.
 
 To start simulation create your own py file and add
 
-''''
+```
 from spiking_network_learning_alghorithm.solver import solve_task
 
-fitness = solve_task("./")
-''''
+solve_task("./")
+```
+
 
 or run from command line
 
-''''
+```
 python solver path-to-folder-with-settings-file
-''''
+```
+
 
 Dependencies:
   * Python3
