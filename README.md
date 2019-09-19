@@ -3,6 +3,15 @@ This is "framework" for spiking neural networks machine learning based on tempor
 You can optimize model parameters using MultiNEAT neuroevolution library.
 It can be running with mpi.
 
+Dependencies:
+  * Python3
+  * NEST Simulator https://www.nest-simulator.org/
+  * sklearn
+  * numpy
+  * matplotlib
+  * mpi4py
+  * MultiNEAT http://multineat.com/index.html (if needed)
+
 To start simulation create your own py file and add
 
 ```
@@ -130,11 +139,3 @@ here is example of settings file for Fisher's Iris Classification settings.json
 
 ```
 
-Dependencies:
-  * Python3
-  * NEST Simulator https://www.nest-simulator.org/
-  * sklearn
-  * numpy
-  * matplotlib
-  * mpi4py
-  * MultiNEAT http://multineat.com/index.html (if needed)
