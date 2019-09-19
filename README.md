@@ -10,7 +10,7 @@ Dependencies:
   * numpy
   * matplotlib
   * mpi4py
-  * MultiNEAT http://multineat.com/index.html (if needed)
+  * MultiNEAT http://multineat.com/index.html (needed for genetic.py)
 
 To start simulation create your own py file and add
 
