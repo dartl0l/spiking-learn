@@ -7,5 +7,6 @@ Dependencies:
   * NEST Simulator https://www.nest-simulator.org/
   * sklearn
   * numpy
+  * matplotlib
   * mpi4py (if needed)
   * MultiNEAT http://multineat.com/index.html (if needed)
