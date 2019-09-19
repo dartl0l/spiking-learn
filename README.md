@@ -4,6 +4,7 @@ You can optimize model parameters using MultiNEAT neuroevolution library.
 It can be running with mpi.
 
 Dependencies:
+  * Python3
   * NEST Simulator https://www.nest-simulator.org/
   * sklearn
   * numpy
