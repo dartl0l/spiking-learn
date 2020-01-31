@@ -34,7 +34,7 @@ class Plotter:
         for neuron in weights:
             pl.plot(list(range(len(weights[neuron]))),
                     weights[neuron], '.', label=str(neuron))
-        pl.legend()
+#         pl.legend()
         if show:
             pl.show()
 
@@ -132,6 +132,20 @@ class Plotter:
         pl.xlim(settings['full_time'] - settings['h_time'], settings['full_time'])
         pl.show()
 
+    def plot_latency(self, latency, classes, title, show=True):
+        pl.clf()
+
+        pl.title(title)
+        colors = ['rx', 'gx', 'bx']
+#         shapes = ['x', 's', 'd']
+        
+        for one_latency, cl in zip(latency, classes):
+            for i, neuron in enumerate(one_latency):
+                pl.plot(one_latency[neuron][:1], i, 
+                        colors[cl], label=neuron)
+        if show:
+            pl.show()
+            
     def plot_latencies(self, latencies, title, show=True):
         pl.title(title)
         for latency in latencies:
@@ -218,7 +232,9 @@ class Plotter:
         if show:
             pl.show()
 
-    def plot_params(self, parameters_acc_pairs, title='Parameters distribution', normalize_colors=True, show=True):
+    def plot_params(self, parameters_acc_pairs, 
+                    title='Parameters distribution', 
+                    normalize_colors=True, show=True):
         def get_polar(r, fi):
                 x = r * cos(fi)
                 y = r * sin(fi)

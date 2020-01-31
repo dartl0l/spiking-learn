@@ -148,6 +148,22 @@ class Converter:
                   'class': np.array(output['class'])}
         return output  # , max_y
 
+    def convert_image_to_spikes(self, x, y, pattern_length, k_round):
+        X = pattern_length * (1 - x)
+
+        output = {'input': [],
+                  'class': []}
+        for xx, yy in zip(X, y):
+            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
+            for i, x in enumerate(xx):
+                time = np.round(x, k_round)
+                tmp_dict[i] = [time]
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
+        return output
+    
     def convert_data_to_patterns_poisson(self, x, y, pattern_time, firing_rate, h):
         def get_poisson_train(time, firing_rate, h):
             np.random.seed()

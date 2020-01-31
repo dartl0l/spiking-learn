@@ -69,17 +69,17 @@ network_traits = {
     #   'type': 'int'
     #}
 
-    # 'noise_freq': {
-    #     'details': {
-    #         'min': 1.0,
-    #         'max': 5.0,
-    #         'mut_power': 1.0, # the highest possible amount of change during one mutation
-    #         'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
-    #     },
-    #     'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
-    #     'mutation_prob': 0.1,
-    #     'type': 'float'
-    # }
+    'noise_freq': {
+        'details': {
+            'min': 1.0,
+            'max': 5.0,
+            'mut_power': 1.0, # the highest possible amount of change during one mutation
+            'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
+        },
+        'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
+        'mutation_prob': 0.1,
+        'type': 'float'
+    }
 }
 
 
