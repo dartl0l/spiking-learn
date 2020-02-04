@@ -136,7 +136,8 @@ class Plotter:
         pl.clf()
 
         pl.title(title)
-        colors = ['rx', 'gx', 'bx']
+        colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
+                  'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
 #         shapes = ['x', 's', 'd']
         
         for one_latency, cl in zip(latency, classes):
@@ -168,7 +169,7 @@ class Plotter:
                     pl.plot(latency['latency'][:1], 8, 'bx')
                 elif latency['class'] == 8:
                     pl.plot(latency['latency'][:1], 9, 'bx')
-                elif latency['class'] == 8:
+                elif latency['class'] == 9:
                     pl.plot(latency['latency'][:1], 10, 'bx')
         if show:
             pl.show()
