@@ -186,6 +186,10 @@ def main(use_futures, redirect_out=True):
         # outfile.Write_ordered(str(generation_number) + '\t' + str(max(fitnesses_list)) + '\n')
         outfile.write(str(generation_number) + '\t' + str(max(fitnesses_list)) + '\n')
         outfile.flush()
+        # sys.stderr.write(
+        #     '\rGeneration ' + str(generation_number)
+        #     + ': fitness = ' + str(population.GetBestGenome().GetFitness())
+        # )
 
         # advance to the next generation
         print("Generation " + str(generation_number) + \
