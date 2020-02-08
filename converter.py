@@ -5,7 +5,13 @@ class Converter:
     def __init__(self):
         pass
 
+    def convert(self, x, y):
+        pass
+    
     def convert_data_to_patterns(self, x, y, pattern_time, h):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
         input_for_nn = []
         #     h = 0.1
         #     time = 60
@@ -49,6 +55,9 @@ class Converter:
         return output
 
     def convert_data_to_patterns_spatio_temp(self, x, y, min_time, h):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
         rad = 2 * np.pi
         # rad_to_deg = 57
 
@@ -70,6 +79,9 @@ class Converter:
         return output
 
     def convert_data_to_patterns_uniform(self, x, y, pattern_time, h, mult):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
         output = []
 
         for xx, yy in zip(x, y):
@@ -96,6 +108,9 @@ class Converter:
 
     def convert_data_to_patterns_gaussian_receptive_field(self, x, y, sigma2, max_x,
                                                           n_fields, k_round, duplicate=False):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
         def get_gaussian(x, sigma2, mu):
             return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
 
@@ -128,6 +143,9 @@ class Converter:
         return output, max_y
 
     def convert_image_to_patterns_gaussian_receptive_field(self, x, y, sigma2, k_round):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
         def get_gaussian(x, sigma2, mu):
             return (1 / np.sqrt(2 * sigma2 * np.pi)) \
                 * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
@@ -149,6 +167,10 @@ class Converter:
         return output  # , max_y
 
     def convert_image_to_spikes(self, x, y, pattern_length, k_round):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        
         X = pattern_length * (1 - x)
 
         output = {'input': [],
@@ -164,7 +186,33 @@ class Converter:
                   'class': np.array(output['class'])}
         return output
     
+    def convert_image_to_spikes_without_last(self, x, y, pattern_length, k_round):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        zero_values = x == 0
+        
+        X = pattern_length * (1 - x)
+        X[zero_values] = 0
+        
+        output = {'input': [],
+                  'class': []}
+        for xx, yy in zip(X, y):
+            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
+            for i, x in enumerate(xx):
+                time = np.round(x, k_round)
+                tmp_dict[i] = [time] if time != 0 else []
+                    
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
+        return output
+    
     def convert_data_to_patterns_poisson(self, x, y, pattern_time, firing_rate, h):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
         def get_poisson_train(time, firing_rate, h):
             np.random.seed()
             dt = 1.0 / 1000.0 * h
@@ -181,6 +229,78 @@ class Converter:
             for i, x in enumerate(xx):
                 time = x * pattern_time
                 tmp_dict[i] = get_poisson_train(time, firing_rate, h)
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
+        return output
+
+
+class ReceptiveFieldsConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, sigma2, max_x, n_fields, k_round):
+        self.sigma2 = sigma2
+        self.max_x = max_x
+        self.n_fields = n_fields
+        self.k_round = k_round
+    
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        def get_gaussian(x, sigma2, mu):
+            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+
+        output = {'input': [],
+                  'class': []}
+
+        h_mu = self.max_x / (self.n_fields - 1)
+
+        max_y = np.round(get_gaussian(h_mu, self.sigma2, h_mu), 0)
+
+        for xx, yy in zip(x, y):
+            tmp_dict = dict.fromkeys(np.arange(0, self.n_fields * len(xx)))
+
+            tmp_fields = 0
+            for x in xx:
+                mu = 0
+                for i in range(self.n_fields):
+                    time = np.round(get_gaussian(x, self.sigma2, mu), self.k_round)
+                    spike_time = max_y - time
+                    tmp_dict[i + tmp_fields] = [spike_time]
+                    mu += h_mu
+                tmp_fields += self.n_fields
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
+        return output, max_y
+
+    
+class ImageConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_length, k_round):
+        self.pattern_length = pattern_length
+        self.k_round = k_round
+
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        
+        X = self.pattern_length * (1 - x)
+
+        output = {'input': [],
+                  'class': []}
+        for xx, yy in zip(X, y):
+            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
+            for i, x in enumerate(xx):
+                time = np.round(x, self.k_round)
+                tmp_dict[i] = [time]
             output['input'].append(tmp_dict)
             output['class'].append(yy)
         output = {'input': np.array(output['input']),

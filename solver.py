@@ -4,7 +4,7 @@ import json
 import time
 import sys
 
-from spiking_network_learning_alghorithm.patterns_mpi_new import *
+from spiking_network_learning_alghorithm.patterns import *
 from spiking_network_learning_alghorithm.converter import *
 
 from sklearn import preprocessing
