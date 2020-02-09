@@ -88,15 +88,15 @@ class Plotter:
         #         HTML(weights_anim.to_html5_video())
         return weights_anim
 
-    def plot_devices(self, devices):
+    def plot_devices(self, devices, plot_last_detector=False):
         import nest.voltage_trace
         import nest.raster_plot
 
         nest.voltage_trace.from_device(devices['voltmeter'])
         pl.show()
-
-#         nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
-#         pl.show()
+        if plot_last_detector:
+            nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
+            pl.show()
 
         nest.raster_plot.from_device(devices['spike_detector_2'], hist=False)
         pl.show()
@@ -104,7 +104,7 @@ class Plotter:
         nest.raster_plot.from_device(devices['spike_detector_1'], hist=False)
         pl.show()
 
-    def plot_devices_limits(self, devices, start, end):
+    def plot_devices_limits(self, devices, start, end, plot_last_detector=False):
         import nest.voltage_trace
         import nest.raster_plot
 
@@ -112,9 +112,10 @@ class Plotter:
         pl.xlim(start, end)
         pl.show()
 
-#         nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
-#         pl.xlim(start, end)
-#         pl.show()
+        if plot_last_detector:
+            nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
+            pl.xlim(start, end)
+            pl.show()
 
         nest.raster_plot.from_device(devices['spike_detector_2'], hist=False)
         pl.xlim(start, end)
