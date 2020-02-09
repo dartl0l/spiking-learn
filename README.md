@@ -16,7 +16,7 @@ It can be running with mpi.
 To start simulation create your own py file and add
 
 ```
-from spiking_network_learning_alghorithm.solver import solve_task
+from spiking_network_learning_alghorithm.solver_new import solve_task
 
 solve_task(path-to-folder-with-settings-file)
 ```
