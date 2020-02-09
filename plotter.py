@@ -1,3 +1,5 @@
+# coding: utf-8
+
 import pylab as pl
 import numpy as np
 from math import cos, sin, pi
@@ -6,7 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 class Plotter:
-
     def __init__(self):
         pass
 
@@ -93,10 +94,10 @@ class Plotter:
 
         nest.voltage_trace.from_device(devices['voltmeter'])
         pl.show()
-        
+
 #         nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
 #         pl.show()
-        
+
         nest.raster_plot.from_device(devices['spike_detector_2'], hist=False)
         pl.show()
 
@@ -114,7 +115,7 @@ class Plotter:
 #         nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
 #         pl.xlim(start, end)
 #         pl.show()
-        
+
         nest.raster_plot.from_device(devices['spike_detector_2'], hist=False)
         pl.xlim(start, end)
         pl.show()
@@ -130,14 +131,14 @@ class Plotter:
         colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
                   'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
 #         shapes = ['x', 's', 'd']
-        
+
         for one_latency, cl in zip(latency, classes):
             for i, neuron in enumerate(one_latency):
-                pl.plot(one_latency[neuron][:1], i, 
+                pl.plot(one_latency[neuron][:1], i,
                         colors[cl], label=neuron)
         if show:
             pl.show()
-            
+
     def plot_latencies(self, latencies, title, show=True):
         pl.title(title)
         for latency in latencies:
@@ -224,8 +225,8 @@ class Plotter:
         if show:
             pl.show()
 
-    def plot_params(self, parameters_acc_pairs, 
-                    title='Parameters distribution', 
+    def plot_params(self, parameters_acc_pairs,
+                    title='Parameters distribution',
                     normalize_colors=True, show=True):
         def get_polar(r, fi):
                 x = r * cos(fi)
@@ -247,7 +248,7 @@ class Plotter:
 
         def get_axes(n_axes):
             h_fi = 2 * pi / n_axes
-            
+
             axes = []
 
             for i in range(n_axes):
@@ -288,5 +289,5 @@ class Plotter:
             pl.show()
 
     # def plot_pca(self, X, y, show=False):
-    #     pca = 
-    #     X = 
+    #     pca =
+    #     X =

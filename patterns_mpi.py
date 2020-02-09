@@ -1,3 +1,5 @@
+# coding: utf-8
+
 import nest
 
 import numpy as np
