@@ -143,50 +143,6 @@ class Converter:
         output = {'input': np.array(output['input']),
                   'class': np.array(output['class'])}
         return output, max_y
-
-    def convert_image_to_patterns_gaussian_receptive_field(self, x, y, sigma2, k_round):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
-        def get_gaussian(x, sigma2, mu):
-            return (1 / np.sqrt(2 * sigma2 * np.pi)) \
-                * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
-
-        output = {'input': [],
-                  'class': []}
-
-        mu = 1.0
-        # max_y = np.round(get_gaussian(mu, sigma2, mu), 0)
-        for xx, yy in zip(x, y):
-            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
-            for i, x in enumerate(xx):
-                time = np.round(get_gaussian(x, sigma2, mu), k_round)
-                tmp_dict[i] = [time]
-            output['input'].append(tmp_dict)
-            output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
-        return output  # , max_y
-
-    def convert_image_to_spikes(self, x, y, pattern_length, k_round):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
-        
-        X = pattern_length * (1 - x)
-
-        output = {'input': [],
-                  'class': []}
-        for xx, yy in zip(X, y):
-            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
-            for i, x in enumerate(xx):
-                time = np.round(x, k_round)
-                tmp_dict[i] = [time]
-            output['input'].append(tmp_dict)
-            output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
-        return output
     
     def convert_image_to_spikes_without_last(self, x, y, pattern_length, k_round):
         '''
@@ -278,7 +234,7 @@ class ReceptiveFieldsConverter(Converter):
             output['class'].append(yy)
         output = {'input': np.array(output['input']),
                   'class': np.array(output['class'])}
-        return output, max_y
+        return output  # , max_y
 
     
 class ImageConverter(Converter):
@@ -303,6 +259,34 @@ class ImageConverter(Converter):
             for i, x in enumerate(xx):
                 time = np.round(x, self.k_round)
                 tmp_dict[i] = [time]
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
+        return output
+
+    
+class ImageConverterWithoutZero(ImageConverter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_length, k_round):
+        self.pattern_length = pattern_length
+        self.k_round = k_round
+    
+    def convert(self, x, y):
+        zero_values = x == 0
+        
+        X = self.pattern_length * (1 - x)
+        X[zero_values] = 0
+        
+        output = {'input': [],
+                  'class': []}
+        for xx, yy in zip(X, y):
+            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
+            for i, x in enumerate(xx):
+                time = np.round(x, self.k_round)
+                tmp_dict[i] = [time] if time != 0 else []
             output['input'].append(tmp_dict)
             output['class'].append(yy)
         output = {'input': np.array(output['input']),

@@ -20,6 +20,7 @@ from sklearn.decomposition import PCA
 
 from spiking_network_learning_alghorithm.network import Network
 from spiking_network_learning_alghorithm.converter import *
+from spiking_network_learning_alghorithm.plotter import *
 
 
 class Solver(object):
@@ -295,12 +296,14 @@ class Solver(object):
 
 class NetworkSolver(Solver):
     """solver for network"""
-    def __init__(self, settings):
+    def __init__(self, settings, plot=False):
         self.settings = settings
+        self.plot = plot
 
     def test_network_acc(self, data):
         settings = self.settings
         network = Network(settings)
+        plot = Plotter()
 
         comm = MPI.COMM_WORLD
 
@@ -309,13 +312,21 @@ class NetworkSolver(Solver):
         weights, \
         latency_train, \
         devices_train = network.train(data_train)
-
+        
+        if self.plot:
+            plot.plot_devices(devices_train,
+                              settings['topology']['two_layers'])
+            
         full_latency_test_train, \
         devices_test_train = self.test_data(network,
                                             data_train,
                                             weights,
                                             comm)
-
+        
+        if self.plot:
+            plot.plot_devices(devices_test_train, 
+                              settings['topology']['two_layers'])
+            
         y_train = self.predict_from_latency(full_latency_test_train)
         score_train = self.prediction_score(data_train['class'], 
                                        y_train)
@@ -341,7 +352,11 @@ class NetworkSolver(Solver):
                                       data_test,
                                       weights,
                                       comm)
-
+        
+        if self.plot:
+            plot.plot_devices(devices_test, 
+                              settings['topology']['two_layers'])
+            
         y_test = self.predict_from_latency(full_latency_test)
         score_test = self.prediction_score(data_test['class'], 
                                            y_test)
@@ -368,9 +383,10 @@ class NetworkSolver(Solver):
 
 class SeparateNetworkSolver(Solver):
     """solver for separate network"""
-    def __init__(self, settings):
+    def __init__(self, settings, plot=False):
         # super(Solver, self).__init__()
         self.settings = settings
+        self.plot = plot
 
     def test_network_acc(self, data):
         def merge_spikes(separate_latency_list):
@@ -513,7 +529,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
 
     round_to = 2
     conv = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
-    data, max_y = conv.convert(X, y, )
+    data = conv.convert(X, y)
 
     settings['topology']['n_input'] = len(X[0]) * n_coding_neurons
 

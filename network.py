@@ -38,6 +38,8 @@ class Network(object):
         for input_neuron in dataset[0]:
             spike_dict[input_neuron] = {'spike_times': [],
                                         'spike_weights': []}
+        # TODO
+        # calc spike times one time and concatenate
         for _ in range(epochs):
             for example in dataset:
                 tmp_spikes = []
@@ -69,12 +71,20 @@ class Network(object):
                                       'amplitude_times': [],
                                       'amplitude_values': []
                                      }
+        # TODO
+        # calc amplitude times one time and concatenate
         for _ in range(epochs):
             for spikes, cl in zip(input_spikes, classes):
                 current_teacher_id = teachers[0] if single_neuron else teachers[cl]
                 current_teacher = teacher_dicts[current_teacher_id]
+                tmp_spikes = spikes[:]
+                for i, spike in enumerate(tmp_spikes):
+                    if len(spike) == 0:
+                        tmp_spikes[i] = [np.nan]
+                minimum = np.nanmin(tmp_spikes)
+#                 print(minimum)
                 start_of_stimulation = d_time \
-                                     + np.min(spikes) \
+                                     + minimum \
                                      + reinforce_delta
                 end_of_stimulation = start_of_stimulation \
                                    + reinforce_time \
@@ -132,6 +142,19 @@ class Network(object):
             for neuron_2 in layer:
                 if neuron_1 != neuron_2:
                     nest.Connect([neuron_1], [neuron_2], syn_spec=syn_dict)
+
+    def get_spikes_of_pattern(spike_detector, estimated_time, example_class):
+        spikes = nest.GetStatus(spike_detector, keys="events")[0]['times']
+        senders = nest.GetStatus(spike_detector, keys="events")[0]['senders']
+        mask = spikes > estimated_time
+        spikes = spikes[mask]
+        senders = senders[mask]
+        tmp_dict = {
+                    'latency': spikes - estimated_time,
+                    'senders': senders,
+                    'class': example_class
+                   }
+        return tmp_dict
 
     def save_weigths(self, layers):
         settings = self.settings
@@ -354,7 +377,7 @@ class Network(object):
         nest.SetStatus(layer_out, settings['model']['neuron_out'])
 
         if settings['topology']['two_layers']:
-            if settings['topology']['use_inhibition']:
+            if settings['topology']['use_inhibition'] and settings['network']['test_with_inhibition']:
                 self.interconnect_layer(layer_hid,
                                         settings['model']['syn_dict_inh'])
 
@@ -365,7 +388,7 @@ class Network(object):
             nest.Connect(layer_hid, spike_detector_3, 'all_to_all')
             nest.SetStatus(layer_hid, settings['model']['neuron_hid'])
         else:
-            if settings['topology']['use_inhibition']:
+            if settings['topology']['use_inhibition'] and settings['network']['test_with_inhibition']:
                 self.interconnect_layer(layer_out, 
                                         settings['model']['syn_dict_inh'])
             nest.Connect(parrot_layer, layer_out,
@@ -409,25 +432,4 @@ class Network(object):
                   }
         return output, devices
 
-
-    def get_spikes_of_pattern(spike_detector, estimated_time, example_class):
-        spikes = nest.GetStatus(spike_detector, keys="events")[0]['times']
-        senders = nest.GetStatus(spike_detector, keys="events")[0]['senders']
-        mask = spikes > estimated_time
-        spikes = spikes[mask]
-        senders = senders[mask]
-        tmp_dict = {
-                    'latency': spikes - estimated_time,
-                    'senders': senders,
-                    'class': example_class
-                   }
-        return tmp_dict
-
-
-    def save_latency_to_file(raw_latency, filename):
-        import json
-
-        rank = nest.Rank()
-        with open((filename + str(rank) + '.json'), 'w') as latency_file:
-            json.dump(raw_latency, latency_file, indent=4)
 

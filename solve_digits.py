@@ -24,7 +24,6 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         sys.stdout = open(task_path + 'out.txt', 'w')
         sys.stderr = open(task_path + 'err.txt', 'w')
 
-    
     print("Start train and test")
     start = time.time()
 
@@ -52,7 +51,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         print('minmax')
 
     n_coding_neurons = settings['data']['n_coding_neurons']
-    sigma = settings['data']['coding_sigma']
+    # sigma = settings['data']['coding_sigma']
 
     round_to = 2
     conv = Converter()
