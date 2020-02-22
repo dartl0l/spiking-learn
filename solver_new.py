@@ -32,6 +32,11 @@ class Solver(object):
     def test_network_acc(self, data):
         pass
 
+    def shuffle_data(self, x, y):
+        assert len(x) == len(y)
+        p = np.random.permutation(len(x))
+        return x[p], y[p]
+
     def convert_latency(self, latency_list):
         settings = self.settings
 
@@ -196,13 +201,13 @@ class Solver(object):
             data_valid = {}
             data_out['valid'] = {}
 
-            input_train, \
-            input_valid, \
-            y_train, \
-            y_valid = train_test_split(data['input'][train_index],
-                                       data['class'][train_index],
-                                       test_size=settings['data']['valid_size'],
-                                       random_state=42)
+            input_train, input_valid, \
+            y_train, y_valid = train_test_split(
+                data['input'][train_index],
+                data['class'][train_index],
+                test_size=settings['data']['valid_size'],
+                random_state=42
+            )
             data_train['input'] = input_train
             data_train['class'] = y_train
 
@@ -214,19 +219,27 @@ class Solver(object):
             data_train['input'] = data['input'][train_index]
             data_train['class'] = data['class'][train_index]
 
-        # shuffle_train = False
-        if not settings['network']['separate_networks'] \
-              and not settings['data']['shuffle_train']:
-            data_train['input'] = np.array([x for y, x in sorted(zip(data_train['class'], 
-                                                                     data_train['input']), 
-                                                                 key=operator.itemgetter(0))])
-            data_train['class'] = np.array(sorted(data_train['class']))
 
         data_test['input'] = data['input'][test_index]
         data_test['class'] = data['class'][test_index]
 
+        if settings['data']['shuffle_train']:
+            data_train['input'], \
+            data_train['class'] = self.shuffle_data(
+                data_train['input'], 
+                data_train['class']
+            )
+
+        if settings['data']['shuffle_test']:
+            data_test['input'], \
+            data_test['class'] = self.shuffle_data(
+                data_test['input'], 
+                data_test['class']
+            )
+
         data_out['train']['full'] = data_train
         data_out['test']['full'] = data_test
+        
         return data_out        
 
     def test_network_acc_cv(self, data):
@@ -302,7 +315,10 @@ class NetworkSolver(Solver):
 
     def test_network_acc(self, data):
         settings = self.settings
-        network = Network(settings)
+        if settings['topology']['two_layers']:
+            network = TwoLayerNetwork(settings)
+        else:
+            network = Network(settings)
         plot = Plotter()
 
         comm = MPI.COMM_WORLD
@@ -401,7 +417,10 @@ class SeparateNetworkSolver(Solver):
             return out_latency
 
         settings = self.settings
-        network = Network(settings)
+        if settings['topology']['two_layers']:
+            network = TwoLayerNetwork(settings)
+        else:
+            network = Network(settings)
 
         comm = MPI.COMM_WORLD
 
