@@ -25,7 +25,7 @@ solve_task(path-to-folder-with-settings-file)
 or run from command line
 
 ```
-python solver path-to-folder-with-settings-file
+python solver_new path-to-folder-with-settings-file
 ```
 
 here is example of settings file for Fisher's Iris Classification settings.json 
