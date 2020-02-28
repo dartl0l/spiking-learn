@@ -15,6 +15,14 @@ import pickle
 
 
 def solve_task(task_path='./', redirect_out=True, filename='settings.json', input_settings=None):
+    
+    def round_decimals(value):
+        i = 0
+        while value < 1:
+            value *= 10
+            i += 1
+        return i
+
     if input_settings is None:
         settings = json.load(open(task_path + filename, 'r'))
     else:
@@ -55,7 +63,9 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     n_coding_neurons = settings['data']['n_coding_neurons']
     sigma = settings['data']['coding_sigma']
 
-    round_to = 2
+    # round_to = 2
+    round_to = round_decimals(settings['network']['h'])
+
     conv = Converter()
     data, max_y = conv.convert_data_to_patterns_gaussian_receptive_field(X, y, sigma, 1.0,
                                                                          n_coding_neurons, 

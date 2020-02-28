@@ -95,13 +95,13 @@ class Plotter:
         nest.voltage_trace.from_device(devices['voltmeter'])
         pl.show()
         if plot_last_detector:
-            nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
+            nest.raster_plot.from_device(devices['spike_detector_hidden'], hist=False)
             pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_2'], hist=False)
+        nest.raster_plot.from_device(devices['spike_detector_input'], hist=False)
         pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_1'], hist=False)
+        nest.raster_plot.from_device(devices['spike_detector_out'], hist=False)
         pl.show()
 
     def plot_devices_limits(self, devices, start, end, plot_last_detector=False):
@@ -113,15 +113,15 @@ class Plotter:
         pl.show()
 
         if plot_last_detector:
-            nest.raster_plot.from_device(devices['spike_detector_3'], hist=False)
+            nest.raster_plot.from_device(devices['spike_detector_hidden'], hist=False)
             pl.xlim(start, end)
             pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_2'], hist=False)
+        nest.raster_plot.from_device(devices['spike_detector_input'], hist=False)
         pl.xlim(start, end)
         pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_1'], hist=False)
+        nest.raster_plot.from_device(devices['spike_detector_out'], hist=False)
         pl.xlim(start, end)
         pl.show()
 
@@ -194,9 +194,18 @@ class Plotter:
         pl.ylim(0, 30)
         pl.xlim(0, len(pattern))
         pl.title('Temporal pattern')
-        for neuron in pattern.keys():
+        for neuron in range(len(pattern)):
             if pattern[neuron]:
                 pl.plot(neuron, pattern[neuron], 'b.')
+        if show:
+            pl.show()
+
+    def plot_frequency_pattern(self, pattern, time, show=True):
+        pl.ylim(0, len(pattern))
+        pl.xlim(0, time)
+        pl.title('Frequency pattern')
+        for neuron in range(len(pattern)):
+            pl.plot(pattern[neuron], [neuron] * len(pattern[neuron]), 'b.')
         if show:
             pl.show()
 

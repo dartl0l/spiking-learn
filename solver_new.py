@@ -18,7 +18,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.datasets import load_iris, load_breast_cancer, load_digits
 from sklearn.decomposition import PCA
 
-from spiking_network_learning_alghorithm.network import Network
+from spiking_network_learning_alghorithm.network import *
 from spiking_network_learning_alghorithm.converter import *
 from spiking_network_learning_alghorithm.plotter import *
 
@@ -244,9 +244,11 @@ class Solver(object):
 
     def test_network_acc_cv(self, data):
         def solve_fold(input_data):
+            print("prepare data")
             data_fold = self.prepare_data(input_data['data'],
                                           input_data['train_index'],
                                           input_data['test_index'])
+            print("solve fold")
             return self.test_network_acc(data_fold)
 
         settings = self.settings
@@ -317,6 +319,8 @@ class NetworkSolver(Solver):
         settings = self.settings
         if settings['topology']['two_layers']:
             network = TwoLayerNetwork(settings)
+        elif settings['data']['frequency_coding']:
+            network = FrequencyNetwork(settings)
         else:
             network = Network(settings)
         plot = Plotter()
@@ -505,6 +509,14 @@ class SeparateNetworkSolver(Solver):
         return out_dict, weights_all
 
 
+def round_decimals(value):
+    i = 0
+    while value < 1:
+        value *= 10
+        i += 1
+    return i
+
+
 def solve_task(task_path='./', redirect_out=True, filename='settings.json', input_settings=None):
     if input_settings is None:
         settings = json.load(open(task_path + filename, 'r'))
@@ -546,12 +558,16 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     n_coding_neurons = settings['data']['n_coding_neurons']
     sigma = settings['data']['coding_sigma']
 
-    round_to = 2
+    # round_to = 2
+    round_to = round_decimals(settings['network']['h'])
+
+    print('convert')
     conv = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
     data = conv.convert(X, y)
 
     settings['topology']['n_input'] = len(X[0]) * n_coding_neurons
 
+    print('solve')
     if settings['network']['separate_networks']:
         solver = SeparateNetworkSolver(settings)
     else:
