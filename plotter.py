@@ -35,7 +35,8 @@ class Plotter:
         for neuron in weights:
             pl.plot(list(range(len(weights[neuron]))),
                     weights[neuron], '.', label=str(neuron))
-#         pl.legend()
+        pl.xlabel('Input synapse number')
+        pl.ylabel('Synapse weight')
         if show:
             pl.show()
 
@@ -88,55 +89,100 @@ class Plotter:
         #         HTML(weights_anim.to_html5_video())
         return weights_anim
 
-    def plot_devices(self, devices, plot_last_detector=False):
-        import nest.voltage_trace
-        import nest.raster_plot
+    def plot_voltage(self, voltmeter, legend=True):
+        pl.clf()
+        neurons = set(voltmeter['senders'])
+        assert len(voltmeter['senders']) == len(voltmeter['V_m']) == len(voltmeter['times'])
 
-        nest.voltage_trace.from_device(devices['voltmeter'])
+        pl.title("Membrane potential")
+        pl.xlabel('Time (ms)')
+        pl.ylabel('Membrane potential (mV)')
+        for neuron in neurons:
+            mask = voltmeter['senders'] == neuron
+            assert len(voltmeter['times'][mask]) == len(voltmeter['V_m'][mask])
+            pl.plot(voltmeter['times'][mask],
+                    voltmeter['V_m'][mask],
+                    label='neuron ' + str(neuron))
+        if legend:
+            pl.legend()
+
+    def plot_spikes(self, spike_detector):
+        pl.clf()
+        neurons = set(spike_detector['senders'])
+        assert len(spike_detector['senders'])  == len(spike_detector['times'])
+
+        pl.title("Spikes")
+        pl.xlabel('Time (ms)')
+        pl.ylabel('Neuron')
+        for neuron in neurons:
+            mask = spike_detector['senders'] == neuron
+            assert len(spike_detector['times'][mask]) == len(spike_detector['senders'][mask])
+            pl.plot(spike_detector['times'][mask],
+                    spike_detector['senders'][mask], 'b.')
+        # pl.legend()
+
+    def plot_devices(self, devices, plot_last_detector=False):
+        self.plot_voltage(devices['voltmeter'])
         pl.show()
+        
         if plot_last_detector:
-            nest.raster_plot.from_device(devices['spike_detector_hidden'], hist=False)
+            self.plot_voltage(devices['voltmeter_hidden'], False)
             pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_input'], hist=False)
+            self.plot_spikes(devices['spike_detector_hidden'])
+            pl.show()
+
+        self.plot_spikes(devices['spike_detector_input'])
         pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_out'], hist=False)
+        self.plot_spikes(devices['spike_detector_out'])
         pl.show()
 
     def plot_devices_limits(self, devices, start, end, plot_last_detector=False):
-        import nest.voltage_trace
-        import nest.raster_plot
-
-        nest.voltage_trace.from_device(devices['voltmeter'])
+        self.plot_voltage(devices['voltmeter'])
         pl.xlim(start, end)
         pl.show()
 
         if plot_last_detector:
-            nest.raster_plot.from_device(devices['spike_detector_hidden'], hist=False)
+            self.plot_voltage(devices['voltmeter_hidden'])
             pl.xlim(start, end)
             pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_input'], hist=False)
+            self.plot_spikes(devices['spike_detector_hidden'])
+            pl.xlim(start, end)
+            pl.show()
+
+        self.plot_spikes(devices['spike_detector_input'])
         pl.xlim(start, end)
         pl.show()
 
-        nest.raster_plot.from_device(devices['spike_detector_out'], hist=False)
+        self.plot_spikes(devices['spike_detector_out'])
         pl.xlim(start, end)
         pl.show()
 
     def plot_latency(self, latency, classes, title, show=True):
         pl.clf()
 
+        pl.xlabel('Time (ms)')
+        pl.ylabel('Neuron')
+        
         pl.title(title)
         colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
                   'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
 #         shapes = ['x', 's', 'd']
+        
+        # classes_set = set(classes)
 
+        # for cl in classes_set:
+        #     class_mask = classes == cl
+        #     latencies = latency[class_mask]
+        #     classes = classes[class_mask]
+        #     print(latencies)
+            
         for one_latency, cl in zip(latency, classes):
-            for i, neuron in enumerate(one_latency):
-                pl.plot(one_latency[neuron][:1], i,
-                        colors[cl], label=neuron)
+            pl.plot(one_latency, range(len(one_latency)),
+                    colors[cl], label='class ' + str(cl))
+        # pl.legend()
         if show:
             pl.show()
 
@@ -195,8 +241,8 @@ class Plotter:
         pl.xlim(0, len(pattern))
         pl.title('Temporal pattern')
         for neuron in range(len(pattern)):
-            if pattern[neuron]:
-                pl.plot(neuron, pattern[neuron], 'b.')
+            # if pattern[neuron]:
+            pl.plot(neuron, pattern[neuron], 'b.')
         if show:
             pl.show()
 
@@ -298,6 +344,29 @@ class Plotter:
         if show:
             pl.show()
 
-    # def plot_pca(self, X, y, show=False):
-    #     pca =
-    #     X =
+    def plot_pca(self, X, y, show=True):
+        from sklearn.decomposition import PCA
+
+        pca = PCA(n_components=2)
+        Xpca = pca.fit_transform(X)
+
+        pl.figure()
+        for point, cl in zip(Xpca, y):
+            color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
+            pl.plot(point[0], point[1], color_shape[cl])
+        if show:
+            pl.show()
+            
+    def plot_latency_pca(self, X, y, max_val, show=True):
+        from sklearn.decomposition import PCA
+
+        latency_list = np.nan_to_num(X, nan=max_val)
+        pca = PCA(n_components=2)
+        Xpca = pca.fit_transform(latency_list)
+
+        pl.figure()
+        for point, cl in zip(Xpca, y):
+            color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
+            pl.plot(point[0], point[1], color_shape[cl])
+        if show:
+            pl.show()

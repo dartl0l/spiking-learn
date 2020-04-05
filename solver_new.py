@@ -38,26 +38,16 @@ class Solver(object):
         return x[p], y[p]
 
     def convert_latency(self, latency_list):
-        settings = self.settings
-
-        output_list = []
-        base_latency_dict = {}
-
-        n_neurons = settings['topology']['n_layer_out']
-        neuron_out_ids = [i + 1 for i in range(n_neurons)]
-        neuron_names = ['neuron_' + str(i) for i in range(n_neurons)]
-        for neuron_name in neuron_names:
-            base_latency_dict[neuron_name] = [float('Inf')]
-
+        output_array = []
+        n_neurons = self.settings['topology']['n_layer_out']
         for latencies in latency_list:
-            tmp_latency_dict = base_latency_dict.copy()
-            for lat, sender in zip(latencies['spikes'], latencies['senders']):
-                for neuron_name, neuron_id in zip(neuron_names, neuron_out_ids):
-                    if sender == [neuron_id] \
-                            and [lat] < tmp_latency_dict[neuron_name]:
-                        tmp_latency_dict[neuron_name] = [lat] 
-            output_list.append(tmp_latency_dict)
-        return output_list
+            tmp_list = [np.nan] * n_neurons
+            senders = set(latencies['senders'])
+            for sender in senders:
+                mask = latencies['senders'] == sender
+                tmp_list[sender - 1] = latencies['spikes'][mask][0]
+            output_array.append(tmp_list)
+        return output_array
 
     def test_data(self, network, data, weights, comm):
         settings = self.settings
@@ -83,12 +73,12 @@ class Solver(object):
         raw_latency['senders'] = np.array(raw_latency['senders'])
         return raw_latency
 
-    def split_spikes_and_senders(self, input_latency, n_splits):
+    def split_spikes_and_senders(self, input_latency, n_examples):
         settings = self.settings
 
         output_latency = []
         d_time = settings['network']['start_delta']
-        for _ in range(n_splits):
+        for _ in range(n_examples):
             mask = (input_latency['spikes'] > d_time) & \
                    (input_latency['spikes'] < d_time + settings['network']['h_time'])
             spikes_tmp = input_latency['spikes'][mask]
@@ -103,22 +93,13 @@ class Solver(object):
         return output_latency
 
     def predict_from_latency(self, latency_list):
-        output_list = []
-        for latency in latency_list:
-            tmp_list = [latency[neuron][:1] 
-                        for neuron in sorted(latency.keys())]
-            min_index, min_value = min(enumerate(tmp_list),
-                                       key=operator.itemgetter(1))
-            output_list.append(min_index)
-        return output_list
+        return np.nanargmin(latency_list, axis=1)
 
     def fitness_func_time(self, latency_list, data):
         fit_list = []
 
         for latency, y in zip(latency_list, data['class']):
-            tmp_list = [latency[neuron_number][:1][0] 
-                        for neuron_number in sorted(latency.keys())]
-            latency_of_desired_neuron = tmp_list.pop(y)
+            latency_of_desired_neuron = latency.pop(y)
 
             fit = -1 * latency_of_desired_neuron
             fit_list.append(fit)
@@ -134,11 +115,9 @@ class Solver(object):
 
         fit_list = []
         for latency, y in zip(latency_list, data['class']):
-            tmp_list = [latency[neuron_number][:1][0] 
-                        for neuron_number in sorted(latency.keys())]
-            latency_of_desired_neuron = tmp_list.pop(y)
+            latency_of_desired_neuron = latency.pop(y)
             fit = 1
-            for lat in tmp_list:
+            for lat in latency:
                 fit *= sigmoid(lat - latency_of_desired_neuron, 0.1)
             fit_list.append(fit)
         fitness_score = np.mean(fit_list)
@@ -149,11 +128,9 @@ class Solver(object):
     def fitness_func_exp(self, latency_list, data):
         fit_list = []
         for latency, y in zip(latency_list, data['class']):
-            tmp_list = [latency[neuron_number][:1][0] 
-                        for neuron_number in sorted(latency.keys())]
-            latency_of_desired_neuron = tmp_list.pop(y)
+            latency_of_desired_neuron = latency.pop(y)
             fit = 1
-            for lat in tmp_list:
+            for lat in latency:
                 fit -= exp(latency_of_desired_neuron - lat)
             fit_list.append(fit)
         fitness_score = np.mean(fit_list)

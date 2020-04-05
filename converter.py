@@ -218,25 +218,52 @@ class ReceptiveFieldsConverter(Converter):
 
         max_y = np.round(get_gaussian(h_mu, self.sigma2, h_mu), 0)
 
-        for xx, yy in zip(x, y):
-            tmp_dict = dict.fromkeys(np.arange(0, self.n_fields * len(xx)))
+        mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(x[0]))
+        X = np.repeat(x, self.n_fields, axis=1)
 
-            tmp_fields = 0
-            for x in xx:
-                mu = 0
-                for i in range(self.n_fields):
-                    time = np.round(get_gaussian(x, self.sigma2, mu), self.k_round)
-                    spike_time = max_y - time
-                    tmp_dict[i + tmp_fields] = [spike_time]
-                    mu += h_mu
-                tmp_fields += self.n_fields
-            output['input'].append(tmp_dict)
-            output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
+        assert len(mu) == len(X[0])
+
+        X = max_y - np.round(get_gaussian(X, self.sigma2, mu), self.k_round)
+        output = {'input': X.reshape(X.shape[0], X.shape[1], 1),
+                  'class': y}
         return output  # , max_y
 
+
+class ReceptiveFieldsConverterReverse(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, sigma2, max_x, n_fields, k_round):
+        self.sigma2 = sigma2
+        self.max_x = max_x
+        self.n_fields = n_fields
+        self.k_round = k_round
     
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        def get_gaussian(x, sigma2, mu):
+            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+
+        output = {'input': [],
+                  'class': []}
+
+        h_mu = self.max_x / (self.n_fields - 1)
+
+        max_y = np.round(get_gaussian(h_mu, self.sigma2, h_mu), 0)
+
+        mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(x[0]))
+        X = np.repeat(x, self.n_fields, axis=1)
+
+        assert len(mu) == len(X[0])
+
+        X = np.round(get_gaussian(X, self.sigma2, mu), self.k_round)
+        output = {'input': X.reshape(X.shape[0], X.shape[1], 1),
+                  'class': y}
+        return output  # , max_y
+
+
 class ImageConverter(Converter):
     '''
         Class for receptive fields data conversion
@@ -250,22 +277,30 @@ class ImageConverter(Converter):
             Function must be updated to O(n) complexity 
         '''
         
-        X = self.pattern_length * (1 - x)
+        X = np.round(self.pattern_length * (1 - x), self.k_round)
+        output = {'input': X.reshape(X.shape[0], X.shape[1], 1),
+                  'class': y}
 
-        output = {'input': [],
-                  'class': []}
-        for xx, yy in zip(X, y):
-            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
-            for i, x in enumerate(xx):
-                time = np.round(x, self.k_round)
-                tmp_dict[i] = [time]
-            output['input'].append(tmp_dict)
-            output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
         return output
 
-    
+
+class BinaryConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_length, k_round):
+        self.pattern_length = pattern_length
+        self.k_round = k_round
+
+    def convert(self, x, y):
+        x[x != 0] = 1
+        X = np.round(self.pattern_length * (1 - x), self.k_round)
+        output = {'input': X.reshape(X.shape[0], X.shape[1], 1),
+                  'class': y}
+
+        return output
+
+
 class ImageConverterWithoutZero(ImageConverter):
     '''
         Class for receptive fields data conversion
@@ -276,17 +311,84 @@ class ImageConverterWithoutZero(ImageConverter):
     
     def convert(self, x, y):
         zero_values = x == 0
-        
-        X = self.pattern_length * (1 - x)
-        X[zero_values] = 0
-        
+        x[zero_values] = np.nan
+
+        X = np.round(self.pattern_length * (1 - x), self.k_round)
+        output = {'input': X.reshape(X.shape[0], X.shape[1], 1),
+                  'class': y}
+        return output
+
+    
+class FrequencyConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_time, firing_rate, dt, h):
+        self.pattern_time = pattern_time
+        self.firing_rate = firing_rate
+        self.h = h
+        self.dt = dt
+
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        def get_poisson_train(time, firing_rate, h):
+            np.random.seed()
+            times = np.arange(0, time, h)
+            probabilities = np.random.uniform(0, 1, int(time / h))
+            mask = probabilities < firing_rate
+            spike_times = times[mask]
+            return spike_times
+
         output = {'input': [],
                   'class': []}
-        for xx, yy in zip(X, y):
+
+        for xx, yy in zip(x, y):
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
             for i, x in enumerate(xx):
-                time = np.round(x, self.k_round)
-                tmp_dict[i] = [time] if time != 0 else []
+                frequency = x * self.firing_rate * self.dt
+                tmp_dict[i] = get_poisson_train(self.pattern_time, frequency, self.h)
+            output['input'].append(tmp_dict)
+            output['class'].append(yy)
+        output = {'input': np.array(output['input']),
+                  'class': np.array(output['class'])}
+        return output
+
+class SobelConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_time, firing_rate, dt, h):
+        self.pattern_time = pattern_time
+        self.firing_rate = firing_rate
+        self.h = h
+        self.dt = dt
+
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        def get_sobel_image(image):
+            import scipy
+            from scipy import ndimage
+
+            # im = im.astype('int32')
+            dx = ndimage.sobel(im, 0)  # horizontal derivative
+            dy = ndimage.sobel(im, 1)  # vertical derivative
+            mag = numpy.hypot(dx, dy)  # magnitude
+            mag *= 255.0 / numpy.max(mag)  # normalize (Q&D)
+            return mag
+
+
+        output = {'input': [],
+                  'class': []}
+
+        for xx, yy in zip(x, y):
+            tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
+            for i, x in enumerate(xx):
+                frequency = x * self.firing_rate * self.dt
+                tmp_dict[i] = get_poisson_train(self.pattern_time, frequency, self.h)
             output['input'].append(tmp_dict)
             output['class'].append(yy)
         output = {'input': np.array(output['input']),
