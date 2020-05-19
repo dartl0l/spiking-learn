@@ -11,7 +11,7 @@ class Network(object):
         # super(Network, self).__init__()
         self.settings = settings
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
-      
+
     def set_input_spikes(self, spike_dict, spike_generators):
         assert len(spike_dict) == len(spike_generators)
         nest.SetStatus(spike_generators, spike_dict)
@@ -25,15 +25,13 @@ class Network(object):
 
     def create_spike_dict(self, dataset, train):
         print("prepare spikes")
-        settings = self.settings
-
-        epochs = settings['learning']['epochs'] if train else 1
-        start = settings['network']['start_delta']
+        epochs = self.settings['learning']['epochs'] if train else 1
+        start = self.settings['network']['start_delta']
 
         spikes = np.tile(dataset, (epochs, 1, 1))
 
-        full_time = epochs * len(dataset) * settings['network']['h_time'] + start
-        times = np.arange(start, full_time, settings['network']['h_time'])
+        full_time = epochs * len(dataset) * self.settings['network']['h_time'] + start
+        times = np.arange(start, full_time, self.settings['network']['h_time'])
         pattern_start_times = np.expand_dims(np.tile(times, (len(dataset[0]), 1)).T, axis=2)
 
         assert len(spikes) == len(pattern_start_times)
@@ -47,18 +45,16 @@ class Network(object):
 
     def create_teacher_dict(self, input_spikes, classes, teachers):  # Network
         print("prepare teacher")
-        settings = self.settings
+        h = self.settings['network']['h']
+        h_time = self.settings['network']['h_time']
+        epochs = self.settings['learning']['epochs']
+        start = self.settings['network']['start_delta']
+        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        reinforce_time = self.settings['learning']['reinforce_time']
+        reinforce_delta = self.settings['learning']['reinforce_delta']
+        teacher_amplitude = self.settings['learning']['teacher_amplitude']
 
-        h = settings['network']['h']
-        h_time = settings['network']['h_time']
-        epochs = settings['learning']['epochs']
-        start = settings['network']['start_delta']
-        single_neuron = settings['topology']['n_layer_out'] == 1
-        reinforce_time = settings['learning']['reinforce_time']
-        reinforce_delta = settings['learning']['reinforce_delta']
-        teacher_amplitude = settings['learning']['teacher_amplitude']
-
-        classes_full = np.tile(classes, (epochs))
+        classes_full = np.tile(classes, epochs)
         assert len(input_spikes) == len(classes_full)
 
         full_time = len(input_spikes) * h_time + start
@@ -74,8 +70,8 @@ class Network(object):
         teacher_dict = {}
         for teacher in teachers:
             teacher_dict[teacher] = {
-                                      'amplitude_times': [],
-                                      'amplitude_values': []
+                                      'amplitude_times': np.ndarray(),
+                                      'amplitude_values': np.ndarray()
                                      }        
         for cl in set(classes):
             current_teacher_id = teachers[0] if single_neuron else teachers[cl]
@@ -95,14 +91,12 @@ class Network(object):
 
     def create_poisson_noise(self, spikes_list):  # Network
         print("prepare noise")
-        settings = self.settings
-
         dt = 1.0 / 1000.0
-        h = settings['network']['h']
-        h_time = settings['network']['h_time']
-        epochs = settings['learning']['epochs']
-        start = settings['network']['start_delta']
-        noise_frequency = settings['network']['noise_freq']
+        h = self.settings['network']['h']
+        h_time = self.settings['network']['h_time']
+        epochs = self.settings['learning']['epochs']
+        start = self.settings['network']['start_delta']
+        noise_frequency = self.settings['network']['noise_freq']
 
         num_inputs = len(spikes_list[0])
 
@@ -148,7 +142,7 @@ class Network(object):
                    }
         return devices
 
-    def get_spikes_of_pattern(spike_detector, estimated_time, example_class):
+    def get_spikes_of_pattern(self, spike_detector, estimated_time, example_class):
         spikes = nest.GetStatus(spike_detector, keys="events")[0]['times']
         senders = nest.GetStatus(spike_detector, keys="events")[0]['senders']
         mask = spikes > estimated_time
@@ -161,8 +155,7 @@ class Network(object):
                     }
         return tmp_dict
 
-    def save_weigths(self, layers):
-        settings = self.settings
+    def save_weights(self, layers):
         synapse_models = self.synapse_models
 
         weights = {}
@@ -193,7 +186,7 @@ class Network(object):
         # rank = nest.Rank()
         rng = np.random.randint(500)
         num_v_procs = self.settings['network']['num_threads'] \
-                    * self.settings['network']['num_procs']
+            * self.settings['network']['num_procs']
 
         nest.ResetKernel()
         nest.SetKernelStatus({
@@ -204,10 +197,10 @@ class Network(object):
         })
 
     def create_layers(self):
-        self.layer_out = nest.Create(self.settings['model']['neuron_out_model'], 
+        self.layer_out = nest.Create(self.settings['model']['neuron_out_model'],
                                      self.settings['topology']['n_layer_out'])
-        self.input_layer = nest.Create('parrot_neuron', 
-                                        self.settings['topology']['n_input'])
+        self.input_layer = nest.Create('parrot_neuron',
+                                       self.settings['topology']['n_input'])
         self.layers = [self.input_layer, self.layer_out]
 
     def create_devices(self):
@@ -287,7 +280,7 @@ class Network(object):
             }
         )
 
-    def set_weigths(self, weights):
+    def set_weights(self, weights):
         for neuron_id in weights['layer_0']:
             connection = nest.GetConnections(
                 self.input_layer, target=[neuron_id])
@@ -337,7 +330,7 @@ class Network(object):
         print("start simulation")
         nest.Simulate(full_time)
 
-        weights = self.save_weigths(self.layers)
+        weights = self.save_weights(self.layers)
         output = {
                   'spikes': nest.GetStatus(self.spike_detector_out,
                                            keys="events")[0]['times'].tolist(),
@@ -365,7 +358,7 @@ class Network(object):
         self.set_neuron_status()
         if self.settings['network']['test_with_noise']:
             self.set_noise()
-        self.set_weigths(weights)
+        self.set_weights(weights)
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=data['input'], 
@@ -403,7 +396,7 @@ class TwoLayerNetwork(Network):
         self.layer_hid = nest.Create(self.settings['model']['neuron_hid_model'], 
                                      self.settings['topology']['n_layer_hid'])
         self.input_layer = nest.Create('parrot_neuron', 
-                                        self.settings['topology']['n_input'])
+                                       self.settings['topology']['n_input'])
         self.layers = [self.input_layer, self.layer_hid, self.layer_out]
 
     def create_devices(self):
@@ -428,7 +421,7 @@ class TwoLayerNetwork(Network):
         if self.settings['topology']['use_reciprocal']:
             nest.Connect(self.layer_out,
                          self.layer_hid, 'all_to_all',
-                         syn_spec=settings['model']['syn_dict_rec'])
+                         syn_spec=self.settings['model']['syn_dict_rec'])
 
     def connect_layers_static(self):
         nest.Connect(self.input_layer,
@@ -470,7 +463,7 @@ class TwoLayerNetwork(Network):
         nest.SetStatus(self.layer_hid,
                        self.settings['model']['neuron_hid'])
 
-    def set_weigths(self, weights):
+    def set_weights(self, weights):
         for neuron_id in weights['layer_0']:
             connection = nest.GetConnections(
                 self.input_layer, target=[neuron_id])
@@ -517,16 +510,14 @@ class FrequencyNetwork(Network):
         return spike_dict, d_time, spikes
 
     def create_teacher_dict(self, input_spikes, classes, teachers):  # Network
-        settings = self.settings
-
-        h = settings['network']['h']
-        h_time = settings['network']['h_time']
-        epochs = settings['learning']['epochs']
-        d_time = settings['network']['start_delta']
-        single_neuron = settings['topology']['n_layer_out'] == 1
-        reinforce_time = settings['learning']['reinforce_time']
-        reinforce_delta = settings['learning']['reinforce_delta']
-        teacher_amplitude = settings['learning']['teacher_amplitude']
+        h = self.settings['network']['h']
+        h_time = self.settings['network']['h_time']
+        epochs = self.settings['learning']['epochs']
+        d_time = self.settings['network']['start_delta']
+        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        reinforce_time = self.settings['learning']['reinforce_time']
+        reinforce_delta = self.settings['learning']['reinforce_delta']
+        teacher_amplitude = self.settings['learning']['teacher_amplitude']
 
         teacher_dicts = {}
         for teacher in teachers:

@@ -1,17 +1,16 @@
 # coding: utf-8
 
 import sys
-from os import system, chdir, getcwd, mkdir, path
+from os import system, chdir, getcwd, mkdir
 from shutil import copytree
 
-import numpy
-import json # to read parameters from file
+import json  # to read parameters from file
 import MultiNEAT as neat
 import mpi4py.futures as fut
-from mpi4py import MPI 
-from spiking_network_learning_alghorithm import traits
-from spiking_network_learning_alghorithm.solver import solve_task
+from mpi4py import MPI
 
+import traits
+from solver_new import solve_task
 
 
 def prepare_genomes(genome):
@@ -24,16 +23,16 @@ def prepare_genomes(genome):
 
     data_trait_values = {trait_name: trait_value
                          for trait_name, trait_value in current_trait_values.items()
-                            if trait_name in traits.data_traits}
+                         if trait_name in traits.data_traits}
     network_trait_values = {trait_name: trait_value
                             for trait_name, trait_value in current_trait_values.items()
-                                if trait_name in traits.network_traits}
+                            if trait_name in traits.network_traits}
     neuron_trait_values = {trait_name: trait_value
                            for trait_name, trait_value in current_trait_values.items()
-                                if trait_name in traits.neuron_traits}
+                           if trait_name in traits.neuron_traits}
     synapse_trait_values = {trait_name: trait_value
                             for trait_name, trait_value in current_trait_values.items()
-                                if trait_name in traits.synapse_traits}
+                            if trait_name in traits.synapse_traits}
     
     settings = json.load(open('settings.json', 'r'))
     for trait in data_trait_values:
@@ -55,7 +54,7 @@ def prepare_genomes(genome):
 
     chdir('genome' + str(genome.GetID()))
     json.dump(settings, open('settings.json', 'w'), indent=4)
-    chdir('..') # out of genomeID
+    chdir('..')  # out of genomeID
 
 
 def evaluate(genome):
@@ -69,11 +68,11 @@ def evaluate(genome):
 def evaluate_futures(genome):
     directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
     print("Start sim in " + str(directory_name))
-    os.system("cd " + directory_name + " ;"
-              "python genetic_solver.py " + directory_name + "; ")
+    system("cd " + directory_name + " ;"
+           "python genetic_solver.py " + directory_name + "; ")
     with open('fitness.txt') as fitness_file:
         fitness = fitness_file.readline()
-    os.chdir('..')
+    chdir('..')
     print("Stop sim in " + str(directory_name))
     return fitness
 
@@ -112,26 +111,26 @@ def main(use_futures, redirect_out=True):
         neat_params.SetGenomeTraitParameters(trait_name, trait_value)
 
     genome = neat.Genome(
-        0, # Some genome ID, I don't know what it means.
+        0,  # Some genome ID, I don't know what it means.
         network_parameters['inputs_number'],
-        2, # ignored for seed_type == 0, specifies number of hidden units if seed_type == 1
+        2,  # ignored for seed_type == 0, specifies number of hidden units if seed_type == 1
         network_parameters['outputs_number'],
-        False, #fs_neat. If == 1, a minimalistic perceptron is created: each output is connected to a random input and the bias.
+        False,  # fs_neat. If == 1, a minimalistic perceptron is created: each output is connected
+                # to a random input and the bias.
         neat.ActivationFunction.UNSIGNED_SIGMOID, # output neurons activation function
         neat.ActivationFunction.UNSIGNED_SIGMOID, # hidden neurons activation function
-        0, # seedtype
-        neat_params, # global parameters object returned by neat.Parameters()
-        0 # number of hidden layers
+        0,  # seedtype
+        neat_params,  # global parameters object returned by neat.Parameters()
+        0  # number of hidden layers
     )
 
     population = neat.Population(
         genome,
         neat_params,
-        True, # whether to randomize the population
-        0.5, # how much to randomize
-        0 # the RNG seed
+        True,  # whether to randomize the population
+        0.5,  # how much to randomize
+        0  # the RNG seed
     )
-
 
     # fh = MPI.File.Open(comm, "datafile", mode) 
     # line1 = str(comm.rank)*(comm.rank+1) + '\n' 
@@ -155,11 +154,9 @@ def main(use_futures, redirect_out=True):
 
         if use_futures:
             executor = fut.MPIPoolExecutor()
-            # fitnesses_list = executor.map(evaluate_futures, genome_list)
             for fitness in executor.map(evaluate_futures, genome_list):
                 fitnesses_list.append(fitness)
         else:
-            # fitnesses_list = map(evaluate, genome_list)
             for genome in genome_list:
                 fitnesses_list.append(evaluate(genome))
 
@@ -167,14 +164,14 @@ def main(use_futures, redirect_out=True):
 
         population.GetBestGenome().Save('output/best_genome.txt')
         # mode = MPI.MODE_APPEND
-        # genomefile = MPI.File.Open(comm, 'output/best_genome.txt', mode) 
-        # genomefile.Write_ordered('\n' + str(population.GetBestGenome().GetNeuronTraits()) + 
+        # genome_file = MPI.File.Open(comm, 'output/best_genome.txt', mode)
+        # genome_file.Write_ordered('\n' + str(population.GetBestGenome().GetNeuronTraits()) +
         #                          '\n' + str(population.GetBestGenome().GetGenomeTraits()))
-        # genomefile.Close()
-        genomefile = open('output/best_genome.txt', 'a')
-        genomefile.write('\n' + str(population.GetBestGenome().GetNeuronTraits()) + 
+        # genome_file.Close()
+        genome_file = open('output/best_genome.txt', 'a')
+        genome_file.write('\n' + str(population.GetBestGenome().GetNeuronTraits()) +
                          '\n' + str(population.GetBestGenome().GetGenomeTraits()))
-        genomefile.close()
+        genome_file.close()
         # copytree('genome' + str(population.GetBestGenome().GetID()), 
         #          'output/generation' + str(generation_number) + '_best_genome')
         try:
@@ -192,7 +189,7 @@ def main(use_futures, redirect_out=True):
         # )
 
         # advance to the next generation
-        print("Generation " + str(generation_number) + \
+        print("Generation " + str(generation_number) +
               ": fitness = " + str(population.GetBestGenome().GetFitness()))
         print("Generation " + str(generation_number) + " finished")
         population.Epoch()
@@ -201,7 +198,7 @@ def main(use_futures, redirect_out=True):
 
 
 if __name__ == '__main__':
-    use_futures = True
-    main(use_futures)
+    use_fut = True
+    main(use_fut)
 
 

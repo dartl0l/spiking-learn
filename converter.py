@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from andrews_curve import AndrewsCurve
 
 class Converter:
     def __init__(self):
@@ -283,6 +284,7 @@ class ImageConverter(Converter):
 
         return output
 
+
 class ImageInvertedConverter(Converter):
     '''
         Class for receptive fields data conversion
@@ -396,8 +398,8 @@ class SobelConverter(Converter):
             # im = im.astype('int32')
             dx = ndimage.sobel(im, 0)  # horizontal derivative
             dy = ndimage.sobel(im, 1)  # vertical derivative
-            mag = numpy.hypot(dx, dy)  # magnitude
-            mag *= 255.0 / numpy.max(mag)  # normalize (Q&D)
+            mag = np.hypot(dx, dy)  # magnitude
+            mag *= 255.0 / np.max(mag)  # normalize (Q&D)
             return mag
 
 

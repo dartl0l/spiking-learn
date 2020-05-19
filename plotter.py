@@ -106,8 +106,8 @@ class Plotter:
 
         if save:
             weights_anim.save('weights.mp4')
-        #     if show is True:
-        #         HTML(weights_anim.to_html5_video())
+            # if show is True:
+            #     HTML(weights_anim.to_html5_video())
         return weights_anim
 
     def plot_voltage(self, voltmeter, legend=True):
@@ -299,11 +299,11 @@ class Plotter:
                 new_image.append(0)
         new_image = np.array(new_image).reshape(image_size)
 
-        X = np.arange(0, image_size[0], 1)
-        Y = np.arange(0, image_size[1], 1)
-        X, Y = np.meshgrid(X, Y)
+        x = np.arange(0, image_size[0], 1)
+        y = np.arange(0, image_size[1], 1)
+        x, y = np.meshgrid(x, y)
 
-        pl.scatter(X, Y, new_image * scale)
+        pl.scatter(x, y, new_image * scale)
 
         if show:
             pl.show()
@@ -312,9 +312,7 @@ class Plotter:
                     title='Parameters distribution',
                     normalize_colors=True, show=True):
         def get_polar(r, fi):
-                x = r * cos(fi)
-                y = r * sin(fi)
-                return x, y
+            return r * cos(fi), r * sin(fi)
 
         def get_polars(parameters):
             x_list = []
@@ -391,10 +389,10 @@ class Plotter:
         if show:
             pl.show()
             
-    def plot_latency_pca(self, X, y, max_val, show=True):
+    def plot_latency_pca(self, x, y, max_val, show=True):
         from sklearn.decomposition import PCA
 
-        latency_list = np.nan_to_num(X, nan=max_val)
+        latency_list = np.nan_to_num(x, nan=max_val)
         pca = PCA(n_components=2)
         Xpca = pca.fit_transform(latency_list)
 

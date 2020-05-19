@@ -18,9 +18,9 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.datasets import load_iris, load_breast_cancer, load_digits
 from sklearn.decomposition import PCA
 
-from spiking_network_learning_alghorithm.network import *
-from spiking_network_learning_alghorithm.converter import *
-from spiking_network_learning_alghorithm.plotter import *
+from network import *
+from converter import *
+from plotter import *
 
 
 class Solver(object):
@@ -74,13 +74,11 @@ class Solver(object):
         return raw_latency
 
     def split_spikes_and_senders(self, input_latency, n_examples):
-        settings = self.settings
-
         output_latency = []
-        d_time = settings['network']['start_delta']
+        d_time = self.settings['network']['start_delta']
         for _ in range(n_examples):
             mask = (input_latency['spikes'] > d_time) & \
-                   (input_latency['spikes'] < d_time + settings['network']['h_time'])
+                   (input_latency['spikes'] < d_time + self.settings['network']['h_time'])
             spikes_tmp = input_latency['spikes'][mask]
             senders_tmp = input_latency['senders'][mask]
             tmp_dict = {
@@ -88,7 +86,7 @@ class Solver(object):
                         'senders': senders_tmp
                         }
 
-            d_time += settings['network']['h_time']
+            d_time += self.settings['network']['h_time']
             output_latency.append(tmp_dict)    
         return output_latency
 
@@ -162,13 +160,13 @@ class Solver(object):
             fitness_score = f1_score(data['class'], y_valid, average='micro')
         return fitness_score
 
-    def prediction_score(self, y, predicton):
+    def prediction_score(self, y, prediction):
         settings = self.settings
         score = 0
         if settings['learning']['metrics'] == 'acc':
-            score = accuracy_score(y, predicton)
+            score = accuracy_score(y, prediction)
         elif settings['learning']['metrics'] == 'f1':
-            score = f1_score(y, predicton, average='micro')
+            score = f1_score(y, prediction, average='micro')
         return score
     
     def prepare_data(self, data, train_index, test_index):
@@ -183,12 +181,12 @@ class Solver(object):
             data_out['valid'] = {}
 
             input_train, input_valid, \
-            y_train, y_valid = train_test_split(
-                data['input'][train_index],
-                data['class'][train_index],
-                test_size=settings['data']['valid_size'],
-                random_state=42
-            )
+                y_train, y_valid = train_test_split(
+                    data['input'][train_index],
+                    data['class'][train_index],
+                    test_size=settings['data']['valid_size'],
+                    random_state=42
+                )
             data_train['input'] = input_train
             data_train['class'] = y_train
 
@@ -200,23 +198,22 @@ class Solver(object):
             data_train['input'] = data['input'][train_index]
             data_train['class'] = data['class'][train_index]
 
-
         data_test['input'] = data['input'][test_index]
         data_test['class'] = data['class'][test_index]
 
         if settings['data']['shuffle_train']:
             data_train['input'], \
-            data_train['class'] = self.shuffle_data(
-                data_train['input'], 
-                data_train['class']
-            )
+                data_train['class'] = self.shuffle_data(
+                    data_train['input'],
+                    data_train['class']
+                )
 
         if settings['data']['shuffle_test']:
             data_test['input'], \
-            data_test['class'] = self.shuffle_data(
-                data_test['input'], 
-                data_test['class']
-            )
+                data_test['class'] = self.shuffle_data(
+                    data_test['input'],
+                    data_test['class']
+                )
 
         data_out['train']['full'] = data_train
         data_out['test']['full'] = data_test
@@ -224,25 +221,10 @@ class Solver(object):
         return data_out        
 
     def test_network_acc_cv(self, data):
-#         def solve_fold(input_data):
-# #             print("prepare data")
-# #             data_fold = self.prepare_data(input_data['data'],
-# #                                           input_data['train_index'],
-# #                                           input_data['test_index'])
-#             print("solve fold")
-#             return self.test_network_acc(input_data)
-
-        settings = self.settings
-
         data_list = []
-        skf = StratifiedKFold(n_splits=settings['learning']['n_splits'])
+        skf = StratifiedKFold(n_splits=self.settings['learning']['n_splits'])
         for train_index, test_index in skf.split(data['input'], data['class']):
             print("prepare data")
-#             input_data = {
-#                           'data': data,
-#                           'test_index': test_index,
-#                           'train_index': train_index,
-#                          }
             data_fold = self.prepare_data(data,
                                           train_index,
                                           test_index)
@@ -273,7 +255,6 @@ class Solver(object):
             devices_train_list.append(result['devices_train'])
             weights.append(weight)
 
-        # print(fit)
         out_dict = {
                     'fitness_score': fit,
                     'fitness_mean': np.mean(fit),
@@ -308,14 +289,6 @@ class NetworkSolver(Solver):
             self.network = Network(settings)
 
     def test_network_acc(self, data):
-#         settings = self.settings
-#         if settings['topology']['two_layers']:
-#             network = TwoLayerNetwork(settings)
-#         elif settings['data']['frequency_coding']:
-#             network = FrequencyNetwork(settings)
-#         else:
-#             network = Network(settings)
-        network = self.network
         plot = Plotter()
 
         comm = MPI.COMM_WORLD
@@ -323,18 +296,18 @@ class NetworkSolver(Solver):
         data_train = data['train']['full']
         
         weights, \
-        latency_train, \
-        devices_train = network.train(data_train)
+            latency_train, \
+            devices_train = self.network.train(data_train)
         
         if self.plot:
             plot.plot_devices(devices_train,
                               self.settings['topology']['two_layers'])
             
         full_latency_test_train, \
-        devices_test_train = self.test_data(network,
-                                            data_train,
-                                            weights,
-                                            comm)
+            devices_test_train = self.test_data(self.network,
+                                                data_train,
+                                                weights,
+                                                comm)
         
         if self.plot:
             plot.plot_devices(devices_test_train, 
@@ -342,18 +315,18 @@ class NetworkSolver(Solver):
             
         y_train = self.predict_from_latency(full_latency_test_train)
         score_train = self.prediction_score(data_train['class'], 
-                                       y_train)
+                                            y_train)
 
         fitness_score = 0
         if self.settings['data']['use_valid']:
             data_valid = data['valid']['full']
             full_latency_valid, \
-            devices_valid = self.test_data(network,
-                                           data_valid,
-                                           weights,
-                                           comm)
+                devices_valid = self.test_data(self.network,
+                                               data_valid,
+                                               weights,
+                                               comm)
 
-            if settings['learning']['use_fitness_func']:
+            if self.settings['learning']['use_fitness_func']:
                 fitness_score = self.fitness(full_latency_valid, 
                                              data_valid)
         else:
@@ -361,10 +334,10 @@ class NetworkSolver(Solver):
 
         data_test = data['test']['full']
         full_latency_test, \
-        devices_test = self.test_data(network,
-                                      data_test,
-                                      weights,
-                                      comm)
+            devices_test = self.test_data(self.network,
+                                          data_test,
+                                          weights,
+                                          comm)
         
         if self.plot:
             plot.plot_devices(devices_test, 
@@ -392,6 +365,7 @@ class NetworkSolver(Solver):
                    }
         
         return out_dict, weights_all
+
 
 class FrequencyNetworkSolver(NetworkSolver):
     def __init__(self, settings, plot=False):
@@ -442,10 +416,6 @@ class SeparateNetworkSolver(Solver):
                 out_latency.append(tmp_latency)
             return out_latency
 
-        settings = self.settings
-
-        network = self.network
-
         comm = MPI.COMM_WORLD
 
         n_classes = len(set(data['train']['full']['class']))
@@ -468,42 +438,42 @@ class SeparateNetworkSolver(Solver):
             data_train = data['train'][class_key]
 
             weights, latency_train, \
-                devices_train = network.train(data_train)
+                devices_train = self.network.train(data_train)
 
             full_latency_test_train, \
-                devices_test_train = self.test_data(network, data['train']['full'],
+                devices_test_train = self.test_data(self.network, data['train']['full'],
                                                     weights, comm)
             latency_test_train_list.append(full_latency_test_train)
 
             full_latency_test, \
-                devices_test = self.test_data(network, data_test, 
-                                         weights, comm)
+                devices_test = self.test_data(self.network, data_test,
+                                              weights, comm)
             latency_test_list.append(full_latency_test)
 
-            if settings['data']['use_valid']:
+            if self.settings['data']['use_valid']:
                 data_valid = data['valid']['full']
                 full_latency_valid, \
-                    devices_valid = self.test_data(network, data_valid,
+                    devices_valid = self.test_data(self.network, data_valid,
                                                    weights, comm)
                 latency_valid_list.append(full_latency_valid)
 
         data_train = data['train']['full']
-        merged_latency_test_train = self.merge_spikes(latency_test_train_list)
+        merged_latency_test_train = merge_spikes(latency_test_train_list)
         y_train = self.predict_from_latency(merged_latency_test_train)
         score_train = self.prediction_score(data_train['class'], 
                                             y_train)
 
         fitness_score = 0
-        if settings['data']['use_valid']:
+        if self.settings['data']['use_valid']:
             data_valid = data['valid']['full']
-            merged_latency_valid = self.merge_spikes(latency_valid_list)
+            merged_latency_valid = merge_spikes(latency_valid_list)
             
-            if settings['learning']['use_fitness_func']:
+            if self.settings['learning']['use_fitness_func']:
                 fitness_score = self.fitness(merged_latency_valid, data_valid)
         else:
             fitness_score = score_train
 
-        merged_latency_test = self.merge_spikes(latency_test_list)
+        merged_latency_test = merge_spikes(latency_test_list)
         y_test = self.predict_from_latency(merged_latency_test)
         score_test = self.prediction_score(data_test['class'], 
                                            y_test)
@@ -547,7 +517,6 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         sys.stdout = open(task_path + 'out.txt', 'w')
         sys.stderr = open(task_path + 'err.txt', 'w')
 
-    
     print("Start train and test")
     start = time.time()
 
@@ -561,19 +530,18 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         data['data'] = digits.images.reshape((len(digits.images), -1))
         data['target'] = digits.target
 
-    X = data['data']
+    x = data['data']
     y = data['target']
 
     if 'pca' in settings['data']['preprocessing']:
         pca = PCA(n_components=4)
-        X = pca.fit_transform(X)
+        x = pca.fit_transform(x)
     if 'normalize' in settings['data']['normalization']:
-        X = preprocessing.normalize(X)
+        x = preprocessing.normalize(x)
         print('normalize')
     if 'minmax' in settings['data']['normalization']:
-        X = preprocessing.minmax_scale(X)
+        x = preprocessing.minmax_scale(x)
         print('minmax')
-
 
     n_coding_neurons = settings['data']['n_coding_neurons']
     sigma = settings['data']['coding_sigma']
@@ -582,10 +550,10 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     round_to = round_decimals(settings['network']['h'])
 
     print('convert')
-    conv = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
-    data = conv.convert(X, y)
+    converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
+    data = converter.convert(x, y)
 
-    settings['topology']['n_input'] = len(X[0]) * n_coding_neurons
+    settings['topology']['n_input'] = len(x[0]) * n_coding_neurons
 
     print('solve')
     if settings['network']['separate_networks']:
@@ -612,12 +580,10 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     with open(task_path + 'fitness.txt', 'w') as fit_file:
         fit_file.write(str(result_dict['fitness_mean']))
 
-
     pickle.dump(result_dict, open('result_dict.pkl', 'wb'))
 
     save = time.time()
     print("Files saved in "+ str(save - end) + "s")
-
 
     return result_dict['fitness_mean'], result_dict
 
