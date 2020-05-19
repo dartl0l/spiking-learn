@@ -283,6 +283,25 @@ class ImageConverter(Converter):
 
         return output
 
+class ImageInvertedConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_length, k_round):
+        self.pattern_length = pattern_length
+        self.k_round = k_round
+
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+        
+        X = np.round(self.pattern_length * x, self.k_round)
+        output = {'input': X.reshape(X.shape[0], X.shape[1], 1),
+                  'class': y}
+
+        return output
+
 
 class BinaryConverter(Converter):
     '''
@@ -355,6 +374,7 @@ class FrequencyConverter(Converter):
                   'class': np.array(output['class'])}
         return output
 
+
 class SobelConverter(Converter):
     '''
         Class for receptive fields data conversion
@@ -388,7 +408,7 @@ class SobelConverter(Converter):
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
             for i, x in enumerate(xx):
                 frequency = x * self.firing_rate * self.dt
-                tmp_dict[i] = get_poisson_train(self.pattern_time, frequency, self.h)
+                # tmp_dict[i] = get_poisson_train(self.pattern_time, frequency, self.h)
             output['input'].append(tmp_dict)
             output['class'].append(yy)
         output = {'input': np.array(output['input']),

@@ -13,6 +13,7 @@ class Network(object):
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
       
     def set_input_spikes(self, spike_dict, spike_generators):
+        assert len(spike_dict) == len(spike_generators)
         nest.SetStatus(spike_generators, spike_dict)
 
     def set_teachers_input(self, teacher_dicts):
@@ -494,13 +495,14 @@ class FrequencyNetwork(Network):
         print("prepare spikes freq")
         settings = self.settings
 
-        spike_dict = {}
         spikes = []
         d_time = settings['network']['start_delta']
         epochs = settings['learning']['epochs'] if train else 1
-        for input_neuron in dataset[0]:
-            spike_dict[input_neuron] = {'spike_times': [],
-                                        'spike_weights': []}
+        
+        spike_dict = [None] * len(dataset[0])
+        for input_neuron in range(len(dataset[0])):
+            spike_dict[input_neuron] = {'spike_times': []}
+            
         # TODO
         # calc spike times one time and concatenate
         for _ in range(epochs):
@@ -509,8 +511,6 @@ class FrequencyNetwork(Network):
                 for input_neuron in example:
                     spike_dict[input_neuron]['spike_times'] \
                         += map(lambda x: x + d_time, example[input_neuron])
-                    spike_dict[input_neuron]['spike_weights'] \
-                        += np.ones_like(example[input_neuron]).tolist()
                     tmp_spikes.append(example[input_neuron])
                 spikes.append(tmp_spikes)
                 d_time += settings['network']['h_time']

@@ -25,7 +25,7 @@ solve_task(path-to-folder-with-settings-file)
 or run from command line
 
 ```
-python solver_new path-to-folder-with-settings-file
+python solver path-to-folder-with-settings-file
 ```
 
 here is example of settings file for Fisher's Iris Classification settings.json 
@@ -34,18 +34,18 @@ here is example of settings file for Fisher's Iris Classification settings.json
 {
     "model": {
         "neuron_out": {
-            "V_reset": 0.0,
+            "V_reset": -5.0,
             "E_L": 0.0,
             "I_e": 0.0,
-            "C_m": 1.0,
-            "V_m": 0.0,
-            "t_ref": 19.0,
-            "V_th": 2.5,
-            "tau_m": 6.0,
-            "tau_minus": 31.0
+            "C_m": 2.3041116651147604,
+            "V_m": -5.0,
+            "t_ref": 1.4445230588316917,
+            "V_th": 1.0,
+            "tau_m": 5.103678226470947,
+            "tau_minus": 31.954210396157578
         },
         "syn_dict_inh": {
-            "weight": -5,
+            "weight": -15.0,
             "model": "static_synapse"
         },
         "syn_dict_stdp_hid": {
@@ -84,8 +84,8 @@ here is example of settings file for Fisher's Iris Classification settings.json
                 "distribution": "normal"
             },
             "mu_plus": 0.0,
-            "lambda": 0.03,
-            "tau_plus": 6.0,
+            "lambda": 0.05999982627108694,
+            "tau_plus": 12.122823428362608,
             "mu_minus": 0.0,
             "model": "stdp_synapse",
             "Wmax": {
@@ -93,10 +93,8 @@ here is example of settings file for Fisher's Iris Classification settings.json
                 "mu": 1.0,
                 "distribution": "normal"
             },
-            "alpha": 0.65
-        },
-        "neuron_out_model": "iaf_psc_exp",
-        "neuron_hid_model": "iaf_psc_exp"
+            "alpha": 0.7067821397446096
+        }
     },
     "learning": {
         "n_splits": 5,
@@ -104,9 +102,9 @@ here is example of settings file for Fisher's Iris Classification settings.json
         "use_teacher": true,
         "reinforce_delta": 0.0,
         "use_fitness_func": true,
-        "teacher_amplitude": 100.0,
-        "epochs": 20,
-        "reinforce_time": 6.0,
+        "teacher_amplitude": 1500000.0,
+        "epochs": 10,
+        "reinforce_time": 0.0,
         "metrics": "f1"
     },
     "data": {
@@ -117,22 +115,19 @@ here is example of settings file for Fisher's Iris Classification settings.json
         "valid_size": 0.1,
         "dataset": "iris",
         "preprocessing": "",
-        "use_valid": false,
-        "shuffle_test": true,
-        "frequency_coding": false
+        "use_valid": false
     },
     "network": {
         "num_threads": 48,
         "noise_after_pattern": false,
         "h_time": 25.0,
-        "noise_freq": 3.0,
+        "noise_freq": 1.7179610719904304,
         "test_with_noise": false,
         "num_procs": 1,
         "h": 0.01,
         "separate_networks": false,
         "save_history": false,
-        "start_delta": 50,
-        "test_with_inhibition": true
+        "start_delta": 50
     },
     "topology": {
         "use_reciprocal": false,

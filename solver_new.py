@@ -93,7 +93,11 @@ class Solver(object):
         return output_latency
 
     def predict_from_latency(self, latency_list):
-        return np.nanargmin(latency_list, axis=1)
+        mask = np.all(np.isnan(latency_list), axis=1)
+        if np.any(mask):
+            return np.zeros(len(latency_list))
+        else:
+            return np.nanargmin(latency_list, axis=1)
 
     def fitness_func_time(self, latency_list, data):
         fit_list = []
@@ -220,38 +224,42 @@ class Solver(object):
         return data_out        
 
     def test_network_acc_cv(self, data):
-        def solve_fold(input_data):
-            print("prepare data")
-            data_fold = self.prepare_data(input_data['data'],
-                                          input_data['train_index'],
-                                          input_data['test_index'])
-            print("solve fold")
-            return self.test_network_acc(data_fold)
+#         def solve_fold(input_data):
+# #             print("prepare data")
+# #             data_fold = self.prepare_data(input_data['data'],
+# #                                           input_data['train_index'],
+# #                                           input_data['test_index'])
+#             print("solve fold")
+#             return self.test_network_acc(input_data)
 
         settings = self.settings
+
+        data_list = []
+        skf = StratifiedKFold(n_splits=settings['learning']['n_splits'])
+        for train_index, test_index in skf.split(data['input'], data['class']):
+            print("prepare data")
+#             input_data = {
+#                           'data': data,
+#                           'test_index': test_index,
+#                           'train_index': train_index,
+#                          }
+            data_fold = self.prepare_data(data,
+                                          train_index,
+                                          test_index)
+            data_list.append(data_fold)
+        
+        fold_map = map(self.test_network_acc, data_list)
 
         fit = []
         weights = []
         acc_test = []
         acc_train = []
-        data_list = []
         latency_test_list = []
         latency_train_list = []
         devices_test_list = []
         devices_train_list = []
         test_classes_list = []
         train_classes_list = []
-        
-        skf = StratifiedKFold(n_splits=settings['learning']['n_splits'])
-        for train_index, test_index in skf.split(data['input'], data['class']):
-            input_data = {
-                          'data': data,
-                          'test_index': test_index,
-                          'train_index': train_index,
-                         }
-            data_list.append(input_data)
-
-        fold_map = map(solve_fold, data_list)
 
         for result, weight in fold_map:
             acc_test.append(result['acc_test'])
@@ -289,17 +297,25 @@ class Solver(object):
 class NetworkSolver(Solver):
     """solver for network"""
     def __init__(self, settings, plot=False):
-        self.settings = settings
         self.plot = plot
+        
+        self.settings = settings
+        if settings['topology']['two_layers']:
+            self.network = TwoLayerNetwork(settings)
+        elif settings['data']['frequency_coding']:
+            self.network = FrequencyNetwork(settings)
+        else:
+            self.network = Network(settings)
 
     def test_network_acc(self, data):
-        settings = self.settings
-        if settings['topology']['two_layers']:
-            network = TwoLayerNetwork(settings)
-        elif settings['data']['frequency_coding']:
-            network = FrequencyNetwork(settings)
-        else:
-            network = Network(settings)
+#         settings = self.settings
+#         if settings['topology']['two_layers']:
+#             network = TwoLayerNetwork(settings)
+#         elif settings['data']['frequency_coding']:
+#             network = FrequencyNetwork(settings)
+#         else:
+#             network = Network(settings)
+        network = self.network
         plot = Plotter()
 
         comm = MPI.COMM_WORLD
@@ -312,7 +328,7 @@ class NetworkSolver(Solver):
         
         if self.plot:
             plot.plot_devices(devices_train,
-                              settings['topology']['two_layers'])
+                              self.settings['topology']['two_layers'])
             
         full_latency_test_train, \
         devices_test_train = self.test_data(network,
@@ -322,14 +338,14 @@ class NetworkSolver(Solver):
         
         if self.plot:
             plot.plot_devices(devices_test_train, 
-                              settings['topology']['two_layers'])
+                              self.settings['topology']['two_layers'])
             
         y_train = self.predict_from_latency(full_latency_test_train)
         score_train = self.prediction_score(data_train['class'], 
                                        y_train)
 
         fitness_score = 0
-        if settings['data']['use_valid']:
+        if self.settings['data']['use_valid']:
             data_valid = data['valid']['full']
             full_latency_valid, \
             devices_valid = self.test_data(network,
@@ -352,7 +368,7 @@ class NetworkSolver(Solver):
         
         if self.plot:
             plot.plot_devices(devices_test, 
-                              settings['topology']['two_layers'])
+                              self.settings['topology']['two_layers'])
             
         y_test = self.predict_from_latency(full_latency_test)
         score_test = self.prediction_score(data_test['class'], 
@@ -377,11 +393,40 @@ class NetworkSolver(Solver):
         
         return out_dict, weights_all
 
+class FrequencyNetworkSolver(NetworkSolver):
+    def __init__(self, settings, plot=False):
+        self.plot = plot
+        
+        self.settings = settings
+        self.network = FrequencyNetwork(settings)
+
+    def convert_latency(self, latency_list):
+        output_array = []
+        n_neurons = self.settings['topology']['n_layer_out']
+        for latencies in latency_list:
+            tmp_list = [np.nan] * n_neurons
+            senders = set(latencies['senders'])
+            for sender in senders:
+                mask = latencies['senders'] == sender
+                tmp_list[sender - 1] = len(latencies['spikes'][mask]) \
+                    / self.settings['data']['pattern_length']
+            output_array.append(tmp_list)
+        return output_array
+
+    def predict_from_latency(self, latency_list):
+        return np.nanargmax(latency_list, axis=1)
+
 
 class SeparateNetworkSolver(Solver):
     """solver for separate network"""
     def __init__(self, settings, plot=False):
         # super(Solver, self).__init__()
+        if settings['topology']['two_layers']:
+            self.network = TwoLayerNetwork(settings)
+        elif settings['data']['frequency_coding']:
+            self.network = FrequencyNetwork(settings)
+        else:
+            self.network = Network(settings)
         self.settings = settings
         self.plot = plot
 
@@ -398,10 +443,8 @@ class SeparateNetworkSolver(Solver):
             return out_latency
 
         settings = self.settings
-        if settings['topology']['two_layers']:
-            network = TwoLayerNetwork(settings)
-        else:
-            network = Network(settings)
+
+        network = self.network
 
         comm = MPI.COMM_WORLD
 

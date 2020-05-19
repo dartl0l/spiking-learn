@@ -8,8 +8,9 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 class Plotter:
-    def __init__(self):
-        pass
+    def __init__(self, grayscale=False):
+        if grayscale:
+            pl.style.use('grayscale')
 
     def plot_field(self, sigma2, max_x, n_fields):
 
@@ -31,15 +32,35 @@ class Plotter:
         pl.show()
 
     def plot_weights(self, weights, show=True):
+        pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
         pl.title('Weight distribution')
         for neuron in weights:
             pl.plot(list(range(len(weights[neuron]))),
-                    weights[neuron], '.', label=str(neuron))
+                    weights[neuron], '.',
+                    label=str(neuron))
         pl.xlabel('Input synapse number')
         pl.ylabel('Synapse weight')
+        pl.legend()
         if show:
             pl.show()
 
+    def plot_weights_rus(self, weights, show=True):
+        pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
+        pl.title('Распределение весов')
+        for neuron in weights:
+            pl.plot(list(range(len(weights[neuron]))),
+                    weights[neuron], '.',
+                    label='Нейрон ' + str(neuron))
+        pl.xlabel('Номер входного синапса')
+        pl.ylabel('Синаптический вес')
+        pl.legend()
+        if show:
+            pl.show()
+            
     def plot_norm(self, norm_history, show=True):
         pl.clf()
         pl.title('Weight norm')
@@ -91,6 +112,8 @@ class Plotter:
 
     def plot_voltage(self, voltmeter, legend=True):
         pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
         neurons = set(voltmeter['senders'])
         assert len(voltmeter['senders']) == len(voltmeter['V_m']) == len(voltmeter['times'])
 
@@ -108,6 +131,8 @@ class Plotter:
 
     def plot_spikes(self, spike_detector):
         pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
         neurons = set(spike_detector['senders'])
         assert len(spike_detector['senders'])  == len(spike_detector['times'])
 
@@ -162,27 +187,26 @@ class Plotter:
 
     def plot_latency(self, latency, classes, title, show=True):
         pl.clf()
-
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
+        
         pl.xlabel('Time (ms)')
         pl.ylabel('Neuron')
         
         pl.title(title)
-        colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
-                  'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
+        # colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
+        #           'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
 #         shapes = ['x', 's', 'd']
         
-        # classes_set = set(classes)
-
-        # for cl in classes_set:
-        #     class_mask = classes == cl
-        #     latencies = latency[class_mask]
-        #     classes = classes[class_mask]
-        #     print(latencies)
-            
-        for one_latency, cl in zip(latency, classes):
-            pl.plot(one_latency, range(len(one_latency)),
-                    colors[cl], label='class ' + str(cl))
-        # pl.legend()
+        classes_set = set(classes)
+        for cl in classes_set:
+            class_mask = classes == cl
+            latencies = np.array(latency)[class_mask]
+            neurons = np.tile(np.arange(len(classes_set)), (len(latencies), 1))
+            pl.plot(latencies.flatten(), neurons.flatten(), '.',
+                    # colors[cl],
+                    label='class ' + str(cl))
+        pl.legend()
         if show:
             pl.show()
 
@@ -237,6 +261,9 @@ class Plotter:
             pl.show()
 
     def plot_pattern(self, pattern, show=True):
+        pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
         pl.ylim(0, 30)
         pl.xlim(0, len(pattern))
         pl.title('Temporal pattern')
@@ -350,10 +377,17 @@ class Plotter:
         pca = PCA(n_components=2)
         Xpca = pca.fit_transform(X)
 
-        pl.figure()
-        for point, cl in zip(Xpca, y):
-            color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
-            pl.plot(point[0], point[1], color_shape[cl])
+        pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
+        
+        # color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
+        classes_set = set(y)
+        for cl in classes_set:
+            class_mask = y == cl
+            pl.plot(Xpca[class_mask].T[0], Xpca[class_mask].T[1], '.',
+                    label='class ' + str(cl))
+        pl.legend()
         if show:
             pl.show()
             
@@ -364,9 +398,16 @@ class Plotter:
         pca = PCA(n_components=2)
         Xpca = pca.fit_transform(latency_list)
 
-        pl.figure()
-        for point, cl in zip(Xpca, y):
-            color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
-            pl.plot(point[0], point[1], color_shape[cl])
+        pl.clf()
+        fig = pl.figure()
+        fig.patch.set_facecolor('white')
+
+        # color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
+        classes_set = set(y)
+        for cl in classes_set:
+            class_mask = y == cl
+            pl.plot(Xpca[class_mask].T[0], Xpca[class_mask].T[1], '.',
+                    label='class ' + str(cl))
+        pl.legend()
         if show:
             pl.show()
