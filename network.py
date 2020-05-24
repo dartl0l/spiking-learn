@@ -43,19 +43,14 @@ class Network(object):
             spike_dict[input_neuron] = {'spike_times': tmp_spikes[np.isfinite(tmp_spikes)]}
         return spike_dict, full_time, spikes
 
-    def create_teacher_dict(self, input_spikes, classes, teachers):  # Network
+    def create_teacher(self, input_spikes, classes, teachers):  # Network
         print("prepare teacher")
         h = self.settings['network']['h']
         h_time = self.settings['network']['h_time']
-        epochs = self.settings['learning']['epochs']
         start = self.settings['network']['start_delta']
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
         reinforce_time = self.settings['learning']['reinforce_time']
         reinforce_delta = self.settings['learning']['reinforce_delta']
         teacher_amplitude = self.settings['learning']['teacher_amplitude']
-
-        classes_full = np.tile(classes, epochs)
-        assert len(input_spikes) == len(classes_full)
 
         full_time = len(input_spikes) * h_time + start
         times = np.arange(start, full_time, h_time)
@@ -67,26 +62,31 @@ class Network(object):
         stimulation_end = stimulation_start + reinforce_time + 2 * h
         assert len(stimulation_start) == len(spike_times)
 
+        return self.create_teacher_dict(stimulation_start, stimulation_end, classes, teachers, teacher_amplitude)
+
+    def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
+        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        epochs = self.settings['learning']['epochs']
+        classes_full = np.tile(classes, epochs)
         teacher_dict = {}
         for teacher in teachers:
             teacher_dict[teacher] = {
-                                      'amplitude_times': np.ndarray(),
-                                      'amplitude_values': np.ndarray()
-                                     }        
+                'amplitude_times': np.ndarray(),
+                'amplitude_values': np.ndarray()
+            }
         for cl in set(classes):
             current_teacher_id = teachers[0] if single_neuron else teachers[cl]
             class_mask = classes_full == cl
             stimulation_start_current = stimulation_start[class_mask]
             stimulation_end_current = stimulation_end[class_mask]
-            amplitude_times = np.stack((stimulation_start_current, 
+            amplitude_times = np.stack((stimulation_start_current,
                                         stimulation_end_current), axis=-1).flatten()
-            amplitude_values = np.stack((np.full_like(stimulation_start_current, teacher_amplitude), 
+            amplitude_values = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
                                          np.zeros_like(stimulation_end_current)), axis=-1).flatten()
             assert len(amplitude_times) == len(stimulation_start[class_mask]) * 2
             assert len(amplitude_values) == len(stimulation_start[class_mask]) * 2
             teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
             teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
-
         return teacher_dict
 
     def create_poisson_noise(self, spikes_list):  # Network
@@ -314,7 +314,7 @@ class Network(object):
             spike_generators=self.input_generators)
 
         if self.settings['learning']['use_teacher']:
-            teacher_dicts = self.create_teacher_dict(
+            teacher_dicts = self.create_teacher(
                 input_spikes=input_spikes,
                 classes=data['class'], 
                 teachers=self.teacher_layer)
@@ -382,6 +382,42 @@ class Network(object):
 
         devices = self.get_devices()
         return output, devices
+
+
+class InhibitoryTeacherNetwork(Network):
+    def __init__(self, settings):
+        super(InhibitoryTeacherNetwork, self).__init__(settings)
+
+    def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
+        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        epochs = self.settings['learning']['epochs']
+        classes_full = np.tile(classes, epochs)
+        teacher_dict = {}
+        for teacher in teachers:
+            teacher_dict[teacher] = {
+                'amplitude_times': np.ndarray(),
+                'amplitude_values': np.ndarray()
+            }
+        for cl in set(classes):
+            current_teacher_id = teachers[0] if single_neuron else teachers[cl]
+            class_mask = classes_full == cl
+            stimulation_start_current = stimulation_start[class_mask]
+            stimulation_end_current = stimulation_end[class_mask]
+            amplitude_times = np.stack((stimulation_start_current,
+                                        stimulation_end_current), axis=-1).flatten()
+            amplitude_values_pos = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
+                                             np.zeros_like(stimulation_end_current)), axis=-1).flatten()
+            amplitude_values_neg = np.stack((np.full_like(stimulation_start_current, -teacher_amplitude),
+                                             np.zeros_like(stimulation_end_current)), axis=-1).flatten()
+            assert len(amplitude_times) == len(stimulation_start[class_mask]) * 2
+            assert len(amplitude_values) == len(stimulation_start[class_mask]) * 2
+            for teacher_id in teachers:
+                teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
+                if current_teacher_id != teacher_id:
+                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
+                else:
+                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+        return teacher_dict
 
 
 class TwoLayerNetwork(Network):
@@ -509,7 +545,7 @@ class FrequencyNetwork(Network):
                 d_time += settings['network']['h_time']
         return spike_dict, d_time, spikes
 
-    def create_teacher_dict(self, input_spikes, classes, teachers):  # Network
+    def create_teacher(self, input_spikes, classes, teachers):  # Network
         h = self.settings['network']['h']
         h_time = self.settings['network']['h_time']
         epochs = self.settings['learning']['epochs']
@@ -532,10 +568,10 @@ class FrequencyNetwork(Network):
                 current_teacher_id = teachers[0] if single_neuron else teachers[cl]
                 current_teacher = teacher_dicts[current_teacher_id]
                 start_of_stimulation = d_time \
-                                     + reinforce_delta
+                    + reinforce_delta
                 end_of_stimulation = start_of_stimulation \
-                                   + reinforce_time \
-                                   + h 
+                    + reinforce_time \
+                    + h
                 current_teacher['amplitude_times'].append(start_of_stimulation)
                 current_teacher['amplitude_times'].append(end_of_stimulation)
 

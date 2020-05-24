@@ -10,7 +10,7 @@ import mpi4py.futures as fut
 from mpi4py import MPI
 
 import traits
-from solver_new import solve_task
+from solver import solve_task
 
 
 def prepare_genomes(genome):
