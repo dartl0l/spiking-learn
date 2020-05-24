@@ -92,5 +92,5 @@ if __name__ == '__main__':
     if sys.argv[1]:
         solve_task(sys.argv[1])
     else:
-        solve_task("./")
+        solve_task("../")
  

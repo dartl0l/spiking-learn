@@ -18,9 +18,9 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.datasets import load_iris, load_breast_cancer, load_digits
 from sklearn.decomposition import PCA
 
-from network import *
-from converter import *
-from plotter import *
+from spiking_network_learning_algorithm.network import *
+from spiking_network_learning_algorithm.converter import *
+from spiking_network_learning_algorithm.plotter import *
 
 
 class Solver(object):
@@ -279,12 +279,14 @@ class NetworkSolver(Solver):
     """solver for network"""
     def __init__(self, settings, plot=False):
         self.plot = plot
-        
+
         self.settings = settings
         if settings['topology']['two_layers']:
             self.network = TwoLayerNetwork(settings)
         elif settings['data']['frequency_coding']:
             self.network = FrequencyNetwork(settings)
+        elif settings['learning']['inhibitory_teacher']:
+            self.network = InhibitoryTeacherNetwork(settings)
         else:
             self.network = Network(settings)
 
@@ -294,27 +296,27 @@ class NetworkSolver(Solver):
         comm = MPI.COMM_WORLD
 
         data_train = data['train']['full']
-        
+
         weights, \
             latency_train, \
             devices_train = self.network.train(data_train)
-        
+
         if self.plot:
             plot.plot_devices(devices_train,
                               self.settings['topology']['two_layers'])
-            
+
         full_latency_test_train, \
             devices_test_train = self.test_data(self.network,
                                                 data_train,
                                                 weights,
                                                 comm)
-        
+
         if self.plot:
-            plot.plot_devices(devices_test_train, 
+            plot.plot_devices(devices_test_train,
                               self.settings['topology']['two_layers'])
-            
+
         y_train = self.predict_from_latency(full_latency_test_train)
-        score_train = self.prediction_score(data_train['class'], 
+        score_train = self.prediction_score(data_train['class'],
                                             y_train)
 
         fitness_score = 0
@@ -327,7 +329,7 @@ class NetworkSolver(Solver):
                                                comm)
 
             if self.settings['learning']['use_fitness_func']:
-                fitness_score = self.fitness(full_latency_valid, 
+                fitness_score = self.fitness(full_latency_valid,
                                              data_valid)
         else:
             fitness_score = score_train
@@ -338,13 +340,13 @@ class NetworkSolver(Solver):
                                           data_test,
                                           weights,
                                           comm)
-        
+
         if self.plot:
-            plot.plot_devices(devices_test, 
+            plot.plot_devices(devices_test,
                               self.settings['topology']['two_layers'])
-            
+
         y_test = self.predict_from_latency(full_latency_test)
-        score_test = self.prediction_score(data_test['class'], 
+        score_test = self.prediction_score(data_test['class'],
                                            y_test)
 
         comm.Barrier()
@@ -363,7 +365,7 @@ class NetworkSolver(Solver):
                     'devices_test': devices_test,
                     'devices_train': devices_train,
                    }
-        
+
         return out_dict, weights_all
 
 
@@ -592,5 +594,5 @@ if __name__ == '__main__':
     if sys.argv[1]:
         solve_task(sys.argv[1])
     else:
-        solve_task("./")
+        solve_task("../")
  

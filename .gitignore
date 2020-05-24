@@ -1,7 +1,5 @@
 
 venv/
 .idea/
-sftp-config.json
 __init__.pyc
 *.pyc
-spikes.todo

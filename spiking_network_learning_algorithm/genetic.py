@@ -9,8 +9,8 @@ import MultiNEAT as neat
 import mpi4py.futures as fut
 from mpi4py import MPI
 
-import traits
-from solver import solve_task
+from spiking_network_learning_algorithm import traits
+from spiking_network_learning_algorithm.solver import solve_task
 
 
 def prepare_genomes(genome):
@@ -54,7 +54,7 @@ def prepare_genomes(genome):
 
     chdir('genome' + str(genome.GetID()))
     json.dump(settings, open('settings.json', 'w'), indent=4)
-    chdir('..')  # out of genomeID
+    chdir('../..')  # out of genomeID
 
 
 def evaluate(genome):
@@ -72,7 +72,7 @@ def evaluate_futures(genome):
            "python genetic_solver.py " + directory_name + "; ")
     with open('fitness.txt') as fitness_file:
         fitness = fitness_file.readline()
-    chdir('..')
+    chdir('../..')
     print("Stop sim in " + str(directory_name))
     return fitness
 

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from andrews_curve import AndrewsCurve
+from spiking_network_learning_algorithm.andrews_curve import AndrewsCurve
 
 class Converter:
     def __init__(self):
