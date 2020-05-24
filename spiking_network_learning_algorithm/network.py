@@ -71,20 +71,20 @@ class Network(object):
         teacher_dict = {}
         for teacher in teachers:
             teacher_dict[teacher] = {
-                'amplitude_times': np.ndarray(),
-                'amplitude_values': np.ndarray()
+                'amplitude_times': np.ndarray([]),
+                'amplitude_values': np.ndarray([])
             }
         for cl in set(classes):
-            current_teacher_id = teachers[0] if single_neuron else teachers[cl]
             class_mask = classes_full == cl
             stimulation_start_current = stimulation_start[class_mask]
             stimulation_end_current = stimulation_end[class_mask]
+            current_teacher_id = teachers[0] if single_neuron else teachers[cl]
             amplitude_times = np.stack((stimulation_start_current,
                                         stimulation_end_current), axis=-1).flatten()
             amplitude_values = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
                                          np.zeros_like(stimulation_end_current)), axis=-1).flatten()
-            assert len(amplitude_times) == len(stimulation_start[class_mask]) * 2
-            assert len(amplitude_values) == len(stimulation_start[class_mask]) * 2
+            assert len(amplitude_times) == len(stimulation_start_current) * 2
+            assert len(amplitude_values) == len(stimulation_end_current) * 2
             teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
             teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
         return teacher_dict
@@ -395,8 +395,8 @@ class InhibitoryTeacherNetwork(Network):
         teacher_dict = {}
         for teacher in teachers:
             teacher_dict[teacher] = {
-                'amplitude_times': np.ndarray(),
-                'amplitude_values': np.ndarray()
+                'amplitude_times': np.ndarray([]),
+                'amplitude_values': np.ndarray([])
             }
         for cl in set(classes):
             current_teacher_id = teachers[0] if single_neuron else teachers[cl]
@@ -410,7 +410,8 @@ class InhibitoryTeacherNetwork(Network):
             amplitude_values_neg = np.stack((np.full_like(stimulation_start_current, -teacher_amplitude),
                                              np.zeros_like(stimulation_end_current)), axis=-1).flatten()
             assert len(amplitude_times) == len(stimulation_start[class_mask]) * 2
-            assert len(amplitude_values) == len(stimulation_start[class_mask]) * 2
+            assert len(amplitude_values_pos) == len(stimulation_start[class_mask]) * 2
+            assert len(amplitude_values_neg) == len(stimulation_start[class_mask]) * 2
             for teacher_id in teachers:
                 teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
                 if current_teacher_id != teacher_id:
