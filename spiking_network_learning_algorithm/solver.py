@@ -285,8 +285,6 @@ class NetworkSolver(Solver):
             self.network = TwoLayerNetwork(settings)
         elif settings['data']['frequency_coding']:
             self.network = FrequencyNetwork(settings)
-        elif settings['learning']['inhibitory_teacher']:
-            self.network = InhibitoryTeacherNetwork(settings)
         else:
             self.network = Network(settings)
 
@@ -414,7 +412,7 @@ class SeparateNetworkSolver(Solver):
             for i in range(data_len):
                 tmp_latency = {}
                 for j in range(num_neurons):
-                    tmp_latency['neuron_' + str(j)] = separate_latency_list[j][i]['neuron_0']
+                    tmp_latency['neuron_' + str(j)] = separate_latency_list[j][i][0]
                 out_latency.append(tmp_latency)
             return out_latency
 
