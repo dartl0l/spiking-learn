@@ -1,7 +1,6 @@
 # coding: utf-8
 
 
-
 # Network parameters
 # ------------------
 #   time_max: 10000000 # [ms]
@@ -21,7 +20,7 @@ data_traits = {
     # 'n_coding_neurons': {
     #   'details': {
     #       'min': 5,
-    #       'max': 30,
+    #       'max': 40,
     #       'mut_power': 1, # the highest possible amount of change during one mutation
     #       'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
     #   },
@@ -29,8 +28,8 @@ data_traits = {
     #   'mutation_prob': 0.1,
     #   'type': 'int'
     # },
-
-
+    #
+    #
     # 'coding_sigma': {
     #   'details': {
     #       'min': 0.005,
@@ -71,17 +70,17 @@ network_traits = {
     #   'type': 'int'
     #}
 
-    'noise_freq': {
-        'details': {
-            'min': 1.0,
-            'max': 5.0,
-            'mut_power': 1.0, # the highest possible amount of change during one mutation
-            'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
-        },
-        'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
-        'mutation_prob': 0.1,
-        'type': 'float'
-    }
+    # 'noise_freq': {
+    #     'details': {
+    #         'min': 1.0,
+    #         'max': 5.0,
+    #         'mut_power': 1.0, # the highest possible amount of change during one mutation
+    #         'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
+    #     },
+    #     'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
+    #     'mutation_prob': 0.1,
+    #     'type': 'float'
+    # }
 }
 
 
@@ -102,6 +101,17 @@ neuron_traits = {
 
     # V_m is always E_L, not to be mutable, so skipped there.
 
+    'V_th': {
+        'details': {
+            'min': 1.0,  # 40
+            'max': 10.0,  # 10
+            'mut_power': 1.0,
+            'mut_replace_prob': 0.25
+        },
+        'importance_coeff': 1.0,
+        'mutation_prob': 0.1,
+        'type': 'float'
+    },
 
     'tau_minus': {
         'details': {
@@ -115,17 +125,17 @@ neuron_traits = {
         'type': 'float'
     },
 
-    'C_m': {
-        'details': {
-            'min': 1.0, # 40
-            'max': 25.0, # 10
-            'mut_power': 1.0,
-            'mut_replace_prob': 0.25
-        },
-        'importance_coeff': 1.0,
-        'mutation_prob': 0.1,
-        'type': 'float'
-    },
+    # 'C_m': {
+    #     'details': {
+    #         'min': 1.0, # 40
+    #         'max': 25.0, # 10
+    #         'mut_power': 1.0,
+    #         'mut_replace_prob': 0.25
+    #     },
+    #     'importance_coeff': 1.0,
+    #     'mutation_prob': 0.1,
+    #     'type': 'float'
+    # },
 
     'tau_m': {
         'details': {
@@ -224,29 +234,29 @@ synapse_traits = {
     
     # Wmax is always 1, not to be mutable, so skipped there.
 
-    'alpha': {
-      'details': {
-          'min': 0.3, #0.4,
-          'max': 1.5, #1.3,
-          'mut_power': 0.1,
-          'mut_replace_prob': 0.25
-      },
-      'importance_coeff': 1.0,
-      'mutation_prob': 0.1,
-      'type': 'float'
-    },
-    
-    'lambda': {
-      'details': {
-          'min': 0.05,
-          'max': 0.1,
-          'mut_power': 0.01, # the highest possible amount of change during one mutation
-          'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
-      },
-      'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
-      'mutation_prob': 0.1,
-      'type': 'float'
-    },
+    # 'alpha': {
+    #   'details': {
+    #       'min': 0.3, #0.4,
+    #       'max': 1.5, #1.3,
+    #       'mut_power': 0.1,
+    #       'mut_replace_prob': 0.25
+    #   },
+    #   'importance_coeff': 1.0,
+    #   'mutation_prob': 0.1,
+    #   'type': 'float'
+    # },
+    #
+    # 'lambda': {
+    #   'details': {
+    #       'min': 0.05,
+    #       'max': 0.1,
+    #       'mut_power': 0.01, # the highest possible amount of change during one mutation
+    #       'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
+    #   },
+    #   'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
+    #   'mutation_prob': 0.1,
+    #   'type': 'float'
+    # },
 
     # 'mu_plus': {
     #     'details': {
@@ -375,6 +385,7 @@ synapse_traits = {
 #     #   'type': 'str'
 #     # }
 # }
+
 
 def write_parameters_file(filename, trait_values):
     f = open(filename, 'w')

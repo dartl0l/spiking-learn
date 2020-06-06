@@ -29,7 +29,7 @@ class Solver(object):
         # super(Solver, self).__init__()
         self.settings = settings
 
-    def test_network_acc(self, data):
+    def test_acc(self, data):
         pass
 
     def shuffle_data(self, x, y):
@@ -168,7 +168,18 @@ class Solver(object):
         elif settings['learning']['metrics'] == 'f1':
             score = f1_score(y, prediction, average='micro')
         return score
-    
+
+    def split_data(self, data):
+        data_list = []
+        skf = StratifiedKFold(n_splits=self.settings['learning']['n_splits'])
+        for train_index, test_index in skf.split(data['input'], data['class']):
+            print("prepare data")
+            data_fold = self.prepare_data(data,
+                                          train_index,
+                                          test_index)
+            data_list.append(data_fold)
+        return data_list
+
     def prepare_data(self, data, train_index, test_index):
         settings = self.settings
 
@@ -220,17 +231,10 @@ class Solver(object):
         
         return data_out        
 
-    def test_network_acc_cv(self, data):
-        data_list = []
-        skf = StratifiedKFold(n_splits=self.settings['learning']['n_splits'])
-        for train_index, test_index in skf.split(data['input'], data['class']):
-            print("prepare data")
-            data_fold = self.prepare_data(data,
-                                          train_index,
-                                          test_index)
-            data_list.append(data_fold)
-        
-        fold_map = map(self.test_network_acc, data_list)
+    def test_acc_cv(self, data):
+        data_list = self.split_data(data)
+
+        fold_map = map(self.test_acc, data_list)
 
         fit = []
         weights = []
@@ -288,7 +292,7 @@ class NetworkSolver(Solver):
         else:
             self.network = Network(settings)
 
-    def test_network_acc(self, data):
+    def test_acc(self, data):
         plot = Plotter()
 
         comm = MPI.COMM_WORLD
@@ -404,7 +408,7 @@ class SeparateNetworkSolver(Solver):
         self.settings = settings
         self.plot = plot
 
-    def test_network_acc(self, data):
+    def test_acc(self, data):
         def merge_spikes(separate_latency_list):
             out_latency = []
             num_neurons = len(separate_latency_list)
@@ -499,12 +503,95 @@ class SeparateNetworkSolver(Solver):
         return out_dict, weights_all
 
 
+class BaseLineSolver(Solver):
+    """solver for separate network"""
+    def __init__(self, settings):
+        self.settings = settings
+        from sklearn.ensemble import GradientBoostingClassifier
+        self.clf = GradientBoostingClassifier()
+
+    def test_acc_cv(self, data):
+        data_list = self.split_data(data)
+
+        fold_map = map(self.test_acc, data_list)
+
+        fit = []
+        acc_test = []
+        acc_train = []
+        for result in fold_map:
+            fit.append(result['fitness_score'])
+            acc_test.append(result['acc_test'])
+            acc_train.append(result['acc_train'])
+
+        out_dict = {
+                    'fitness_score': fit,
+                    'fitness_mean': np.mean(fit),
+                    'accs_test': acc_test,
+                    'accs_test_mean': np.mean(acc_test),
+                    'accs_test_std': np.std(acc_test),
+                    'accs_train': acc_train,
+                    'accs_train_mean': np.mean(acc_train),
+                    'accs_train_std': np.std(acc_train),
+                   }
+        return out_dict
+
+    def test_acc(self, data):
+        data_train = data['train']['full']
+
+        self.clf.fit(data_train['input'], data_train['class'])
+
+        score_train = self.clf.score(data_train['input'], data_train['class'])
+
+        fitness_score = 0
+        if self.settings['data']['use_valid']:
+            data_valid = data['valid']['full']
+
+            if self.settings['learning']['use_fitness_func']:
+                fitness_score = self.clf.score(data_valid['input'], data_valid['class'])
+        else:
+            fitness_score = score_train
+
+        data_test = data['test']['full']
+        score_test = self.clf.score(data_test['input'], data_test['class'])
+
+        out_dict = {
+            'fitness_score': fitness_score,
+            'acc_test': score_test,
+            'acc_train': score_train,
+            'train_classes': data_train['class'],
+            'test_classes': data_test['class']
+        }
+
+        return out_dict
+
+
 def round_decimals(value):
     i = 0
     while value < 1:
         value *= 10
         i += 1
     return i
+
+
+def print_settings(settings):
+    for key in settings:
+        print(key)
+        for parameter in settings[key]:
+            if type(settings[key][parameter]) == type(dict()):
+                print('\t' + parameter)
+                for parameter2 in settings[key][parameter]:
+                    print('\t\t' + parameter2 + ' : ' + str(settings[key][parameter][parameter2]))
+            else:
+                print('\t' + parameter + ' : ' + str(settings[key][parameter]))
+
+
+def print_score(result_dict):
+    print('Score train ' + "\t".join(map(lambda n: '%.2f' % n, result_dict['accs_train'])) + '\n')
+    print('Score train mean: ' + str(result_dict['accs_train_mean']) + '\n'
+          'Std train mean: ' + str(result_dict['accs_train_std']) + '\n')
+    print('Score test ' + "\t".join(map(lambda n: '%.2f' % n, result_dict['accs_test'])) + '\n')
+    print('Score test mean: ' + str(result_dict['accs_test_mean']) + '\n'
+          'Std test mean: ' + str(result_dict['accs_test_std']) + '\n')
 
 
 def solve_task(task_path='./', redirect_out=True, filename='settings.json', input_settings=None):
@@ -536,6 +623,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     if 'pca' in settings['data']['preprocessing']:
         pca = PCA(n_components=4)
         x = pca.fit_transform(x)
+
     if 'normalize' in settings['data']['normalization']:
         x = preprocessing.normalize(x)
         print('normalize')
@@ -550,8 +638,15 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     round_to = round_decimals(settings['network']['h'])
 
     print('convert')
-    converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
-    data = converter.convert(x, y)
+    if 'receptive_fields_reverse' in settings['data']['conversion']:
+        converter = ReceptiveFieldsConverterReverse(sigma, 1.0, n_coding_neurons, round_to)
+        data = converter.convert(x, y)
+    elif 'receptive_fields' in settings['data']['conversion']:
+        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
+        data = converter.convert(x, y)
+    elif 'temporal' in settings['data']['conversion']:
+        converter = TemporalConverter(settings['data']['pattern_length'], round_to)
+        data = converter.convert(x, y)
 
     settings['topology']['n_input'] = len(x[0]) * n_coding_neurons
 
@@ -561,10 +656,10 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     else:
         solver = NetworkSolver(settings)
 
-    result_dict = solver.test_network_acc_cv(data)
+    result_dict = solver.test_acc_cv(data)
 
     end = time.time()
-    print("End train and test in "+ str(end - start) + "s")
+    print("End train and test in " + str(end - start) + "s")
 
     with open(task_path + 'acc.txt', 'w') as acc_file:
         acc_file.write('Accuracy train ' + "\t".join(map(lambda n: '%.2f'%n, 
@@ -580,13 +675,95 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     with open(task_path + 'fitness.txt', 'w') as fit_file:
         fit_file.write(str(result_dict['fitness_mean']))
 
-    pickle.dump(result_dict, open('result_dict.pkl', 'wb'))
+    pickle.dump(result_dict, open(task_path + 'result_dict.pkl', 'wb'))
 
     save = time.time()
     print("Files saved in "+ str(save - end) + "s")
 
     return result_dict['fitness_mean'], result_dict
 
+
+def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', input_settings=None):
+    if input_settings is None:
+        settings = json.load(open(task_path + filename, 'r'))
+    else:
+        settings = input_settings
+
+    if redirect_out:
+        sys.stdout = open(task_path + 'out.txt', 'w')
+        sys.stderr = open(task_path + 'err.txt', 'w')
+
+    print("Start train and test")
+    start = time.time()
+
+    if settings['data']['dataset'] == 'iris':
+        data = load_iris()
+    elif settings['data']['dataset'] == 'cancer':
+        data = load_breast_cancer()
+    elif settings['data']['dataset'] == 'digits':
+        data = {}
+        digits = load_digits()
+        data['data'] = digits.images.reshape((len(digits.images), -1))
+        data['target'] = digits.target
+
+    x = data['data']
+    y = data['target']
+
+    if 'pca' in settings['data']['preprocessing']:
+        pca = PCA(n_components=4)
+        x = pca.fit_transform(x)
+
+    if 'normalize' in settings['data']['normalization']:
+        x = preprocessing.normalize(x)
+        print('normalize')
+    if 'minmax' in settings['data']['normalization']:
+        x = preprocessing.minmax_scale(x)
+        print('minmax')
+
+    n_coding_neurons = settings['data']['n_coding_neurons']
+    sigma = settings['data']['coding_sigma']
+
+    # round_to = 2
+    round_to = round_decimals(settings['network']['h'])
+
+    print('convert')
+    if 'receptive_fields_reverse' in settings['data']['conversion']:
+        converter = ReceptiveFieldsConverterReverse(sigma, 1.0, n_coding_neurons, round_to, False)
+        data = converter.convert(x, y)
+    elif 'receptive_fields' in settings['data']['conversion']:
+        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to, False)
+        data = converter.convert(x, y)
+    elif 'temporal' in settings['data']['conversion']:
+        converter = TemporalConverter(settings['data']['pattern_length'], round_to, False)
+        data = converter.convert(x, y)
+
+    solver = BaseLineSolver(settings)
+
+    result_dict = solver.test_acc_cv(data)
+
+    end = time.time()
+    print("End train and test in " + str(end - start) + "s")
+
+    with open(task_path + 'acc.txt', 'w') as acc_file:
+        acc_file.write('Accuracy train ' + "\t".join(map(lambda n: '%.2f'%n,
+                                                         result_dict['accs_train'])) + '\n')
+        acc_file.write('Accuracy train mean: ' + str(result_dict['accs_train_mean']) + '\n'
+                       'Std train mean: ' + str(result_dict['accs_train_std']) + '\n')
+
+        acc_file.write('Accuracy test ' + "\t".join(map(lambda n: '%.2f'%n,
+                                                        result_dict['accs_test'])) + '\n')
+        acc_file.write('Accuracy test mean: ' + str(result_dict['accs_test_mean']) + '\n'
+                       'Std test mean: ' + str(result_dict['accs_test_std']) + '\n')
+
+    with open(task_path + 'fitness.txt', 'w') as fit_file:
+        fit_file.write(str(result_dict['fitness_mean']))
+
+    pickle.dump(result_dict, open(task_path + 'result_dict.pkl', 'wb'))
+
+    save = time.time()
+    print("Files saved in "+ str(save - end) + "s")
+
+    return result_dict['fitness_mean'], result_dict
 
 if __name__ == '__main__':
     if sys.argv[1]:

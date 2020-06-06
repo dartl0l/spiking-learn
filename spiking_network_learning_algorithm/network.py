@@ -10,6 +10,9 @@ class Network(object):
     def __init__(self, settings):
         # super(Network, self).__init__()
         self.settings = settings
+
+        self.h_time = settings['network']['h_time']
+        self.start_delta = settings['network']['start_delta']
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
     def set_input_spikes(self, spike_dict, spike_generators):
@@ -23,25 +26,40 @@ class Network(object):
     def set_poisson_noise(self, noise_dict, spike_generators):
         nest.SetStatus(spike_generators, noise_dict)
 
-    def create_spike_dict(self, dataset, train):
+    def create_spike_dict(self, dataset, train, threads=48):
+        from concurrent.futures import ThreadPoolExecutor
         print("prepare spikes")
+
         epochs = self.settings['learning']['epochs'] if train else 1
-        start = self.settings['network']['start_delta']
-
+        pattern_start_shape = (len(dataset[0]), 1)
         spikes = np.tile(dataset, (epochs, 1, 1))
+        full_length = epochs * len(dataset)
+        full_time = full_length * self.h_time + self.start_delta
 
-        full_time = epochs * len(dataset) * self.settings['network']['h_time'] + start
-        times = np.arange(start, full_time, self.settings['network']['h_time'])
-        pattern_start_times = np.expand_dims(np.tile(times, (len(dataset[0]), 1)).T, axis=2)
+        assert len(spikes) == full_length
+        input_list = []
+        for i in range(0, full_length, threads):
+            start_id = i
+            end_id = i + threads if (i + threads) < full_length else full_length
+            current_spikes = spikes[start_id:end_id]
+            input_list.append((current_spikes, start_id, end_id, pattern_start_shape))
 
-        assert len(spikes) == len(pattern_start_times)
-        spike_times = np.add(spikes, pattern_start_times)
-
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            spike_times = np.concatenate(tuple(executor.map(lambda p: self.create_spike_times(*p), input_list)))
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
             tmp_spikes = spike_times[:, input_neuron].reshape(len(spikes))
             spike_dict[input_neuron] = {'spike_times': tmp_spikes[np.isfinite(tmp_spikes)]}
         return spike_dict, full_time, spikes
+
+    def create_spike_times(self, current_spikes, start_id, end_id, pattern_start_shape):
+        start = self.start_delta + start_id * self.h_time
+        end = end_id * self.h_time + self.start_delta
+        times = np.arange(start, end, self.h_time)
+        pattern_start_times = np.expand_dims(np.tile(times, pattern_start_shape).T, axis=2)
+        assert len(current_spikes) == len(pattern_start_times)
+        spike_times = np.add(current_spikes, pattern_start_times)
+        return spike_times
 
     def create_teacher(self, input_spikes, classes, teachers):  # Network
         print("prepare teacher")
@@ -61,12 +79,14 @@ class Network(object):
         stimulation_start = np.nanmin(spike_times, axis=1) + reinforce_delta
         stimulation_end = stimulation_start + reinforce_time + 2 * h
         assert len(stimulation_start) == len(spike_times)
+
         if self.settings['learning']['inhibitory_teacher']:
-            return self.create_teacher_dict_inh(stimulation_start, stimulation_end,
-                                                classes, teachers, teacher_amplitude)
+            teacher_dict = self.create_teacher_dict_inh(stimulation_start, stimulation_end,
+                                                        classes, teachers, teacher_amplitude)
         else:
-            return self.create_teacher_dict(stimulation_start, stimulation_end,
-                                            classes, teachers, teacher_amplitude)
+            teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
+                                                    classes, teachers, teacher_amplitude)
+        return teacher_dict
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
@@ -344,7 +364,8 @@ class Network(object):
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=data['input'], 
-            train=True)
+            train=True,
+            threads=self.settings['network']['num_threads'])
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
@@ -398,7 +419,8 @@ class Network(object):
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=data['input'], 
-            train=False)
+            train=False,
+            threads=self.settings['network']['num_threads'])
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)

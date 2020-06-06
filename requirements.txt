@@ -1,0 +1,6 @@
+setuptools~=41.2.0
+numpy~=1.17.2
+mpi4py~=3.0.1a0
+scikit-learn~=0.21.3
+multineat~=0.5
+matplotlib~=3.1.1
