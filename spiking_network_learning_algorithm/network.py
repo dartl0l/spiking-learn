@@ -343,7 +343,7 @@ class Network(object):
             nest.SetStatus(connection, 'weight', 
                            weights['layer_0'][neuron_id])
 
-    def train(self, data):
+    def train(self, x, y):
         print("start train")
         print("create network")
 
@@ -363,7 +363,7 @@ class Network(object):
             self.set_noise()
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
-            dataset=data['input'], 
+            dataset=x,
             train=True,
             threads=self.settings['network']['num_threads'])
         self.set_input_spikes(
@@ -373,10 +373,12 @@ class Network(object):
         if self.settings['learning']['use_teacher']:
             teacher_dicts = self.create_teacher(
                 input_spikes=input_spikes,
-                classes=data['class'], 
+                classes=y,
                 teachers=self.teacher_layer)
             self.set_teachers_input(
                 teacher_dicts)
+        if self.settings['learning']['threshold']:
+            nest.SetStatus(self.layer_out, {'V_th': self.settings['learning']['threshold']})
         if self.settings['network']['noise_after_pattern']:
             noise_dict = self.create_poisson_noise(input_spikes)
             self.set_poisson_noise(
@@ -397,7 +399,7 @@ class Network(object):
         devices = self.get_devices()
         return weights, output, devices
 
-    def test(self, data, weights):
+    def test(self, x, weights):
         print("start test")
 
         print("create network")
@@ -418,7 +420,7 @@ class Network(object):
         self.set_weights(weights)
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
-            dataset=data['input'], 
+            dataset=x,
             train=False,
             threads=self.settings['network']['num_threads'])
         self.set_input_spikes(
@@ -541,7 +543,7 @@ class FrequencyNetwork(Network):
         super(FrequencyNetwork, self).__init__(settings)
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
-    def create_spike_dict(self, dataset, train):
+    def create_spike_dict(self, dataset, train, threads=48):
         print("prepare spikes freq")
         settings = self.settings
 

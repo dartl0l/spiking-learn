@@ -50,9 +50,7 @@ class Solver(object):
         return output_array
 
     def test_data(self, network, data, weights, comm):
-        settings = self.settings
-
-        raw_latency, devices = network.test(data, weights)
+        raw_latency, devices = network.test(data['input'], weights)
         comm.Barrier()
         all_latency = comm.allgather(raw_latency)
         raw_latency = self.merge_spikes_and_senders(all_latency)
@@ -282,6 +280,7 @@ class Solver(object):
 class NetworkSolver(Solver):
     """solver for network"""
     def __init__(self, settings, plot=False):
+        super().__init__(settings)
         self.plot = plot
 
         self.settings = settings
@@ -298,10 +297,13 @@ class NetworkSolver(Solver):
         comm = MPI.COMM_WORLD
 
         data_train = data['train']['full']
+        data_for_train = data_train
+        if self.settings['learning']['reverse_learning']:
+            data_for_train['input'] = np.amax(data_train['input']) - data_train['input']
+            assert data_for_train['input'].shape == data_train['input'].shape
 
-        weights, \
-            latency_train, \
-            devices_train = self.network.train(data_train)
+        weights, latency_train, \
+            devices_train = self.network.train(data_for_train['input'], data_for_train['class'])
 
         if self.plot:
             plot.plot_devices(devices_train,
@@ -398,7 +400,7 @@ class FrequencyNetworkSolver(NetworkSolver):
 class SeparateNetworkSolver(Solver):
     """solver for separate network"""
     def __init__(self, settings, plot=False):
-        # super(Solver, self).__init__()
+        super().__init__(settings)
         if settings['topology']['two_layers']:
             self.network = TwoLayerNetwork(settings)
         elif settings['data']['frequency_coding']:
@@ -442,7 +444,7 @@ class SeparateNetworkSolver(Solver):
             data_train = data['train'][class_key]
 
             weights, latency_train, \
-                devices_train = self.network.train(data_train)
+                devices_train = self.network.train(data_train['input'], data_train['class'])
 
             full_latency_test_train, \
                 devices_test_train = self.test_data(self.network, data['train']['full'],
@@ -506,8 +508,10 @@ class SeparateNetworkSolver(Solver):
 class BaseLineSolver(Solver):
     """solver for separate network"""
     def __init__(self, settings):
-        self.settings = settings
+        super().__init__(settings)
         from sklearn.ensemble import GradientBoostingClassifier
+
+        self.settings = settings
         self.clf = GradientBoostingClassifier()
 
     def test_acc_cv(self, data):
@@ -638,14 +642,12 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     round_to = round_decimals(settings['network']['h'])
 
     print('convert')
-    if 'receptive_fields_reverse' in settings['data']['conversion']:
-        converter = ReceptiveFieldsConverterReverse(sigma, 1.0, n_coding_neurons, round_to)
-        data = converter.convert(x, y)
-    elif 'receptive_fields' in settings['data']['conversion']:
-        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to)
+    reverse = 'reverse' in settings['data']['conversion']
+    if 'receptive_fields' in settings['data']['conversion']:
+        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to, reverse=reverse)
         data = converter.convert(x, y)
     elif 'temporal' in settings['data']['conversion']:
-        converter = TemporalConverter(settings['data']['pattern_length'], round_to)
+        converter = TemporalConverter(settings['data']['pattern_length'], round_to, reverse=reverse)
         data = converter.convert(x, y)
 
     settings['topology']['n_input'] = len(x[0]) * n_coding_neurons
@@ -728,10 +730,13 @@ def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', 
 
     print('convert')
     if 'receptive_fields_reverse' in settings['data']['conversion']:
-        converter = ReceptiveFieldsConverterReverse(sigma, 1.0, n_coding_neurons, round_to, False)
+        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to, False, reverse=True)
         data = converter.convert(x, y)
     elif 'receptive_fields' in settings['data']['conversion']:
         converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to, False)
+        data = converter.convert(x, y)
+    elif 'temporal_reverse' in settings['data']['conversion']:
+        converter = TemporalConverter(settings['data']['pattern_length'], round_to, False, reverse=True)
         data = converter.convert(x, y)
     elif 'temporal' in settings['data']['conversion']:
         converter = TemporalConverter(settings['data']['pattern_length'], round_to, False)

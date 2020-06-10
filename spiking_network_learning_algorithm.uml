@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>Python</ID>
+  <OriginalElement>#D:/workspace/projects/spiking_network_learning_algorithm/spiking_network_learning_algorithm</OriginalElement>
+  <nodes>
+    <node x="540.0" y="690.0">spiking_network_learning_algorithm.network.Network</node>
+    <node x="1871.5" y="2180.0">spiking_network_learning_algorithm.solver.FrequencyNetworkSolver</node>
+    <node x="2479.5" y="1847.0">spiking_network_learning_algorithm.converter.TemporalConverter</node>
+    <node x="2435.5" y="2202.0">spiking_network_learning_algorithm.converter.TemporalConverterWithoutZero</node>
+    <node x="1673.5" y="965.0">spiking_network_learning_algorithm.solver.Solver</node>
+    <node x="1907.5" y="1836.0">spiking_network_learning_algorithm.solver.NetworkSolver</node>
+    <node x="0.0" y="1053.0">spiking_network_learning_algorithm.andrews_curve.AndrewsCurve</node>
+    <node x="4767.5" y="1825.0">spiking_network_learning_algorithm.converter.ReceptiveFieldsConverter</node>
+    <node x="4906.5" y="931.0">spiking_network_learning_algorithm.plotter.Plotter</node>
+    <node x="4211.5" y="1825.0">spiking_network_learning_algorithm.converter.FrequencyConverter</node>
+    <node x="1351.5" y="1836.0">spiking_network_learning_algorithm.solver.SeparateNetworkSolver</node>
+    <node x="5371.5" y="1847.0">spiking_network_learning_algorithm.converter.BinaryConverter</node>
+    <node x="835.5" y="1704.0">spiking_network_learning_algorithm.network.TwoLayerNetwork</node>
+    <node x="3027.5" y="1825.0">spiking_network_learning_algorithm.converter.ReceptiveFieldsConverterReverse</node>
+    <node x="4072.5" y="1063.0">spiking_network_learning_algorithm.converter.Converter</node>
+    <node x="3687.5" y="1825.0">spiking_network_learning_algorithm.converter.SobelConverter</node>
+    <node x="1805.5" y="0.0">typing.Hashable</node>
+    <node x="5903.5" y="1847.0">spiking_network_learning_algorithm.converter.TemporalInvertedConverter</node>
+    <node x="1765.0" y="104.0">object</node>
+    <node x="311.5" y="1847.0">spiking_network_learning_algorithm.network.FrequencyNetwork</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="spiking_network_learning_algorithm.plotter.Plotter" target="object">
+      <point x="0.0" y="-236.0" />
+      <point x="5271.5" y="660.0" />
+      <point x="1974.6999999999998" y="660.0" />
+      <point x="93.19999999999982" y="268.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.andrews_curve.AndrewsCurve" target="object">
+      <point x="0.0" y="-114.0" />
+      <point x="260.0" y="660.0" />
+      <point x="1788.3000000000002" y="660.0" />
+      <point x="-93.19999999999982" y="268.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.solver.SeparateNetworkSolver" target="spiking_network_learning_algorithm.solver.Solver">
+      <point x="0.0" y="-81.0" />
+      <point x="1619.5" y="1684.0" />
+      <point x="1777.5" y="1684.0" />
+      <point x="-104.0" y="202.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.network.FrequencyNetwork" target="spiking_network_learning_algorithm.network.Network">
+      <point x="0.0" y="-70.0" />
+      <point x="563.5" y="1684.0" />
+      <point x="681.75" y="1684.0" />
+      <point x="-141.75" y="477.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.network.Network" target="object">
+      <point x="0.0" y="-477.0" />
+      <point x="823.5" y="670.0" />
+      <point x="1834.9" y="670.0" />
+      <point x="-46.59999999999991" y="268.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.TemporalInvertedConverter" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-70.0" />
+      <point x="6199.5" y="1664.0" />
+      <point x="4828.357142857143" y="1664.0" />
+      <point x="348.8571428571431" y="104.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.Converter" target="object">
+      <point x="0.0" y="-104.0" />
+      <point x="4479.5" y="670.0" />
+      <point x="1928.1" y="670.0" />
+      <point x="46.59999999999991" y="268.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.FrequencyConverter" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-92.0" />
+      <point x="0.0" y="104.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.solver.NetworkSolver" target="spiking_network_learning_algorithm.solver.Solver">
+      <point x="0.0" y="-81.0" />
+      <point x="2143.5" y="1684.0" />
+      <point x="1985.5" y="1684.0" />
+      <point x="104.0" y="202.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.SobelConverter" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-92.0" />
+      <point x="3939.5" y="1684.0" />
+      <point x="4363.214285714286" y="1684.0" />
+      <point x="-116.28571428571422" y="104.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.TemporalConverterWithoutZero" target="spiking_network_learning_algorithm.converter.TemporalConverter">
+      <point x="0.0" y="-70.0" />
+      <point x="0.0" y="70.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.ReceptiveFieldsConverter" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-92.0" />
+      <point x="5059.5" y="1684.0" />
+      <point x="4595.785714285714" y="1684.0" />
+      <point x="116.28571428571377" y="104.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.solver.Solver" target="object">
+      <point x="0.0" y="-202.0" />
+      <point x="0.0" y="268.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.TemporalConverter" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-70.0" />
+      <point x="2743.5" y="1664.0" />
+      <point x="4130.642857142857" y="1664.0" />
+      <point x="-348.8571428571431" y="104.0" />
+    </edge>
+    <edge source="object" target="typing.Hashable">
+      <point x="0.0" y="-268.0" />
+      <point x="0.0" y="27.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.solver.FrequencyNetworkSolver" target="spiking_network_learning_algorithm.solver.NetworkSolver">
+      <point x="0.0" y="-92.0" />
+      <point x="0.0" y="81.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.ReceptiveFieldsConverterReverse" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-92.0" />
+      <point x="3347.5" y="1674.0" />
+      <point x="4246.928571428572" y="1674.0" />
+      <point x="-232.57142857142844" y="104.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.network.TwoLayerNetwork" target="spiking_network_learning_algorithm.network.Network">
+      <point x="0.0" y="-213.0" />
+      <point x="1083.5" y="1684.0" />
+      <point x="965.25" y="1684.0" />
+      <point x="141.75" y="477.0" />
+    </edge>
+    <edge source="spiking_network_learning_algorithm.converter.BinaryConverter" target="spiking_network_learning_algorithm.converter.Converter">
+      <point x="0.0" y="-70.0" />
+      <point x="5627.5" y="1674.0" />
+      <point x="4712.071428571428" y="1674.0" />
+      <point x="232.57142857142844" y="104.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Group" zoom="1.0" x="2111.0" y="316.0" />
+  <SelectedNodes>
+    <node>spiking_network_learning_algorithm.converter.TemporalConverter</node>
+  </SelectedNodes>
+  <Categories>
+    <Category>Methods</Category>
+    <Category>Inner Classes</Category>
+    <Category>Fields</Category>
+  </Categories>
+</Diagram>
+

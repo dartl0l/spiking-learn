@@ -202,12 +202,15 @@ class ReceptiveFieldsConverter(Converter):
     """
         Class for receptive fields data conversion
     """
-    def __init__(self, sigma2, max_x, n_fields, k_round, reshape=True):
+    def __init__(self, sigma2, max_x, n_fields, k_round,
+                 reshape=True, reverse=False, no_last=False):
         self.sigma2 = sigma2
         self.max_x = max_x
         self.n_fields = n_fields
         self.k_round = k_round
         self.reshape = reshape
+        self.reverse = reverse
+        self.no_last = no_last
 
     def get_gaussian(self, x, sigma2, mu):
         return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
@@ -226,7 +229,17 @@ class ReceptiveFieldsConverter(Converter):
 
         assert len(mu) == len(x[0])
 
-        x = max_y - np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
+        if self.reverse:
+            x = np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
+            if self.no_last:
+                mask = x[x < 0.1]
+                x[mask] = np.nan
+        else:
+            x = max_y - np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
+            if self.no_last:
+                mask = x[x > max_y - 0.09]
+                x[mask] = np.nan
+
         if self.reshape:
             output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
                       'class': y}
@@ -236,59 +249,108 @@ class ReceptiveFieldsConverter(Converter):
         return output  # , max_y
 
 
-class ReceptiveFieldsConverterReverse(ReceptiveFieldsConverter):
-    """
-        Class for receptive fields data conversion
-    """
-    def __init__(self, sigma2, max_x, n_fields, k_round, reshape=True):
-        self.sigma2 = sigma2
-        self.max_x = max_x
-        self.n_fields = n_fields
-        self.k_round = k_round
-        self.reshape = reshape
-    
-    def convert(self, x, y):
-        """
-            Function must be updated to O(n) complexity 
-        """
+# class ReceptiveFieldsConverterWithoutLast(Converter):
+#     """
+#         Class for receptive fields data conversion
+#     """
+#     def __init__(self, sigma2, max_x, n_fields, k_round, reshape=True):
+#         self.sigma2 = sigma2
+#         self.max_x = max_x
+#         self.n_fields = n_fields
+#         self.k_round = k_round
+#         self.reshape = reshape
+#
+#     def get_gaussian(self, x, sigma2, mu):
+#         return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+#
+#     def convert(self, x, y):
+#         """
+#             Function must be updated to O(n) complexity
+#         """
+#
+#         h_mu = self.max_x / (self.n_fields - 1)
+#
+#         max_y = np.round(self.get_gaussian(h_mu, self.sigma2, h_mu), 0)
+#
+#         mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(x[0]))
+#         x = np.repeat(x, self.n_fields, axis=1)
+#
+#         assert len(mu) == len(x[0])
+#
+#         x = max_y - np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
+#         mask = x[x > max_y - 0.09]
+#         x[mask] = np.nan
+#         if self.reshape:
+#             output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
+#                       'class': y}
+#         else:
+#             output = {'input': x,
+#                       'class': y}
+#         return output  # , max_y
 
-        output = {'input': [],
-                  'class': []}
 
-        h_mu = self.max_x / (self.n_fields - 1)
-
-        # max_y = np.round(get_gaussian(h_mu, self.sigma2, h_mu), 0)
-
-        mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(x[0]))
-        x = np.repeat(x, self.n_fields, axis=1)
-
-        assert len(mu) == len(x[0])
-
-        x = np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
-        if self.reshape:
-            output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
-                      'class': y}
-        else:
-            output = {'input': x,
-                      'class': y}
-        return output  # , max_y
+# class ReceptiveFieldsConverterReverse(ReceptiveFieldsConverter):
+#     """
+#         Class for receptive fields data conversion
+#     """
+#     def __init__(self, sigma2, max_x, n_fields, k_round, reshape=True):
+#         self.sigma2 = sigma2
+#         self.max_x = max_x
+#         self.n_fields = n_fields
+#         self.k_round = k_round
+#         self.reshape = reshape
+#
+#     def convert(self, x, y):
+#         """
+#             Function must be updated to O(n) complexity
+#         """
+#
+#         output = {'input': [],
+#                   'class': []}
+#
+#         h_mu = self.max_x / (self.n_fields - 1)
+#
+#         # max_y = np.round(get_gaussian(h_mu, self.sigma2, h_mu), 0)
+#
+#         mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(x[0]))
+#         x = np.repeat(x, self.n_fields, axis=1)
+#
+#         assert len(mu) == len(x[0])
+#
+#         x = np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
+#         if self.reshape:
+#             output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
+#                       'class': y}
+#         else:
+#             output = {'input': x,
+#                       'class': y}
+#         return output  # , max_y
 
 
 class TemporalConverter(Converter):
     '''
         Class for receptive fields data conversion
     '''
-    def __init__(self, pattern_length, k_round, reshape=True):
+    def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False):
         self.pattern_length = pattern_length
         self.k_round = k_round
         self.reshape = reshape
+        self.reverse = reverse
+        self.no_last = no_last
 
     def convert(self, x, y):
         '''
             Function must be updated to O(n) complexity 
         '''
-        
-        x = np.round(self.pattern_length * (1 - x), self.k_round)
+
+        if self.no_last:
+            zero_values = x == 0
+            x[zero_values] = np.nan
+        if self.reverse:
+            x = np.round(self.pattern_length * x, self.k_round)
+        else:
+            x = np.round(self.pattern_length * (1 - x), self.k_round)
+
         if self.reshape:
             output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
                       'class': y}
@@ -299,25 +361,30 @@ class TemporalConverter(Converter):
         return output
 
 
-class TemporalInvertedConverter(Converter):
-    '''
-        Class for receptive fields data conversion
-    '''
-    def __init__(self, pattern_length, k_round):
-        self.pattern_length = pattern_length
-        self.k_round = k_round
-
-    def convert(self, x, y):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
-        
-        x = np.round(self.pattern_length * x, self.k_round)
-        output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
-                  'class': y}
-
-        return output
-
+# class TemporalInvertedConverter(Converter):
+#     '''
+#         Class for receptive fields data conversion
+#     '''
+#     def __init__(self, pattern_length, k_round, reshape=True):
+#         self.pattern_length = pattern_length
+#         self.k_round = k_round
+#         self.reshape = reshape
+#
+#     def convert(self, x, y):
+#         '''
+#             Function must be updated to O(n) complexity
+#         '''
+#
+#         x = np.round(self.pattern_length * x, self.k_round)
+#         if self.reshape:
+#             output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
+#                       'class': y}
+#         else:
+#             output = {'input': x,
+#                       'class': y}
+#
+#         return output
+#
 
 class BinaryConverter(Converter):
     '''
