@@ -48,6 +48,35 @@ here is example of settings file for Fisher's Iris Classification settings.json
             "weight": -5,
             "model": "static_synapse"
         },
+        "syn_dict_stdp_hid": {
+            "weight": {
+                "sigma": 0.0,
+                "mu": 1.0,
+                "distribution": "normal"
+            },
+            "mu_plus": 0.0,
+            "lambda": 0.03,
+            "tau_plus": 10.429564842488617,
+            "mu_minus": 0.0,
+            "model": "stdp_synapse",
+            "Wmax": {
+                "sigma": 0.0,
+                "mu": 1.0,
+                "distribution": "normal"
+            },
+            "alpha": 0.85
+        },
+        "neuron_hid": {
+            "V_reset": -5.0,
+            "E_L": 0.0,
+            "I_e": 0.0,
+            "C_m": 10.0,
+            "V_m": -5.0,
+            "t_ref": 3.0,
+            "V_th": 1.0,
+            "tau_m": 10.0,
+            "tau_minus": 33.7
+        },
         "syn_dict_stdp": {
             "weight": {
                 "sigma": 0.0,
@@ -66,7 +95,8 @@ here is example of settings file for Fisher's Iris Classification settings.json
             },
             "alpha": 0.65
         },
-        "neuron_out_model": "iaf_psc_exp"
+        "neuron_out_model": "iaf_psc_exp",
+        "neuron_hid_model": "iaf_psc_exp"
     },
     "learning": {
         "n_splits": 5,
@@ -78,7 +108,9 @@ here is example of settings file for Fisher's Iris Classification settings.json
         "epochs": 5,
         "reinforce_time": 0.0,
         "metrics": "f1",
-        "inhibitory_teacher": false
+        "inhibitory_teacher": false,
+        "reverse_learning": false,
+        "threshold": 8.0
     },
     "data": {
         "coding_sigma": 0.005,
