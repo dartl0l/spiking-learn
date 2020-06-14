@@ -16,7 +16,7 @@ It can be running with mpi.
 To start simulation create your own py file and add
 
 ```
-from spiking_network_learning_alghorithm.solver_new import solve_task
+from spiking_network_learning_alghorithm.solver import solve_task
 
 solve_task(path-to-folder-with-settings-file)
 ```
@@ -34,18 +34,18 @@ here is example of settings file for Fisher's Iris Classification settings.json
 {
     "model": {
         "neuron_out": {
-            "V_reset": -5.0,
+            "V_reset": 0.0,
             "E_L": 0.0,
             "I_e": 0.0,
-            "C_m": 2.3041116651147604,
-            "V_m": -5.0,
-            "t_ref": 1.4445230588316917,
-            "V_th": 1.0,
-            "tau_m": 5.103678226470947,
-            "tau_minus": 31.954210396157578
+            "C_m": 1.0,
+            "V_m": 0.0,
+            "t_ref": 19.0,
+            "V_th": 8.0,
+            "tau_m": 6.0,
+            "tau_minus": 31.0
         },
         "syn_dict_inh": {
-            "weight": -15.0,
+            "weight": -5,
             "model": "static_synapse"
         },
         "syn_dict_stdp_hid": {
@@ -84,8 +84,8 @@ here is example of settings file for Fisher's Iris Classification settings.json
                 "distribution": "normal"
             },
             "mu_plus": 0.0,
-            "lambda": 0.05999982627108694,
-            "tau_plus": 12.122823428362608,
+            "lambda": 0.03,
+            "tau_plus": 6.0,
             "mu_minus": 0.0,
             "model": "stdp_synapse",
             "Wmax": {
@@ -93,8 +93,10 @@ here is example of settings file for Fisher's Iris Classification settings.json
                 "mu": 1.0,
                 "distribution": "normal"
             },
-            "alpha": 0.7067821397446096
-        }
+            "alpha": 0.65
+        },
+        "neuron_out_model": "iaf_psc_exp",
+        "neuron_hid_model": "iaf_psc_exp"
     },
     "learning": {
         "n_splits": 5,
@@ -102,32 +104,39 @@ here is example of settings file for Fisher's Iris Classification settings.json
         "use_teacher": true,
         "reinforce_delta": 0.0,
         "use_fitness_func": true,
-        "teacher_amplitude": 1500000.0,
-        "epochs": 10,
+        "teacher_amplitude": 1000.0,
+        "epochs": 5,
         "reinforce_time": 0.0,
-        "metrics": "f1"
+        "metrics": "f1",
+        "inhibitory_teacher": false,
+        "reverse_learning": false,
+        "threshold": 8.0
     },
     "data": {
         "coding_sigma": 0.005,
         "shuffle_train": true,
-        "n_coding_neurons": 20,
+        "n_coding_neurons": 40,
         "normalization": "normalize",
         "valid_size": 0.1,
         "dataset": "iris",
         "preprocessing": "",
-        "use_valid": false
+        "use_valid": false,
+        "shuffle_test": true,
+        "frequency_coding": false,
+        "conversion": "receptive_fields"
     },
     "network": {
         "num_threads": 48,
         "noise_after_pattern": false,
         "h_time": 25.0,
-        "noise_freq": 1.7179610719904304,
+        "noise_freq": 0.0,
         "test_with_noise": false,
         "num_procs": 1,
         "h": 0.01,
         "separate_networks": false,
         "save_history": false,
-        "start_delta": 50
+        "start_delta": 50,
+        "test_with_inhibition": true
     },
     "topology": {
         "use_reciprocal": false,
