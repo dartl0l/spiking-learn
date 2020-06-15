@@ -3,6 +3,9 @@ This is "framework" for spiking neural networks machine learning based on tempor
 You can optimize model parameters using MultiNEAT neuroevolution library.
 It can be running with mpi.
 
+### Citation
+Please, cite my last paper while using this repo https://www.mendeley.com/profiles/danila-vlasov/publications/
+
 ### Dependencies
   * Python3
   * NEST Simulator https://www.nest-simulator.org/
