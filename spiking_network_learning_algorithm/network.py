@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import time
 import nest
 import numpy as np
 
@@ -46,6 +45,8 @@ class Network(object):
 
         with ThreadPoolExecutor(max_workers=threads) as executor:
             spike_times = np.concatenate(tuple(executor.map(lambda p: self.create_spike_times(*p), input_list)))
+
+        # spike_times = self.create_spike_times(spikes, 0, full_length, pattern_start_shape)
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
             tmp_spikes = spike_times[:, input_neuron].reshape(len(spikes))
@@ -535,6 +536,34 @@ class TwoLayerNetwork(Network):
                 self.layer_hid, target=[neuron_id])
             nest.SetStatus(connection, 'weight',
                            weights['layer_1'][neuron_id])
+
+
+class ConvolutionNetwork(TwoLayerNetwork):
+    def __init__(self, settings):
+        super(ConvolutionNetwork, self).__init__(settings)
+
+    def connect_layers(self):
+        kernel_size = 5
+        for i, neuron in enumerate(self.layer_hid):
+            nest.Connect(self.input_layer[i:i + kernel_size],
+                         [neuron], 'all_to_all',
+                         syn_spec=self.settings['model']['syn_dict_stdp_hid'])
+
+        nest.Connect(self.layer_hid,
+                     self.layer_out, 'all_to_all',
+                     syn_spec=self.settings['model']['syn_dict_stdp'])
+        if self.settings['topology']['use_reciprocal']:
+            nest.Connect(self.layer_out,
+                         self.layer_hid, 'all_to_all',
+                         syn_spec=self.settings['model']['syn_dict_rec'])
+
+    def connect_layers_static(self):
+        nest.Connect(self.input_layer,
+                     self.layer_hid, 'all_to_all',
+                     syn_spec='static_synapse')
+        nest.Connect(self.layer_hid,
+                     self.layer_out, 'all_to_all',
+                     syn_spec='static_synapse')
 
 
 class FrequencyNetwork(Network):

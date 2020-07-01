@@ -41,6 +41,17 @@ data_traits = {
     #   'mutation_prob': 0.1,
     #   'type': 'float'
     # },
+    # 't_p': {
+    #   'details': {
+    #       'min': 1.0,
+    #       'max': 10.0,
+    #       'mut_power': 1.0, # the highest possible amount of change during one mutation
+    #       'mut_replace_prob': 0.25 # if mutated, the probability to be re-initialized to a random value, rather than changed by a random value proportional to mut_power
+    #   },
+    #   'importance_coeff': 1.0, # the trait value is multiplied by importance_coeff when calculating distance between genomes
+    #   'mutation_prob': 0.1,
+    #   'type': 'float'
+    # },
 }
 
 

@@ -8,10 +8,11 @@ from os import system, chdir, getcwd, mkdir
 import json  # to read parameters from file
 import MultiNEAT as neat
 import mpi4py.futures as fut
-from mpi4py import MPI
+# from mpi4py import MPI
 
-from spiking_network_learning_algorithm import traits
-from spiking_network_learning_algorithm.solver import solve_task
+sys.path.insert(0, getcwd() + '/input')
+
+import traits
 
 
 def prepare_genomes(genome):
@@ -36,7 +37,7 @@ def prepare_genomes(genome):
                             for trait_name, trait_value in current_trait_values.items()
                             if trait_name in traits.synapse_traits}
     print(getcwd())
-    settings = json.load(open('settings.json', 'r'))
+    settings = json.load(open('input/settings.json', 'r'))
     for trait in data_trait_values:
         settings['data'][trait] = data_trait_values[trait]
 
@@ -61,6 +62,8 @@ def prepare_genomes(genome):
 
 
 def evaluate(genome):
+    from spiking_network_learning_algorithm.solver import solve_task
+
     directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
     print("Start sim in " + str(directory_name))
     fitness, res = solve_task(directory_name)
@@ -72,7 +75,7 @@ def evaluate_futures(genome):
     directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
     print("Start sim in " + str(directory_name))
     system("cd " + directory_name + " ;"
-           "python genetic_solver.py " + directory_name + "; ")
+           "python solver.py " + directory_name + ";")
     with open('fitness.txt') as fitness_file:
         fitness = fitness_file.readline()
     chdir('../..')
@@ -81,11 +84,6 @@ def evaluate_futures(genome):
 
 
 def main(use_futures, continue_genetic=False, redirect_out=True):
-    # comm = MPI.COMM_WORLD
-    # rank = comm.Get_rank()
-
-    # mode = MPI.MODE_CREATE | MPI.MODE_WRONLY
-
     if redirect_out:
         sys.stdout = open('out.txt', 'w')
         sys.stderr = open('err.txt', 'w')
@@ -97,17 +95,9 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
     else:
         population = create_population(network_parameters)
 
-    # fh = MPI.File.Open(comm, "datafile", mode) 
-    # line1 = str(comm.rank)*(comm.rank+1) + '\n' 
-    # line2 = chr(ord('a')+comm.rank)*(comm.rank+1) + '\n' 
-    # fh.Write_ordered(line1) 
-    # fh.Write_ordered(line2) 
-    # fh.Close() 
     print("Start solving generations")
     outfile = open('output/fitness.txt', 'w')
-    # mode = MPI.MODE_CREATE | MPI.MODE_WRONLY
-    # outfile = MPI.File.Open(comm, 'output/fitness.txt', mode) 
-    # with open('output/fitness.txt', 'w') as outfile:
+
     for generation_number in range(network_parameters['generations']):
         print("Generation " + str(generation_number) + " started")
         genome_list = neat.GetGenomeList(population)
@@ -118,9 +108,8 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
             prepare_genomes(genome)
 
         if use_futures:
-            executor = fut.MPIPoolExecutor()
-            for fitness in executor.map(evaluate_futures, genome_list):
-                fitness_list.append(fitness)
+            with fut.MPIPoolExecutor() as executor:
+                fitness_list = executor.map(evaluate, genome_list)
         else:
             for genome in genome_list:
                 fitness_list.append(evaluate(genome))
@@ -128,30 +117,20 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
         neat.ZipFitness(genome_list, fitness_list)
 
         population.GetBestGenome().Save('output/best_genome.txt')
-        # mode = MPI.MODE_APPEND
-        # genome_file = MPI.File.Open(comm, 'output/best_genome.txt', mode)
-        # genome_file.Write_ordered('\n' + str(population.GetBestGenome().GetNeuronTraits()) +
-        #                          '\n' + str(population.GetBestGenome().GetGenomeTraits()))
-        # genome_file.Close()
+
         genome_file = open('output/best_genome.txt', 'a')
         genome_file.write('\n' + str(population.GetBestGenome().GetNeuronTraits()) +
                           '\n' + str(population.GetBestGenome().GetGenomeTraits()))
         genome_file.close()
-        # copytree('genome' + str(population.GetBestGenome().GetID()), 
-        #          'output/generation' + str(generation_number) + '_best_genome')
+
         try:
             copytree('genome' + str(population.GetBestGenome().GetID()), 
                      'output/generation' + str(generation_number) + '_best_genome')
         except FileExistsError:
             print('folder generation' + str(generation_number) + '_best_genome exists')
 
-        # outfile.Write_ordered(str(generation_number) + '\t' + str(max(fitness_list)) + '\n')
         outfile.write(str(generation_number) + '\t' + str(max(fitness_list)) + '\n')
         outfile.flush()
-        # sys.stderr.write(
-        #     '\rGeneration ' + str(generation_number)
-        #     + ': fitness = ' + str(population.GetBestGenome().GetFitness())
-        # )
 
         # advance to the next generation
         print("Generation " + str(generation_number) +
@@ -169,11 +148,7 @@ def create_population(network_parameters):
     system("grep -v '//' < input/neat_parameters.txt | grep . > input/neat_parameters.filtered.txt")
     neat_params.Load('input/neat_parameters.filtered.txt')
     system("rm input/neat_parameters.filtered.txt")
-    # system("grep -v '//' < input/global_parameters.json | grep . > input/global_parameters.filtered.json")
-    # network_parameters = json.load(open('input/global_parameters.filtered.json', 'r'))
-    # system("rm input/global_parameters.filtered.json")
-    # mode = MPI.MODE_RDONLY
-    # network_parameters = json.load(open(comm, 'input/global_parameters.json', mode))
+
     for trait_name, trait_value in traits.network_traits.items():
         neat_params.SetGenomeTraitParameters(trait_name, trait_value)
     for trait_name, trait_value in traits.neuron_traits.items():
