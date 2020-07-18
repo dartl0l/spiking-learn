@@ -543,7 +543,13 @@ class ConvolutionNetwork(TwoLayerNetwork):
         super(ConvolutionNetwork, self).__init__(settings)
 
     def connect_layers(self):
-        kernel_size = 5
+        import math
+
+        kernel_size = 3
+        stride = 1
+        map_size = self.settings['n_input'] / stride
+        map_count = self.settings['n_input'] / map_size
+
         for i, neuron in enumerate(self.layer_hid):
             nest.Connect(self.input_layer[i:i + kernel_size],
                          [neuron], 'all_to_all',
