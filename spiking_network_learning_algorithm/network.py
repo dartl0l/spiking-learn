@@ -445,10 +445,50 @@ class Network(object):
         return output, devices
 
 
+class ConvolutionNetwork(Network):
+    def __init__(self, settings):
+        super(ConvolutionNetwork, self).__init__(settings)
+
+    def connect_layers(self):
+        # import math
+
+        kernel_size = 3
+        stride = 1
+        map_size = int(self.settings['topology']['n_input'] / stride)
+        # map_count = self.settings['n_input'] / map_size
+
+        # for i, neuron in enumerate(self.layer_hid):
+        #     nest.Connect(self.input_layer[i:i + kernel_size],
+        #                  [neuron], 'all_to_all',
+        #                  syn_spec=self.settings['model']['syn_dict_stdp_hid'])
+
+        for i in range(0, len(self.layer_out), map_size):
+            for j in range(map_size):
+                nest.Connect(self.input_layer[i + j: i + j + kernel_size],
+                             [self.layer_out[i + j]], 'all_to_all',
+                             syn_spec=self.settings['model']['syn_dict_stdp_hid'])
+
+        # nest.Connect(self.layer_hid,
+        #              self.layer_out, 'all_to_all',
+        #              syn_spec=self.settings['model']['syn_dict_stdp'])
+        # if self.settings['topology']['use_reciprocal']:
+        #     nest.Connect(self.layer_out,
+        #                  self.layer_hid, 'all_to_all',
+        #                  syn_spec=self.settings['model']['syn_dict_rec'])
+
+    def connect_layers_static(self):
+        nest.Connect(self.input_layer,
+                     self.layer_out, 'all_to_all',
+                     syn_spec='static_synapse')
+        # nest.Connect(self.layer_hid,
+        #              self.layer_out, 'all_to_all',
+        #              syn_spec='static_synapse')
+
+
 class TwoLayerNetwork(Network):
     def __init__(self, settings):
         super(TwoLayerNetwork, self).__init__(settings)
-        self.synapse_models = [settings['model']['syn_dict_stdp_hid']['model'], 
+        self.synapse_models = [settings['model']['syn_dict_stdp_hid']['model'],
                                settings['model']['syn_dict_stdp']['model']]
 
     def create_layers(self):
@@ -536,40 +576,6 @@ class TwoLayerNetwork(Network):
                 self.layer_hid, target=[neuron_id])
             nest.SetStatus(connection, 'weight',
                            weights['layer_1'][neuron_id])
-
-
-class ConvolutionNetwork(TwoLayerNetwork):
-    def __init__(self, settings):
-        super(ConvolutionNetwork, self).__init__(settings)
-
-    def connect_layers(self):
-        import math
-
-        kernel_size = 3
-        stride = 1
-        map_size = self.settings['n_input'] / stride
-        map_count = self.settings['n_input'] / map_size
-
-        for i, neuron in enumerate(self.layer_hid):
-            nest.Connect(self.input_layer[i:i + kernel_size],
-                         [neuron], 'all_to_all',
-                         syn_spec=self.settings['model']['syn_dict_stdp_hid'])
-
-        nest.Connect(self.layer_hid,
-                     self.layer_out, 'all_to_all',
-                     syn_spec=self.settings['model']['syn_dict_stdp'])
-        if self.settings['topology']['use_reciprocal']:
-            nest.Connect(self.layer_out,
-                         self.layer_hid, 'all_to_all',
-                         syn_spec=self.settings['model']['syn_dict_rec'])
-
-    def connect_layers_static(self):
-        nest.Connect(self.input_layer,
-                     self.layer_hid, 'all_to_all',
-                     syn_spec='static_synapse')
-        nest.Connect(self.layer_hid,
-                     self.layer_out, 'all_to_all',
-                     syn_spec='static_synapse')
 
 
 class FrequencyNetwork(Network):
