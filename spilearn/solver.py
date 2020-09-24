@@ -6,7 +6,6 @@ import sys
 import pickle
 
 from math import exp
-from mpi4py import MPI
 
 # import numpy as np
 
@@ -370,6 +369,8 @@ class NetworkSolver(Solver):
 
 
 class MPINetworkSolver(NetworkSolver):
+    from mpi4py import MPI
+
     """solver for network"""
     def __init__(self, settings, plot=False):
         super().__init__(settings, plot)
@@ -579,6 +580,8 @@ class SeparateNetworkSolver(NetworkSolver):
 
 
 class MPISeparateNetworkSolver(MPINetworkSolver):
+    from mpi4py import MPI
+
     """solver for separate network"""
     def __init__(self, settings, plot=False):
         super().__init__(settings, plot)
