@@ -283,7 +283,7 @@ class NetworkSolver(Solver):
         self.plot = plot
 
         if settings['topology']['two_layers']:
-            if settings['topology']['convolution']:
+            if settings['topology']['use_convolution']:
                 self.network = ConvolutionNetwork(settings)
             else:
                 self.network = TwoLayerNetwork(settings)
@@ -740,6 +740,27 @@ class BaseLineSolver(Solver):
 
         return out_dict
 
+    def create_result_dict(self, fold_map):
+        fit = []
+        acc_test = []
+        acc_train = []
+        for result in fold_map:
+            fit.append(result['fitness_score'])
+            acc_test.append(result['acc_test'])
+            acc_train.append(result['acc_train'])
+
+        out_dict = {
+                    'fitness_score': fit,
+                    'fitness_mean': np.mean(fit),
+                    'accs_test': acc_test,
+                    'accs_test_mean': np.mean(acc_test),
+                    'accs_test_std': np.std(acc_test),
+                    'accs_train': acc_train,
+                    'accs_train_mean': np.mean(acc_train),
+                    'accs_train_std': np.std(acc_train),
+                   }
+        return out_dict
+
 
 def round_decimals(value):
     i = 0
@@ -747,6 +768,39 @@ def round_decimals(value):
         value *= 10
         i += 1
     return i
+
+
+def create_folds_from_result_dict(result_dict, reshape=False):
+    folds = []
+    for fold_latency_train, y_train, fold_latency_test, y_test in zip(result_dict['latency_train'],
+                                                                      result_dict['train_classes'],
+                                                                      result_dict['latency_test'],
+                                                                      result_dict['test_classes']):
+        data_train = {}
+        data_test = {}
+        data_out = {'train': {},
+                    'test': {}}
+        x_train = np.array(fold_latency_train)
+        x_test = np.array(fold_latency_test)
+
+        if reshape:
+            x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1)
+            x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1)
+        else:
+            x_train = np.nan_to_num(x_train, nan=0)
+            x_test = np.nan_to_num(x_test, nan=0)
+
+        data_train['input'] = x_train
+        data_train['class'] = y_train
+
+        data_test['input'] = x_test
+        data_test['class'] = y_test
+
+        data_out['train']['full'] = data_train
+        data_out['test']['full'] = data_test
+
+        folds.append(data_out)
+    return folds
 
 
 def print_settings(settings):
