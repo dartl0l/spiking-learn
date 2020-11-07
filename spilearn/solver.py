@@ -281,15 +281,6 @@ class NetworkSolver(Solver):
         super().__init__(settings)
         self.plot = plot
         self.network = network
-#         if settings['topology']['two_layers']:
-#             if settings['topology']['use_convolution']:
-#                 self.network = ConvolutionNetwork(settings)
-#             else:
-#                 self.network = TwoLayerNetwork(settings)
-#         elif settings['data']['frequency_coding']:
-#             self.network = FrequencyNetwork(settings)
-#         else:
-#             self.network = Network(settings)
 
     def test_data(self, data, weights):
         raw_latency, devices = self.network.test(data['input'], weights)
@@ -699,7 +690,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     elif settings['data']['frequency_coding']:
         network = FrequencyNetwork(settings)
     else:
-        network = Network(settings)
+        network = EpochNetwork(settings)
 
     print('solve')
     if settings['network']['separate_networks']:

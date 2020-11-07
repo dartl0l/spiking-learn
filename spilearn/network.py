@@ -447,7 +447,7 @@ class Network(object):
 
 class EpochNetwork(Network):
     def __init__(self, settings):
-        super(ConvolutionNetwork, self).__init__(settings)
+        super(EpochNetwork, self).__init__(settings)
     
     def create_spike_dict(self, dataset, threads=48):
         from concurrent.futures import ThreadPoolExecutor
@@ -464,14 +464,39 @@ class EpochNetwork(Network):
             input_list.append((current_spikes, start_id, end_id, pattern_start_shape))
 
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            spike_times = np.concatenate(tuple(executor.map(lambda p: self.create_spike_times(*p), input_list)))
+            spike_times = np.concatenate(tuple(executor.map(lambda p: self.create_spike_times(*p),
+                                                            input_list)))
 
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
-            tmp_spikes = spike_times[:, input_neuron].reshape(len(spikes))
+            tmp_spikes = spike_times[:, input_neuron]
             spike_dict[input_neuron] = {'spike_times': tmp_spikes[np.isfinite(tmp_spikes)]}
         return spike_dict, full_time
-    
+
+    def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
+        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        epochs = self.settings['learning']['epochs']
+        teacher_dict = {}
+        for teacher in teachers:
+            teacher_dict[teacher] = {
+                'amplitude_times': np.ndarray([]),
+                'amplitude_values': np.ndarray([])
+            }
+        for cl in set(classes):
+            class_mask = classes == cl
+            stimulation_start_current = stimulation_start[class_mask]
+            stimulation_end_current = stimulation_end[class_mask]
+            current_teacher_id = teachers[0] if single_neuron else teachers[cl]
+            amplitude_times = np.stack((stimulation_start_current,
+                                        stimulation_end_current), axis=-1).flatten()
+            amplitude_values = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
+                                         np.zeros_like(stimulation_end_current)), axis=-1).flatten()
+            assert len(amplitude_times) == len(stimulation_start_current) * 2
+            assert len(amplitude_values) == len(stimulation_end_current) * 2
+            teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
+            teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+        return teacher_dict
+
     def train(self, x, y):
         print("start train")
         print("create network")
@@ -491,17 +516,15 @@ class EpochNetwork(Network):
         if not self.settings['network']['noise_after_pattern']:
             self.set_noise()
 
-        spike_dict, full_time, input_spikes = self.create_spike_dict(
+        spike_dict, full_time = self.create_spike_dict(
             dataset=x,
             threads=self.settings['network']['num_threads'])
 
         if self.settings['learning']['use_teacher']:
             teacher_dicts = self.create_teacher(
-                input_spikes=input_spikes,
+                input_spikes=x,
                 classes=y,
                 teachers=self.teacher_layer)
-            self.set_teachers_input(
-                teacher_dicts)
         if self.settings['learning']['threshold']:
             nest.SetStatus(self.layer_out, {'V_th': self.settings['learning']['threshold']})
         if self.settings['network']['noise_after_pattern']:
@@ -517,11 +540,16 @@ class EpochNetwork(Network):
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
-            self.set_teachers_input(
-                teacher_dicts)
+            if self.settings['learning']['use_teacher']:
+                self.set_teachers_input(
+                    teacher_dicts)
             nest.Simulate(full_time)
-            spike_dict['spike_times'] += full_time
-            teacher_dicts['amplitude_times'] += full_time
+            
+            for spikes in spike_dict:
+                spikes['spike_times'] += full_time
+            if self.settings['learning']['use_teacher']:
+                for teacher in teacher_dicts:
+                    teacher_dicts[teacher]['amplitude_times'] += full_time
 
         weights = self.save_weights(self.layers)
         output = {
@@ -553,7 +581,7 @@ class EpochNetwork(Network):
             self.set_noise()
         self.set_weights(weights)
 
-        spike_dict, full_time, input_spikes = self.create_spike_dict(
+        spike_dict, full_time = self.create_spike_dict(
             dataset=x,
             threads=self.settings['network']['num_threads'])
         self.set_input_spikes(
