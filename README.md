@@ -1,6 +1,5 @@
 # spiking-learn
-This is "framework" for spiking neural networks machine learning based on temporal encoding using Fisher' Iris, Wisconsin Breast Bancer and skelarn Digits datasets.
-You can optimize model parameters using MultiNEAT neuroevolution library.
+This is "framework" for spiking neural networks machine learning based on temporal encoding.
 It can be running with mpi.
 
 ### Citation
