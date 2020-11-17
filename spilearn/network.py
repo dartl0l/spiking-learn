@@ -27,7 +27,7 @@ class Network(object):
 
     def create_spike_dict(self, dataset, train, threads=48):
         from concurrent.futures import ThreadPoolExecutor
-        print("prepare spikes")
+#         print("prepare spikes")
 
         epochs = self.settings['learning']['epochs'] if train else 1
         pattern_start_shape = (len(dataset[0]), 1)
@@ -63,7 +63,7 @@ class Network(object):
         return spike_times
 
     def create_teacher(self, input_spikes, classes, teachers):  # Network
-        print("prepare teacher")
+#         print("prepare teacher")
         h = self.settings['network']['h']
         h_time = self.settings['network']['h_time']
         start = self.settings['network']['start_delta']
@@ -147,7 +147,7 @@ class Network(object):
         return teacher_dict
 
     def create_poisson_noise(self, spikes_list):  # Network
-        print("prepare noise")
+#         print("prepare noise")
         dt = 1.0 / 1000.0
         h = self.settings['network']['h']
         h_time = self.settings['network']['h_time']
@@ -237,7 +237,7 @@ class Network(object):
         return weights
 
     def init_network(self):
-        print("init network")
+#         print("init network")
 
         np.random.seed()
         # rank = nest.Rank()
@@ -345,14 +345,14 @@ class Network(object):
                            weights['layer_0'][neuron_id])
 
     def train(self, x, y):
-        print("start train")
-        print("create network")
+#         print("start train")
+#         print("create network")
 
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        print("connect")
+#         print("connect")
         self.connect_devices()
         self.connect_teacher()
         self.connect_layers()
@@ -387,7 +387,7 @@ class Network(object):
                 self.interpattern_noise_generator)
 
         # nest.PrintNetwork()
-        print("start simulation")
+#         print("start simulation")
         nest.Simulate(full_time)
 
         weights = self.save_weights(self.layers)
@@ -401,14 +401,14 @@ class Network(object):
         return weights, output, devices
 
     def test(self, x, weights):
-        print("start test")
+#         print("start test")
 
-        print("create network")
+#         print("create network")
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        print("connect")
+#         print("connect")
         self.connect_devices()
         self.connect_layers_static()
         if self.settings['topology']['use_inhibition'] \
@@ -429,7 +429,7 @@ class Network(object):
             spike_generators=self.input_generators)
         
         # nest.PrintNetwork()
-        print("start test simulation")
+#         print("start test simulation")
         nest.Simulate(full_time)
 
         # print(nest.GetStatus(self.voltmeter))
@@ -451,7 +451,7 @@ class EpochNetwork(Network):
     
     def create_spike_dict(self, dataset, threads=48):
         from concurrent.futures import ThreadPoolExecutor
-        print("prepare spikes")
+#         print("prepare spikes")
 
         pattern_start_shape = (len(dataset[0]), 1)
         full_time = len(dataset) * self.h_time + self.start_delta
@@ -498,14 +498,14 @@ class EpochNetwork(Network):
         return teacher_dict
 
     def train(self, x, y):
-        print("start train")
-        print("create network")
+#         print("start train")
+#         print("create network")
 
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        print("connect")
+#         print("connect")
         self.connect_devices()
         self.connect_teacher()
         self.connect_layers()
@@ -534,7 +534,7 @@ class EpochNetwork(Network):
                 self.interpattern_noise_generator)
 
         # nest.PrintNetwork()
-        print("start simulation")
+#         print("start simulation")
         # split by epochs
         for epoch in range(self.settings['learning']['epochs']):
             self.set_input_spikes(
@@ -562,14 +562,14 @@ class EpochNetwork(Network):
         return weights, output, devices
 
     def test(self, x, weights):
-        print("start test")
+#         print("start test")
 
-        print("create network")
+#         print("create network")
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        print("connect")
+#         print("connect")
         self.connect_devices()
         self.connect_layers_static()
         if self.settings['topology']['use_inhibition'] \
@@ -589,7 +589,7 @@ class EpochNetwork(Network):
             spike_generators=self.input_generators)
         
         # nest.PrintNetwork()
-        print("start test simulation")
+#         print("start test simulation")
         nest.Simulate(full_time)
 
         # print(nest.GetStatus(self.voltmeter))
@@ -605,74 +605,62 @@ class EpochNetwork(Network):
         return output, devices
 
 
-class ConvolutionNetwork(Network):
+class ConvolutionNetwork(EpochNetwork):
     def __init__(self, settings):
         super(ConvolutionNetwork, self).__init__(settings)
         self.kernel_size = self.settings['topology']['convolution']['kernel_size']
         self.stride = self.settings['topology']['convolution']['stride']
-        self.image_dimension = sqrt(self.settings['topology']['n_input'])
+        self.image_dimension = int(sqrt(self.settings['topology']['n_input']))
         self.n_combinations = (self.image_dimension - (self.kernel_size - self.stride)) ** 2
-        self.n_combination_neurons = self.settings['topology']['n_layer_out'] // n_combinations
+        self.n_combination_neurons = self.settings['topology']['n_layer_out'] // self.n_combinations
 
-        self.two_dimensional_image_indices = numpy.arange(
+        self.two_dimensional_image_indices = np.arange(
             self.settings['topology']['n_input']
-        ).reshape(image_dimension, image_dimension)
-        
-        # map_count = self.settings['n_input'] / map_size
-        
-#         image_dimension = 8
-#         two_dimensional_image_indices = numpy.array(range(image_dimension**2)).reshape(image_dimension, image_dimension)
-#         number_of_pixels = image_dimension**2
-#         window_size = network_parameters['window_size']
-#         number_of_combinations = (image_dimension - (window_size-1))**2
-#         neurons_per_combination = (network_parameters['number_of_neurons_layer1'] // number_of_combinations)
-#         fields_per_component = number_of_excitatory_inputs // number_of_pixels
-#         for combination_number in range(number_of_combinations):
-#             image_row = combination_number // (image_dimension-1)
-#             image_column = combination_number % (image_dimension-1)
-#             components_combination = numpy.concatenate(
-#               two_dimensional_image_indices[
-#                 image_row : image_row + window_size,
-#                 image_column : image_column + window_size
-#               ]
-#             )
-#             pixels_combination = numpy.concatenate(
-#                 [exc_inputs_ids[component * fields_per_component:(component+1) * fields_per_component] 
-#                  for component in components_combination])
-#             nest.Connect(
-#                 list(pixels_combination), 
-#                 [neurons_in_layers[0][combination_number + i * number_of_combinations] for i in range(neurons_per_combination)],
-#                 conn_spec='all_to_all',
-#                 syn_spec=layer1_synapse_parameters)
-
-
-#     def connect_layers(self):
-#         j = 0
-#         for neuron in self.layer_out:
-#             nest.Connect(self.input_layer[j:j + self.kernel_size],
-#                          [neuron], 'all_to_all',
-#                          syn_spec=self.settings['model']['syn_dict_stdp'])
-#             j += self.stride
+        ).reshape(self.image_dimension, self.image_dimension)
 
     def connect_layers(self):
         current_combination = 0
         for image_row in range(0, self.image_dimension - self.kernel_size, self.stride):
             for image_column in range(0, self.image_dimension - self.kernel_size, self.stride):
-                input_indexes = np.concatenate(two_dimensional_image_indices[
+                input_indexes = np.concatenate(self.two_dimensional_image_indices[
                     image_row : image_row + self.kernel_size,
                     image_column : image_column + self.kernel_size])
-                output_indexes = self.layer_out[current_combination:current_combination + self.n_combination_neurons]
-                nest.Connect(input_indexes ,output_indexes, 'all_to_all',
+                input_indexes = np.array(self.input_layer)[input_indexes]
+                output_indexes = np.array(self.layer_out[
+                    current_combination : current_combination + self.n_combination_neurons])
+                nest.Connect(input_indexes, output_indexes, 'all_to_all',
                              syn_spec=self.settings['model']['syn_dict_stdp'])
-                current_combination += self.n_combination_neurons + 1
+                current_combination += self.n_combination_neurons
 
     def connect_layers_static(self):
-        j = 0
-        for neuron in self.layer_out:
-            nest.Connect(self.input_layer[j:j + self.kernel_size],
-                         [neuron], 'all_to_all',
-                         syn_spec='static_synapse')
-            j += self.stride
+        current_combination = 0
+        for image_row in range(0, self.image_dimension - self.kernel_size, self.stride):
+            for image_column in range(0, self.image_dimension - self.kernel_size, self.stride):
+                input_indexes = np.concatenate(self.two_dimensional_image_indices[
+                    image_row : image_row + self.kernel_size,
+                    image_column : image_column + self.kernel_size])
+                input_indexes = np.array(self.input_layer)[input_indexes]
+                output_indexes = np.array(self.layer_out[
+                    current_combination : current_combination + self.n_combination_neurons])
+                nest.Connect(input_indexes, output_indexes, 'all_to_all',
+                             syn_spec='static_synapse')
+                current_combination += self.n_combination_neurons
+
+    def connect_layers_inh(self):
+        current_combination = 0
+        for image_row in range(0, self.image_dimension - self.kernel_size, self.stride):
+            for image_column in range(0, self.image_dimension - self.kernel_size, self.stride):
+                input_indexes = np.concatenate(self.two_dimensional_image_indices[
+                    image_row : image_row + self.kernel_size,
+                    image_column : image_column + self.kernel_size])
+                input_indexes = np.array(self.input_layer)[input_indexes]
+
+                output_indexes = np.array(self.layer_out[
+                    current_combination : current_combination + self.n_combination_neurons])
+
+                self.interconnect_layer(output_indexes,
+                                        self.settings['model']['syn_dict_inh'])
+                current_combination += self.n_combination_neurons
 
 
 class TwoLayerNetwork(Network):

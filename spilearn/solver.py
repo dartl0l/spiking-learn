@@ -159,7 +159,7 @@ class Solver(object):
         data_list = []
         skf = StratifiedKFold(n_splits=self.settings['learning']['n_splits'])
         for train_index, test_index in skf.split(data['input'], data['class']):
-            print("prepare data")
+#             print("prepare data")
             data_fold = self.prepare_data(data,
                                           train_index,
                                           test_index)
@@ -635,7 +635,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         sys.stdout = open(task_path + 'out.txt', 'w')
         sys.stderr = open(task_path + 'err.txt', 'w')
 
-    print("Start train and test")
+#     print("Start train and test")
     start = time.time()
 
     if settings['data']['dataset'] == 'iris':
@@ -657,16 +657,16 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
 
     if 'normalize' in settings['data']['normalization']:
         x = preprocessing.normalize(x)
-        print('normalize')
+#         print('normalize')
     if 'minmax' in settings['data']['normalization']:
         x = preprocessing.minmax_scale(x)
-        print('minmax')
+#         print('minmax')
 
 
     # round_to = 2
     round_to = round_decimals(settings['network']['h'])
 
-    print('convert')
+#     print('convert')
     reverse = 'reverse' in settings['data']['conversion']
     no_last = 'no_last' in settings['data']['conversion']
 
@@ -692,7 +692,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     else:
         network = EpochNetwork(settings)
 
-    print('solve')
+#     print('solve')
     if settings['network']['separate_networks']:
         if settings['network']['use_mpi']:
             solver = MPISeparateNetworkSolver(network, settings)
@@ -707,7 +707,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     result_dict = solver.test_acc_cv(data)
 
     end = time.time()
-    print("End train and test in " + str(end - start) + "s")
+#     print("End train and test in " + str(end - start) + "s")
 
     with open(task_path + 'acc.txt', 'w') as acc_file:
         acc_file.write('Accuracy train ' + "\t".join(map(lambda n: '%.2f'%n, 
@@ -726,7 +726,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     pickle.dump(result_dict, open(task_path + 'result_dict.pkl', 'wb'))
 
     save = time.time()
-    print("Files saved in "+ str(save - end) + "s")
+#     print("Files saved in "+ str(save - end) + "s")
 
     return result_dict['fitness_mean'], result_dict
 
@@ -741,7 +741,7 @@ def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', 
         sys.stdout = open(task_path + 'out.txt', 'w')
         sys.stderr = open(task_path + 'err.txt', 'w')
 
-    print("Start train and test")
+#     print("Start train and test")
     start = time.time()
 
     if settings['data']['dataset'] == 'iris':
@@ -774,7 +774,7 @@ def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', 
     # round_to = 2
     round_to = round_decimals(settings['network']['h'])
 
-    print('convert')
+#     print('convert')
     reverse = 'reverse' in settings['data']['conversion']
     no_last = 'no_last' in settings['data']['conversion']
     if 'receptive_fields' in settings['data']['conversion']:
@@ -791,7 +791,7 @@ def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', 
     result_dict = solver.test_acc_cv(data)
 
     end = time.time()
-    print("End train and test in " + str(end - start) + "s")
+#     print("End train and test in " + str(end - start) + "s")
 
     with open(task_path + 'acc.txt', 'w') as acc_file:
         acc_file.write('Accuracy train ' + "\t".join(map(lambda n: '%.2f'%n,
@@ -810,7 +810,7 @@ def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', 
     pickle.dump(result_dict, open(task_path + 'result_dict.pkl', 'wb'))
 
     save = time.time()
-    print("Files saved in "+ str(save - end) + "s")
+#     print("Files saved in "+ str(save - end) + "s")
 
     return result_dict['fitness_mean'], result_dict
 
