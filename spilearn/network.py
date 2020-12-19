@@ -25,15 +25,17 @@ class Network(object):
     def set_poisson_noise(self, noise_dict, spike_generators):
         nest.SetStatus(spike_generators, noise_dict)
 
-    def create_spike_dict(self, dataset, train, threads=48):
+    def create_spike_dict(self, dataset, train, threads=48, delta=0):
         from concurrent.futures import ThreadPoolExecutor
 #         print("prepare spikes")
-
+            
+        delta = self.start_delta
+    
         epochs = self.settings['learning']['epochs'] if train else 1
         pattern_start_shape = (len(dataset[0]), 1)
         spikes = np.tile(dataset, (epochs, 1, 1))
         full_length = epochs * len(dataset)
-        full_time = full_length * self.h_time + self.start_delta
+        full_time = full_length * self.h_time + delta
 
         assert len(spikes) == full_length
         input_list = []
@@ -41,7 +43,9 @@ class Network(object):
             start_id = i
             end_id = i + threads if (i + threads) < full_length else full_length
             current_spikes = spikes[start_id:end_id]
-            input_list.append((current_spikes, start_id, end_id, pattern_start_shape))
+            start = start_id * self.h_time + delta
+            end = end_id * self.h_time + delta
+            input_list.append((current_spikes, start, end, pattern_start_shape))
 
         with ThreadPoolExecutor(max_workers=threads) as executor:
             spike_times = np.concatenate(tuple(executor.map(lambda p: self.create_spike_times(*p), input_list)))
@@ -53,9 +57,7 @@ class Network(object):
             spike_dict[input_neuron] = {'spike_times': tmp_spikes[np.isfinite(tmp_spikes)]}
         return spike_dict, full_time, spikes
 
-    def create_spike_times(self, current_spikes, start_id, end_id, pattern_start_shape):
-        start = self.start_delta + start_id * self.h_time
-        end = end_id * self.h_time + self.start_delta
+    def create_spike_times(self, current_spikes, start, end, pattern_start_shape):
         times = np.arange(start, end, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, pattern_start_shape).T, axis=2)
         assert len(current_spikes) == len(pattern_start_times)
@@ -366,7 +368,8 @@ class Network(object):
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=x,
             train=True,
-            threads=self.settings['network']['num_threads'])
+            threads=self.settings['network']['num_threads'],
+            delta=self.start_delta)
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
@@ -423,7 +426,8 @@ class Network(object):
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=x,
             train=False,
-            threads=self.settings['network']['num_threads'])
+            threads=self.settings['network']['num_threads'],
+            delta=self.start_delta)
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
@@ -449,19 +453,22 @@ class EpochNetwork(Network):
     def __init__(self, settings):
         super(EpochNetwork, self).__init__(settings)
     
-    def create_spike_dict(self, dataset, threads=48):
+    def create_spike_dict(self, dataset, threads=48, delta=0.0):
         from concurrent.futures import ThreadPoolExecutor
 #         print("prepare spikes")
+#         delta = self.start_delta
 
         pattern_start_shape = (len(dataset[0]), 1)
-        full_time = len(dataset) * self.h_time + self.start_delta
+        full_time = len(dataset) * self.h_time + delta
 
         input_list = []
         for i in range(0, len(dataset), threads):
             start_id = i
             end_id = i + threads if (i + threads) < len(dataset) else len(dataset)
+            start = start_id * self.h_time + delta
+            end = end_id * self.h_time + delta
             current_spikes = dataset[start_id:end_id]
-            input_list.append((current_spikes, start_id, end_id, pattern_start_shape))
+            input_list.append((current_spikes, start, end, pattern_start_shape))
 
         with ThreadPoolExecutor(max_workers=threads) as executor:
             spike_times = np.concatenate(tuple(executor.map(lambda p: self.create_spike_times(*p),
@@ -518,7 +525,8 @@ class EpochNetwork(Network):
 
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
-            threads=self.settings['network']['num_threads'])
+            threads=self.settings['network']['num_threads'],
+            delta=self.start_delta)
 
         if self.settings['learning']['use_teacher']:
             teacher_dicts = self.create_teacher(
@@ -536,6 +544,7 @@ class EpochNetwork(Network):
         # nest.PrintNetwork()
 #         print("start simulation")
         # split by epochs
+#         nest.Prepare()
         for epoch in range(self.settings['learning']['epochs']):
             self.set_input_spikes(
                 spike_dict=spike_dict,
@@ -550,6 +559,7 @@ class EpochNetwork(Network):
             if self.settings['learning']['use_teacher']:
                 for teacher in teacher_dicts:
                     teacher_dicts[teacher]['amplitude_times'] += full_time
+#         nest.Cleanup()
 
         weights = self.save_weights(self.layers)
         output = {
@@ -583,7 +593,8 @@ class EpochNetwork(Network):
 
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
-            threads=self.settings['network']['num_threads'])
+            threads=self.settings['network']['num_threads'],
+            delta=self.start_delta)
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
@@ -762,12 +773,13 @@ class FrequencyNetwork(Network):
         super(FrequencyNetwork, self).__init__(settings)
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
-    def create_spike_dict(self, dataset, train, threads=48):
+    def create_spike_dict(self, dataset, train, threads=48,
+            delta=0.0):
         print("prepare spikes freq")
         settings = self.settings
 
         spikes = []
-        d_time = settings['network']['start_delta']
+        d_time = delta
         epochs = settings['learning']['epochs'] if train else 1
         
         spike_dict = [None] * len(dataset[0])
