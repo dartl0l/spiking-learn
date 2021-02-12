@@ -366,7 +366,7 @@ class SeparateNetworkSolver(NetworkSolver):
 class BaseLineSolver(Solver):
     """solver for separate network"""
     def __init__(self, settings):
-        super().__init__(settings)
+#         super().__init__(settings)
         from sklearn.ensemble import GradientBoostingClassifier
 
         self.settings = settings
@@ -456,7 +456,7 @@ def round_decimals(value):
     return i
 
 
-def create_folds_from_result_dict(result_dict, reshape=False):
+def create_folds_from_result_dict(result_dict, reshape=False, converter=None):
     folds = []
     for fold_latency_train, y_train, fold_latency_test, y_test in zip(result_dict['latency_train'],
                                                                       result_dict['train_classes'],
@@ -475,12 +475,16 @@ def create_folds_from_result_dict(result_dict, reshape=False):
         else:
             x_train = np.nan_to_num(x_train, nan=0)
             x_test = np.nan_to_num(x_test, nan=0)
+        
+        if converter is None:
+            data_train['input'] = x_train
+            data_train['class'] = y_train
 
-        data_train['input'] = x_train
-        data_train['class'] = y_train
-
-        data_test['input'] = x_test
-        data_test['class'] = y_test
+            data_test['input'] = x_test
+            data_test['class'] = y_test
+        else:
+            data_train = converter.convert(x_train, y_train)
+            data_test = converter.convert(x_test, y_test)
 
         data_out['train']['full'] = data_train
         data_out['test']['full'] = data_test
@@ -576,7 +580,7 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     else:
         network = EpochNetwork(settings)
 
-    evaluation = Evaulation
+    evaluation = Evaluation(settings)
         
 #     print('solve')
     if settings['network']['separate_networks']:
@@ -671,7 +675,8 @@ def solve_baseline(task_path='./', redirect_out=True, filename='settings.json', 
         converter = TemporalConverter(settings['data']['pattern_length'], round_to,
                                       reshape=False, reverse=reverse, no_last=no_last)
         data = converter.convert(x, y)
-
+    
+    evaluation = Evaluation(settings)
     solver = BaseLineSolver(settings)
 
     result_dict = solver.test_acc_cv(data)

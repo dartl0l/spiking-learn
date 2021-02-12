@@ -219,9 +219,9 @@ class Network(object):
 
         weights = {}
 
-        for i, layer in enumerate(layers[1:]):
+        for i, layer in enumerate(self.layers[1:]):
             synapse_model = synapse_models[i]
-            previous_layer = layers[i]
+            previous_layer = self.layers[i]
             layer_name = 'layer_' + str(i)
             weights[layer_name] = {}
             for neuron_id in layer:
