@@ -375,6 +375,7 @@ class Network(object):
             spike_generators=self.input_generators)
 
         if self.settings['learning']['use_teacher']:
+            assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.create_teacher(
                 input_spikes=input_spikes,
                 classes=y,
@@ -529,6 +530,7 @@ class EpochNetwork(Network):
             delta=self.start_delta)
 
         if self.settings['learning']['use_teacher']:
+            assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.create_teacher(
                 input_spikes=x,
                 classes=y,

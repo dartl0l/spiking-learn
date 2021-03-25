@@ -232,12 +232,12 @@ class ReceptiveFieldsConverter(Converter):
         if self.reverse:
             x = np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
             if self.no_last:
-                mask = x[x < 0.1]
+                mask = x < 0.1
                 x[mask] = np.nan
         else:
             x = max_y - np.round(self.get_gaussian(x, self.sigma2, mu), self.k_round)
             if self.no_last:
-                mask = x[x > max_y - 0.09]
+                mask = x > max_y - 0.09
                 x[mask] = np.nan
 
         if self.reshape:

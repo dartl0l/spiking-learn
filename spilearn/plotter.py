@@ -127,8 +127,8 @@ class Plotter:
 
         if save:
             weights_anim.save('weights.mp4')
-            # if show is True:
-            #     HTML(weights_anim.to_html5_video())
+        if show:
+            HTML(weights_anim.to_html5_video())
         return weights_anim
 
     def plot_voltage(self, voltmeter, legend=True):
