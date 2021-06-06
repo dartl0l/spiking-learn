@@ -5,6 +5,7 @@ README.md
 README.txt
 requirements.txt
 setup.py
+dist/spilearn-1.2.7-py3.7.egg
 spilearn/__init__.py
 spilearn/andrews_curve.py
 spilearn/converter.py
@@ -13,6 +14,8 @@ spilearn/extract_params_from_genetic.py
 spilearn/genetic.py
 spilearn/network.py
 spilearn/plotter.py
+spilearn/reward.py
+spilearn/simulation.py
 spilearn/solver.py
 spilearn/solver_mpi.py
 spilearn/teacher.py
