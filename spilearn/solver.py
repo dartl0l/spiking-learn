@@ -271,8 +271,9 @@ class FrequencyNetworkSolver(NetworkSolver):
 class SeparateNetworkSolver(NetworkSolver):
     """solver for separate network"""
 
-    def __init__(self, settings, plot=False):
-        super().__init__(settings, plot)
+    def __init__(self, network, evaluator, settings, plot=False):
+        super().__init__(network, evaluator, settings)
+        self.plot = plot
 
     def merge_spikes(self, separate_latency_list):
         out_latency = []
@@ -327,8 +328,8 @@ class SeparateNetworkSolver(NetworkSolver):
 
         data_train = data['train']['full']
         merged_latency_test_train = self.merge_spikes(latency_test_train_list)
-        y_train = self.predict_from_latency(merged_latency_test_train)
-        score_train = self.prediction_score(data_train['class'],
+        y_train = self.evaluator.predict_from_latency(merged_latency_test_train)
+        score_train = self.evaluator.prediction_score(data_train['class'],
                                             y_train)
 
         fitness_score = 0
@@ -337,13 +338,13 @@ class SeparateNetworkSolver(NetworkSolver):
             merged_latency_valid = self.merge_spikes(latency_valid_list)
 
             if self.settings['learning']['use_fitness_func']:
-                fitness_score = self.fitness(merged_latency_valid, data_valid)
+                fitness_score = self.evaluator.fitness(merged_latency_valid, data_valid)
         else:
             fitness_score = score_train
 
         merged_latency_test = self.merge_spikes(latency_test_list)
-        y_test = self.predict_from_latency(merged_latency_test)
-        score_test = self.prediction_score(data_test['class'],
+        y_test = self.evaluator.predict_from_latency(merged_latency_test)
+        score_test = self.evaluator.prediction_score(data_test['class'],
                                            y_test)
 
         out_dict = {
@@ -562,12 +563,15 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     if 'receptive_fields' in settings['data']['conversion']:
         n_coding_neurons = settings['data']['n_coding_neurons']
         sigma = settings['data']['coding_sigma']
+        scale = settings['data']['scale']
         settings['topology']['n_input'] = len(x[0]) * n_coding_neurons
 
-        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to, reverse=reverse, no_last=no_last)
+        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to,
+                                             scale=scale, reverse=reverse, no_last=no_last)
         data = converter.convert(x, y)
     elif 'temporal' in settings['data']['conversion']:
-        converter = TemporalConverter(settings['data']['pattern_length'], round_to, reverse=reverse, no_last=no_last)
+        converter = TemporalConverter(settings['data']['pattern_length'], round_to,
+                                      reverse=reverse, no_last=no_last)
         data = converter.convert(x, y)
         settings['topology']['n_input'] = len(x[0])
 

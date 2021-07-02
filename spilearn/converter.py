@@ -202,12 +202,13 @@ class ReceptiveFieldsConverter(Converter):
     """
         Class for receptive fields data conversion
     """
-    def __init__(self, sigma2, max_x, n_fields, k_round,
+    def __init__(self, sigma2, max_x, n_fields, k_round, scale=1.0,
                  reshape=True, reverse=False, no_last=False):
         self.sigma2 = sigma2
         self.max_x = max_x
         self.n_fields = n_fields
         self.k_round = k_round
+        self.scale = scale
         self.reshape = reshape
         self.reverse = reverse
         self.no_last = no_last
@@ -240,6 +241,7 @@ class ReceptiveFieldsConverter(Converter):
                 mask = x > max_y - 0.09
                 x[mask] = np.nan
 
+        x *= self.scale
         if self.reshape:
             output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
                       'class': y}
