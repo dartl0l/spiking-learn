@@ -18,7 +18,7 @@ Please, cite my last paper while using this repo https://www.mendeley.com/profil
 To start simulation create your own py file and add
 
 ```
-from spiking_network_learning_alghorithm.solver import solve_task
+from spilearn.solver import solve_task
 
 solve_task(path-to-folder-with-settings-file)
 ```
