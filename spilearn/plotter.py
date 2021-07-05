@@ -8,7 +8,7 @@ from matplotlib import animation, rc, cm
 from mpl_toolkits.mplot3d import Axes3D
 
 
-class Plotter:
+class Plotter():
     def __init__(self, grayscale=False):
         if grayscale:
             plt.style.use('grayscale')
@@ -428,5 +428,25 @@ class Plotter:
             plt.plot(Xpca[class_mask].T[0], Xpca[class_mask].T[1], '.',
                      label='class ' + str(cl))
         plt.legend()
+        if show:
+            plt.show()
+
+    def plot_reward(self, reward_history, legend=True, show=True):
+        plt.clf()
+        fig = plt.figure()
+        fig.patch.set_facecolor('white')
+
+        plt.title("Reward history")
+        plt.xlabel('Espisode')
+        plt.ylabel('Reward (Games played)')
+        episodes = reward_history[0]
+        reward_history = reward_history[1:]
+        labels = ('games', 'running reward', 'custom reward', 'lambda')
+        for reward, label in zip(reward_history, labels):
+            plt.plot(episodes,
+                     reward,
+                     label=label)
+        if legend:
+            plt.legend()
         if show:
             plt.show()

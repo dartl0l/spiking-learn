@@ -124,7 +124,7 @@ class TeacherIhnibitory(Teacher):
         return teacher_dict
 
 
-class ReinforceTeacher():
+class ReinforceTeacher(Teacher):
     def __init__(self, settings):
         self.settings = settings
         

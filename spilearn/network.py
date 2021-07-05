@@ -14,6 +14,9 @@ class Network(object):
         self.start_delta = settings['network']['start_delta']
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
+    def reset_spike_detectors(self):
+        nest.SetStatus(self.spike_detector_out, {'n_events' : 0 })
+
     def set_input_spikes(self, spike_dict, spike_generators):
         assert len(spike_dict) == len(spike_generators)
         nest.SetStatus(spike_generators, spike_dict)

@@ -245,7 +245,9 @@ class NetworkSolver(Solver):
 
 
 class SeparateNetworkSolver(NetworkSolver):
-    """solver for separate network"""
+    """solver for separate network
+        TODO: merge weights
+    """
 
     def __init__(self, network, evaluator, settings, plot=False):
         super().__init__(network, evaluator, settings)
