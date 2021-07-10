@@ -569,8 +569,8 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         data = converter.convert(x, y)
         settings['topology']['n_input'] = len(x[0])
 
-    if self.settings['learning']['use_teacher']:
-        if self.settings['learning']['inhibitory_teacher']:
+    if settings['learning']['use_teacher']:
+        if settings['learning']['inhibitory_teacher']:
             teacher = TeacherInhibitory(settings)
         elif settings['data']['frequency_coding']:
             teacher = TeacherFrequency(settings)
