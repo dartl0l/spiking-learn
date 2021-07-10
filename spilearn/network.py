@@ -451,7 +451,7 @@ class Network:
 
 
 class EpochNetwork(Network):
-    def __init__(self, settings, teacher):
+    def __init__(self, settings, teacher=None):
         super(EpochNetwork, self).__init__(settings, teacher)
 
     def create_spike_dict(self, dataset, threads=48, delta=0.0):
@@ -619,7 +619,7 @@ class EpochNetwork(Network):
 
 
 class ConvolutionNetwork(EpochNetwork):
-    def __init__(self, settings, teacher):
+    def __init__(self, settings, teacher=None):
         super(ConvolutionNetwork, self).__init__(settings, teacher)
         self.kernel_size = self.settings['topology']['convolution']['kernel_size']
         self.stride = self.settings['topology']['convolution']['stride']
@@ -677,7 +677,7 @@ class ConvolutionNetwork(EpochNetwork):
 
 
 class TwoLayerNetwork(Network):
-    def __init__(self, settings, teacher):
+    def __init__(self, settings, teacher=None):
         super(TwoLayerNetwork, self).__init__(settings, teacher)
         self.synapse_models = [settings['model']['syn_dict_stdp_hid']['model'],
                                settings['model']['syn_dict_stdp']['model']]
@@ -771,7 +771,7 @@ class TwoLayerNetwork(Network):
 
 class FrequencyNetwork(Network):
     """base class for different network types"""
-    def __init__(self, settings, teacher):
+    def __init__(self, settings, teacher=None):
         super(FrequencyNetwork, self).__init__(settings, teacher)
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
