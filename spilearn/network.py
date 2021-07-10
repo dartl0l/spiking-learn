@@ -551,14 +551,14 @@ class EpochNetwork(Network):
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
-            if self.settings['learning']['use_teacher']:
+            if self.teacher:
                 self.set_teachers_input(
                     teacher_dicts)
             nest.Simulate(full_time)
             
             for spikes in spike_dict:
                 spikes['spike_times'] += full_time
-            if self.settings['learning']['use_teacher']:
+            if self.teacher:
                 for teacher in teacher_dicts:
                     teacher_dicts[teacher]['amplitude_times'] += full_time
 #         nest.Cleanup()
