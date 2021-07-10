@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 
 
-class Evaluation(object):
+class Evaluation:
     def __init__(self, settings):
         # super(Solver, self).__init__()
         self.settings = settings
@@ -131,6 +131,10 @@ class Evaluation(object):
     
 class DiehlEvaluation(Evaluation):
     
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.assignments = None
+
     def get_assignments(self, latencies, y):
         latencies = np.array(latencies)
         neurons_number = len(latencies[0])
@@ -150,9 +154,7 @@ class DiehlEvaluation(Evaluation):
             latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
             print('mean_latency', latencies_for_this_class, len(latencies_for_this_class))
             for i in range(neurons_number):
-#                 print(i)
                 if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
-#                     print('min_class_latency', latencies_for_this_class[i], i, current_class)
                     minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
                     assignments[i] = current_class
         print(assignments)

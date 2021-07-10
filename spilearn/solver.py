@@ -19,6 +19,7 @@ from .network import *
 from .converter import *
 from .evaluation import *
 from .plotter import *
+from .teacher import *
 
 
 class Solver(object):
@@ -568,14 +569,24 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
         data = converter.convert(x, y)
         settings['topology']['n_input'] = len(x[0])
 
+    if self.settings['learning']['use_teacher']:
+        if self.settings['learning']['inhibitory_teacher']:
+            teacher = TeacherInhibitory(settings)
+        elif settings['data']['frequency_coding']:
+            teacher = TeacherFrequency(settings)
+        else:
+            teacher = Teacher(settings)
+    else:
+        teacher = None
+
     if settings['topology']['use_convolution']:
         network = ConvolutionNetwork(settings)
     elif settings['topology']['two_layers']:
-        network = TwoLayerNetwork(settings)
+        network = TwoLayerNetwork(settings, teacher)
     elif settings['data']['frequency_coding']:
-        network = FrequencyNetwork(settings)
+        network = FrequencyNetwork(settings, teacher)
     else:
-        network = EpochNetwork(settings)
+        network = EpochNetwork(settings, teacher)
 
     evaluation = Evaluation(settings)
         

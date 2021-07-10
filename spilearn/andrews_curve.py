@@ -8,12 +8,10 @@ class AndrewsCurve:
         self._h = h
         self._accuracy = rad / h
         self._vector = vector
-    
-    
+
     def theta(self):
         return np.linspace(0, self._rad, self._accuracy)
-    
-    
+
     def curve(self):
         curve = list()
         for th in self.theta():
@@ -27,10 +25,10 @@ class AndrewsCurve:
             curve.append(f)
         return curve
 
-
     def discrete_curve(self):
         return np.around(self.curve()).astype(int) + 1 # + np.abs(np.amin(np.around(self.curve())))
-    
+
+
 if __name__ == '__main__':
     pass
-   
+

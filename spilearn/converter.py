@@ -486,7 +486,6 @@ class SobelConverter(Converter):
             mag *= 255.0 / np.max(mag)  # normalize (Q&D)
             return mag
 
-
         output = {'input': [],
                   'class': []}
 
