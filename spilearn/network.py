@@ -529,7 +529,7 @@ class EpochNetwork(Network):
             threads=self.settings['network']['num_threads'],
             delta=self.start_delta)
 
-        if self.settings['learning']['use_teacher']:
+        if self.teacher:
             assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=x,
