@@ -1,4 +1,29 @@
+import numpy as np
+
+import gym
+import nest
+import json
+import pickle
+
+from gym import wrappers
+
+from tqdm import trange
+
+from .evaluation import *
+from .network import *
+from .converter import *
+from .reward import *
+from .teacher import *
+
+
 class Simulation():
+    def __init__(self):
+        pass
+
+    def run(self):
+        pass
+
+class CartPoleSimulation(Simulation):
     
     def __init__(self, env, test_network, scaler, conv, reward, evaluation, teacher, settings):
 
@@ -17,7 +42,7 @@ class Simulation():
         self.teacher_amp = 1.0
         
     def simulate(self):
-        nest.Simulate(settings['network']['h_time'])
+        nest.Simulate(self.settings['network']['h_time'])
 
         spikes = nest.GetStatus(self.network.spike_detector_out,
                                 keys="events")[0]['times']
@@ -88,7 +113,7 @@ class Simulation():
             if inhibit:            
 #             for teacher in teacher_dicts:
                 teacher_dicts[teacher]['amplitude_values'] *= -1.0
-                teacher_dicts[teacher]['amplitude_times'] -= settings['learning']['reinforce_delta_punish']
+                teacher_dicts[teacher]['amplitude_times'] -= self.settings['learning']['reinforce_delta_punish']
         self.network.set_teachers_input(
             teacher_dicts=teacher_dicts)
 
@@ -103,10 +128,7 @@ class Simulation():
         
         raw_spikes = self.simulate()
         self.time += full_time
-
-        # out_latency = self.evaluation.convert_latency([raw_latency])
-        # y_pred = self.evaluation.predict_from_latency(out_latency)
-        return # int(y_pred[0])
+        return
     
     def run(self, n_episodes=100, n_states_max=10000):
         running_reward = 10
@@ -128,23 +150,22 @@ class Simulation():
         last_reward = 0
         
         self.time = self.settings['network']['start_delta']
-        env.reset()
+        self.env.reset()
 
         nest.Simulate(self.time)
 
         t = trange(n_episodes)
         
         for e in t:
-            state, ep_reward = env.reset(), 0  
+            state, ep_reward = self.env.reset(), 0  
             cust_reward = 0
             
             t.set_postfix({'reward': running_reward, 
                            'last games played': last_reward, 
-                           #'spikes length': self.spikes_length,
                            'counter': counter,
-                           'succces': success})
+                           'succces rate': success})
             
-            if running_reward == 200:
+            if running_reward > 199.9:
                 print("good job")
                 t.close()
                 break
@@ -156,7 +177,7 @@ class Simulation():
                 new_state = [state]
                 new_action = [action]
                 
-                state, reward, done, _ = env.step(action)
+                state, reward, done, _ = self.env.step(action)
                 reward_after_action = self.custom_reward(*state)
 
                 cust_reward += reward_after_action

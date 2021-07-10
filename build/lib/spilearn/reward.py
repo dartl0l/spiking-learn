@@ -11,7 +11,7 @@ class Reward():
         return 1 / cart_pos + 1 / cart_vel + 1 / pole_ang + 1 / pole_ang_vel
 
 
-class RewardWithBoundsNew(Reward):
+class RewardAngle(Reward):
     
     def __init__(self, **kwargs):
         self.cart_pos_bound = kwargs['cart_pos_bound']
@@ -22,7 +22,7 @@ class RewardWithBoundsNew(Reward):
         return self.cart_angle_bound / abs(abs(pole_ang) - self.cart_angle_bound)
 
 
-class RewardWithBounds(Reward):
+class RewardAnglePos(Reward):
     
     def __init__(self, **kwargs):
         self.cart_pos_bound = kwargs['cart_pos_bound']

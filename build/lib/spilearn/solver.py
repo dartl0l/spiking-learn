@@ -244,6 +244,95 @@ class NetworkSolver(Solver):
         return out_dict, weights
 
 
+class SeparateNetworkSolver(NetworkSolver):
+    """solver for separate network
+        TODO: merge weights
+    """
+
+    def __init__(self, network, evaluator, settings, plot=False):
+        super().__init__(network, evaluator, settings)
+        self.plot = plot
+
+    def test_acc(self, data):
+        n_classes = len(set(data['train']['full']['class']))
+
+        class_keys = []
+        for i in range(n_classes):
+            current_class = 'class_' + str(i)
+            mask = data['train']['full']['class'] == i
+            data['train'][current_class] = {}
+            data['train'][current_class]['input'] = data['train']['full']['input'][mask]
+            data['train'][current_class]['class'] = data['train']['full']['class'][mask]
+            class_keys.append(current_class)
+
+        weights_list = []
+        latency_test_list = []
+        latency_valid_list = []
+        latency_test_train_list = []
+        
+
+        data_test = data['test']['full']
+        for class_key in class_keys:
+            data_train = data['train'][class_key]
+
+            weights, latency_train, \
+                devices_train = self.network.train(data_train['input'], data_train['class'])
+            weights_list.append(weights)
+
+            full_latency_test_train, \
+                devices_test_train = self.test_data(data['train']['full'],
+                                                    weights)
+            latency_test_train_list.append(full_latency_test_train)
+
+            full_latency_test, \
+                devices_test = self.test_data(data_test,
+                                              weights)
+            latency_test_list.append(full_latency_test)
+
+            if self.settings['data']['use_valid']:
+                data_valid = data['valid']['full']
+                full_latency_valid, \
+                    devices_valid = self.test_data(data_valid,
+                                                   weights)
+                latency_valid_list.append(full_latency_valid)
+        data_train = data['train']['full']
+        merged_latency_test_train = np.concatenate(latency_test_train_list, axis=1)
+        y_train = self.evaluator.predict_from_latency(merged_latency_test_train)
+        score_train = self.evaluator.prediction_score(data_train['class'],
+                                            y_train)
+
+        fitness_score = 0
+        if self.settings['data']['use_valid']:
+            data_valid = data['valid']['full']
+            merged_latency_valid = np.concatenate(latency_valid_list, axis=1)
+
+            if self.settings['learning']['use_fitness_func']:
+                fitness_score = self.evaluator.fitness(merged_latency_valid, data_valid)
+        else:
+            fitness_score = score_train
+
+        merged_latency_test = np.concatenate(latency_test_list, axis=1)
+        y_test = self.evaluator.predict_from_latency(merged_latency_test)
+        score_test = self.evaluator.prediction_score(data_test['class'],
+                                           y_test)
+
+        out_dict = {
+            'fitness_score': fitness_score,
+            'acc_test': score_test,
+            'acc_train': score_train,
+            'y_test': y_test,
+            'y_train': y_train,
+            'latency_test': merged_latency_test,
+            'latency_train': merged_latency_test_train,
+            'train_classes': data_train['class'],
+            'test_classes': data_test['class'],
+            'devices_test': devices_test,
+            'devices_train': devices_train,
+        }
+
+        return out_dict, weights_list
+
+
 class FrequencyNetworkSolver(NetworkSolver):
     def __init__(self, settings, plot=False):
         self.plot = plot
@@ -266,101 +355,6 @@ class FrequencyNetworkSolver(NetworkSolver):
 
     def predict_from_latency(self, latency_list):
         return np.nanargmax(latency_list, axis=1)
-
-
-class SeparateNetworkSolver(NetworkSolver):
-    """solver for separate network"""
-
-    def __init__(self, settings, plot=False):
-        super().__init__(settings, plot)
-
-    def merge_spikes(self, separate_latency_list):
-        out_latency = []
-        num_neurons = len(separate_latency_list)
-        data_len = len(separate_latency_list[0])
-        for i in range(data_len):
-            tmp_latency = {}
-            for j in range(num_neurons):
-                tmp_latency['neuron_' + str(j)] = separate_latency_list[j][i][0]
-            out_latency.append(tmp_latency)
-        return out_latency
-
-    def test_acc(self, data):
-        n_classes = len(set(data['train']['full']['class']))
-
-        class_keys = []
-        for i in range(n_classes):
-            current_class = 'class_' + str(i)
-            mask = data['train']['full']['class'] == i
-            data['train'][current_class] = {}
-            data['train'][current_class]['input'] = data['train']['full']['input'][mask]
-            data['train'][current_class]['class'] = data['train']['full']['class'][mask]
-            class_keys.append(current_class)
-
-        latency_test_list = []
-        latency_valid_list = []
-        latency_test_train_list = []
-
-        data_test = data['test']['full']
-        for class_key in class_keys:
-            data_train = data['train'][class_key]
-
-            weights, latency_train, \
-                devices_train = self.network.train(data_train['input'], data_train['class'])
-
-            full_latency_test_train, \
-                devices_test_train = self.test_data(data['train']['full'],
-                                                    weights)
-            latency_test_train_list.append(full_latency_test_train)
-
-            full_latency_test, \
-                devices_test = self.test_data(data_test,
-                                              weights)
-            latency_test_list.append(full_latency_test)
-
-            if self.settings['data']['use_valid']:
-                data_valid = data['valid']['full']
-                full_latency_valid, \
-                    devices_valid = self.test_data(data_valid,
-                                                   weights)
-                latency_valid_list.append(full_latency_valid)
-
-        data_train = data['train']['full']
-        merged_latency_test_train = self.merge_spikes(latency_test_train_list)
-        y_train = self.predict_from_latency(merged_latency_test_train)
-        score_train = self.prediction_score(data_train['class'],
-                                            y_train)
-
-        fitness_score = 0
-        if self.settings['data']['use_valid']:
-            data_valid = data['valid']['full']
-            merged_latency_valid = self.merge_spikes(latency_valid_list)
-
-            if self.settings['learning']['use_fitness_func']:
-                fitness_score = self.fitness(merged_latency_valid, data_valid)
-        else:
-            fitness_score = score_train
-
-        merged_latency_test = self.merge_spikes(latency_test_list)
-        y_test = self.predict_from_latency(merged_latency_test)
-        score_test = self.prediction_score(data_test['class'],
-                                           y_test)
-
-        out_dict = {
-            'fitness_score': fitness_score,
-            'acc_test': score_test,
-            'acc_train': score_train,
-            'y_test': y_test,
-            'y_train': y_train,
-            'latency_test': merged_latency_test,
-            'latency_train': merged_latency_test_train,
-            'train_classes': data_train['class'],
-            'test_classes': data_test['class'],
-            'devices_test': devices_test,
-            'devices_train': devices_train,
-        }
-
-        return out_dict, weights
 
 
 class BaseLineSolver(Solver):
@@ -562,12 +556,15 @@ def solve_task(task_path='./', redirect_out=True, filename='settings.json', inpu
     if 'receptive_fields' in settings['data']['conversion']:
         n_coding_neurons = settings['data']['n_coding_neurons']
         sigma = settings['data']['coding_sigma']
+        scale = settings['data']['scale']
         settings['topology']['n_input'] = len(x[0]) * n_coding_neurons
 
-        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to, reverse=reverse, no_last=no_last)
+        converter = ReceptiveFieldsConverter(sigma, 1.0, n_coding_neurons, round_to,
+                                             scale=scale, reverse=reverse, no_last=no_last)
         data = converter.convert(x, y)
     elif 'temporal' in settings['data']['conversion']:
-        converter = TemporalConverter(settings['data']['pattern_length'], round_to, reverse=reverse, no_last=no_last)
+        converter = TemporalConverter(settings['data']['pattern_length'], round_to,
+                                      reverse=reverse, no_last=no_last)
         data = converter.convert(x, y)
         settings['topology']['n_input'] = len(x[0])
 
