@@ -259,22 +259,23 @@ class Plotter():
             plt.show()
 
     def plot_train_latency(self, latency_train, title, show=True):
-        latency_paint = {'latency': [],
-                         'epoch': []}
-
+        latency_paint = []
+        epochs = []
         epoch = 1
 
         for latency in latency_train:
-            if list(latency['latency']):
-                for lat in latency['latency']:
-                    latency_paint['latency'].append(lat)
-                    latency_paint['epoch'].append(epoch)
+            if list(latency['spikes']):
+                for lat in latency['spikes']:
+                    latency_paint.append(lat)
+                    epochs.append(epoch)
             else:
-                latency_paint['latency'].append('nan')
-                latency_paint['epoch'].append(epoch)
+                latency_paint.append('nan')
+                epochs.append(epoch)
             epoch += 1
-
-        plt.plot(latency_paint['epoch'], latency_paint['latency'], 'b.')
+        plt.clf()
+        fig = plt.figure()
+        fig.patch.set_facecolor('white')
+        plt.plot(epochs, latency_paint, 'b.')
         plt.xlabel('Epochs')
         plt.ylabel('Latency')
         plt.title(title)
