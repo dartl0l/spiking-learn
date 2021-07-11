@@ -210,15 +210,15 @@ class Plotter():
         plt.clf()
         fig = plt.figure()
         fig.patch.set_facecolor('white')
-        
+
         plt.xlabel('Time (ms)')
         plt.ylabel('Neuron')
-        
+
         plt.title(title)
         # colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
         #           'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
 #         shapes = ['x', 's', 'd']
-        
+
         classes_set = set(classes)
         for cl in classes_set:
             class_mask = classes == cl
@@ -311,8 +311,8 @@ class Plotter():
         scale = 100
         plt.title(title)
 
-        spike_pos_x = 0
-        spike_pos_y = image_size[1]
+        # spike_pos_x = 0
+        # spike_pos_y = image_size[1]
         new_image = []
         for neuron in image_spikes.keys():
             if image_spikes[neuron]:
@@ -367,7 +367,9 @@ class Plotter():
 
         for parameters, acc in parameters_acc_pairs:
             accs.append(acc)
-            all_params.append([x for _, x in sorted(zip(list(parameters.keys()), list(parameters.values())))])
+            all_params.append([x for _, x in sorted(
+                zip(list(parameters.keys()),
+                    list(parameters.values())))])
 
         plt.title(title)
 
@@ -400,7 +402,7 @@ class Plotter():
         plt.clf()
         fig = plt.figure()
         fig.patch.set_facecolor('white')
-        
+
         # color_shape = ('r.', 'b.', 'g.', 'c.', 'k.', 'm.', 'y.', 'rx', 'bx', 'gx')
         classes_set = set(y)
         for cl in classes_set:
@@ -410,7 +412,7 @@ class Plotter():
         plt.legend()
         if show:
             plt.show()
-            
+
     def plot_latency_pca(self, x, y, max_val, show=True):
         from sklearn.decomposition import PCA
 
