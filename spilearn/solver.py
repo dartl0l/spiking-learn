@@ -5,9 +5,7 @@ import time
 import sys
 import pickle
 
-from math import exp
-
-# import numpy as np
+import numpy as np
 
 from sklearn import preprocessing
 
@@ -18,7 +16,7 @@ from sklearn.decomposition import PCA
 from .network import *
 from .converter import *
 from .evaluation import *
-from .plotter import *
+from .plotter import Plotter
 from .teacher import *
 
 
@@ -42,7 +40,7 @@ class Solver(object):
         data_list = []
         skf = StratifiedKFold(n_splits=self.settings['learning']['n_splits'])
         for train_index, test_index in skf.split(data['input'], data['class']):
-#             print("prepare data")
+            # print("prepare data")
             data_fold = self.prepare_data(data,
                                           train_index,
                                           test_index)
@@ -164,10 +162,10 @@ class NetworkSolver(Solver):
         super().__init__(network, evaluator, settings)
         self.plot = plot
 
-
     def test_data(self, data, weights):
         raw_latency, devices = self.network.test(data['input'], weights)
-        all_latency = self.evaluator.split_spikes_and_senders(raw_latency, len(data['class']))
+        all_latency = self.evaluator.split_spikes_and_senders(
+            raw_latency, len(data['class']))
         out_latency = self.evaluator.convert_latency(all_latency)
         return out_latency, devices
 

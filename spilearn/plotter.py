@@ -155,14 +155,15 @@ class Plotter():
         fig = plt.figure()
         fig.patch.set_facecolor('white')
         neurons = set(spike_detector['senders'])
-        assert len(spike_detector['senders'])  == len(spike_detector['times'])
+        assert len(spike_detector['senders']) == len(spike_detector['times'])
 
         plt.title("Spikes")
         plt.xlabel('Time (ms)')
         plt.ylabel('Neuron')
         for neuron in neurons:
             mask = spike_detector['senders'] == neuron
-            assert len(spike_detector['times'][mask]) == len(spike_detector['senders'][mask])
+            assert len(spike_detector['times'][mask]) \
+                == len(spike_detector['senders'][mask])
             plt.plot(spike_detector['times'][mask],
                      spike_detector['senders'][mask], 'b.')
         # plt.legend()
@@ -184,7 +185,8 @@ class Plotter():
         self.plot_spikes(devices['spike_detector_out'])
         plt.show()
 
-    def plot_devices_limits(self, devices, start, end, plot_last_detector=False):
+    def plot_devices_limits(self, devices, start, end,
+                            plot_last_detector=False):
         self.plot_voltage(devices['voltmeter'])
         plt.xlim(start, end)
         plt.show()

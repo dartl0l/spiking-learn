@@ -538,7 +538,7 @@ class ConvolutionNetwork(EpochNetwork):
         super(ConvolutionNetwork, self).__init__(settings, teacher)
         self.kernel_size = self.settings['topology']['convolution']['kernel_size']
         self.stride = self.settings['topology']['convolution']['stride']
-        self.image_dimension = int(sqrt(self.settings['topology']['n_input']))
+        self.image_dimension = int(math.sqrt(self.settings['topology']['n_input']))
         self.n_combinations = (self.image_dimension - (self.kernel_size - self.stride)) ** 2
         self.n_combination_neurons = self.settings['topology']['n_layer_out'] // self.n_combinations
 
@@ -719,3 +719,40 @@ class FrequencyNetwork(Network):
                 spikes.append(tmp_spikes)
                 d_time += settings['network']['h_time']
         return spike_dict, d_time, spikes
+
+    def create_poisson_noise(self, spikes_list):  # Network
+        dt = 1.0 / 1000.0
+        h = self.settings['network']['h']
+        h_time = self.settings['network']['h_time']
+        epochs = self.settings['learning']['epochs']
+        start = self.settings['network']['start_delta']
+        pattern_length = self.settings['data']['pattern_length']
+        noise_frequency = self.settings['network']['noise_freq']
+
+        num_inputs = len(spikes_list[0])
+
+        num_total_patterns = epochs * len(spikes_list)
+        end = num_total_patterns * h_time + start
+
+        start_pattern_times = np.linspace(start, end, num_total_patterns,
+                                          endpoint=False)
+        end_pattern_times = start_pattern_times + h_time
+        
+        start_noise_times = start_pattern_times + pattern_length
+
+        num_per_pattern = int((end_pattern_times[0] - start_noise_times[0]) / h)
+        times = np.linspace(
+            start_noise_times,
+            end_pattern_times,
+            num_per_pattern,
+            endpoint=False, axis=1).ravel()
+
+        # np.random.random_sample is slow
+        noise_dict = [None] * num_inputs
+        for input_neuron in range(num_inputs):
+            random_distribution_mask = \
+                np.random.random_sample(len(times)) < noise_frequency * dt
+            noise_dict[input_neuron] = {
+                'spike_times': times[random_distribution_mask]
+            }
+        return noise_dict

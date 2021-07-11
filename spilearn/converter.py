@@ -328,8 +328,8 @@ class FrequencyConverter(Converter):
     def __init__(self, pattern_time, firing_rate, dt, h):
         self.pattern_time = pattern_time
         self.firing_rate = firing_rate
-        self.h = h
         self.dt = dt
+        self.h = h
 
     def convert(self, x, y):
         '''
