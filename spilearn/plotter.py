@@ -276,6 +276,10 @@ class Plotter():
                 latency_paint.append('nan')
                 epochs.append(epoch)
             epoch += 1
+        latency_paint = np.array(latency_paint).astype(np.float)
+        lat_min = np.nanmin(np.array(latency_paint).astype(np.float))
+        lat_max = np.nanmax(np.array(latency_paint).astype(np.float))
+        step = np.round((lat_max - lat_min) / 5, 2)
         plt.clf()
         fig = plt.figure()
         fig.patch.set_facecolor('white')
@@ -283,6 +287,7 @@ class Plotter():
         plt.xlabel('Epochs')
         plt.ylabel('Latency')
         plt.title(title)
+        plt.yticks(np.arange(lat_min, lat_max, step=step))
         if show:
             plt.show()
 
