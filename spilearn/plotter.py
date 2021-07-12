@@ -42,9 +42,11 @@ class Plotter():
         ax_rows = int(ceil(sqrt(num_neurons)))
         ax_cols = int(ceil(num_neurons / ax_rows))
         fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=(20, 20))
-
+        if (ax_rows == 1 and ax_cols == 1):
+            axs = np.array(axs)
         for ax, neuron in zip(axs.flat, neurons):
-            current_weights = np.array(weights[neuron]).reshape((rows, columns))
+            current_weights = np.array(weights[neuron]).reshape(
+                (rows, columns))
             ax.matshow(current_weights)
             ax.set_title('Neuron ' + str(neuron) + ' weights')
 
