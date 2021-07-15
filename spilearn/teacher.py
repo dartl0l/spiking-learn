@@ -126,7 +126,8 @@ class TeacherFull(Teacher):
     def __init__(self, settings):
         super(TeacherFull, self).__init__(settings)
 
-    def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
+    def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
+                            teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
         epochs = self.settings['learning']['epochs']
         classes_full = np.tile(classes, epochs)
@@ -153,6 +154,45 @@ class TeacherFull(Teacher):
 
 
 class TeacherInhibitory(Teacher):
+    
+    def __init__(self, settings):
+        super(TeacherInhibitory, self).__init__(settings)
+        
+    def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
+                            teachers, teacher_amplitude):
+        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        # epochs = self.settings['learning']['epochs']
+        # classes_full = np.tile(classes, epochs)
+        teacher_dict = {}
+        for teacher in teachers:
+            teacher_dict[teacher] = {
+                'amplitude_times': np.ndarray([]),
+                'amplitude_values': np.ndarray([])
+            }
+        for cl in set(classes):
+            current_teacher_id = teachers[0] if single_neuron else teachers[cl]
+            class_mask = classes == cl
+            stimulation_start_current = stimulation_start[class_mask]
+            stimulation_end_current = stimulation_end[class_mask]
+            amplitude_times = np.stack((stimulation_start_current,
+                                        stimulation_end_current), axis=-1).flatten()
+            amplitude_values_pos = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
+                                             np.zeros_like(stimulation_end_current)), axis=-1).flatten()
+            amplitude_values_neg = np.stack((np.full_like(stimulation_start_current, -teacher_amplitude),
+                                             np.zeros_like(stimulation_end_current)), axis=-1).flatten()
+            assert len(amplitude_times) == len(stimulation_start[class_mask]) * 2
+            assert len(amplitude_values_pos) == len(stimulation_start[class_mask]) * 2
+            assert len(amplitude_values_neg) == len(stimulation_start[class_mask]) * 2
+            for teacher_id in teachers:
+                if current_teacher_id != teacher_id:
+                    teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
+                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
+                # else:
+                #     teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+        return teacher_dict
+
+
+class TeacherInhibitoryFull(Teacher):
     
     def __init__(self, settings):
         super(TeacherInhibitory, self).__init__(settings)
@@ -195,7 +235,7 @@ class ReinforceTeacher(Teacher):
         self.settings = settings
         
     def create_teacher(self, input_spikes, classes, teachers):  # Network
-#         print("prepare teacher")
+        # print("prepare teacher")
         h = self.settings['network']['h']
         h_time = self.settings['network']['h_time']
 #         start = self.settings['network']['start_delta']
