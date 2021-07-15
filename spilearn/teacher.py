@@ -53,6 +53,33 @@ class Teacher:
         return teacher_dict
 
 
+class TeacherMax(Teacher):
+    def __init__(self, settings):
+        self.settings = settings
+        
+    def create_teacher(self, input_spikes, classes, teachers):  # Network
+        h = self.settings['network']['h']
+        h_time = self.settings['network']['h_time']
+        start = self.settings['network']['start_delta']
+        reinforce_time = self.settings['learning']['reinforce_time']
+        reinforce_delta = self.settings['learning']['reinforce_delta']
+        teacher_amplitude = self.settings['learning']['teacher_amplitude']
+
+        full_time = len(input_spikes) * h_time + start
+        times = np.arange(start, full_time, h_time)
+        pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
+        assert len(input_spikes) == len(pattern_start_times)
+
+        spike_times = np.add(input_spikes, pattern_start_times)
+        stimulation_start = np.nanmax(spike_times, axis=1) + reinforce_delta
+        stimulation_end = stimulation_start + reinforce_time + 2 * h
+        assert len(stimulation_start) == len(spike_times)
+
+        teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
+                                                classes, teachers, teacher_amplitude)
+        return teacher_dict
+
+
 class TeacherFrequency(Teacher):
     
     def __init__(self, settings):
