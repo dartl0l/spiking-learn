@@ -128,7 +128,7 @@ class TeacherFull(Teacher):
 class TeacherInhibitory(Teacher):
     
     def __init__(self, settings):
-        super(TeacherIhnibitory, self).__init__(settings)
+        super(TeacherInhibitory, self).__init__(settings)
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
