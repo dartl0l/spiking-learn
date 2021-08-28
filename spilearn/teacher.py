@@ -52,10 +52,43 @@ class Teacher:
             teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
         return teacher_dict
 
+    
+class TeacherPool(Teacher):
+    def __init__(self, settings):
+        super(TeacherPool, self).__init__(settings)
 
+    def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
+#         single_neuron = self.settings['topology']['n_layer_out'] == 1
+        pool_size = self.settings['learning']['teacher_pool_size']
+        teacher_dict = {}
+        for teacher in teachers:
+            teacher_dict[teacher] = {
+                'amplitude_times': np.ndarray([]),
+                'amplitude_values': np.ndarray([])
+            }
+            
+        assert pool_size * len(set(classes)) == self.settings['topology']['n_layer_out']
+
+        for cl in set(classes):
+            class_mask = classes == cl
+            stimulation_start_current = stimulation_start[class_mask]
+            stimulation_end_current = stimulation_end[class_mask]
+            current_teacher_ids = teachers[cl * pool_size: cl * pool_size + pool_size]
+            amplitude_times = np.stack((stimulation_start_current,
+                                        stimulation_end_current), axis=-1).flatten()
+            amplitude_values = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
+                                         np.zeros_like(stimulation_end_current)), axis=-1).flatten()
+            assert len(amplitude_times) == len(stimulation_start_current) * 2
+            assert len(amplitude_values) == len(stimulation_end_current) * 2
+            for current_teacher_id in current_teacher_ids:
+                teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
+                teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+        return teacher_dict
+
+    
 class TeacherMax(Teacher):
     def __init__(self, settings):
-        self.settings = settings
+        super(TeacherMax, self).__init__(settings)
         
     def create_teacher(self, input_spikes, classes, teachers):  # Network
         h = self.settings['network']['h']

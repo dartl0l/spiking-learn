@@ -5,7 +5,7 @@ from mpi4py import MPI
 class MPINetworkSolver(NetworkSolver):
 
     """solver for network"""
-    def __init__(self, settings, plot=False):
+    def __init__(self, settings):
         super().__init__(settings, plot)
         self.comm = MPI.COMM_WORLD
 
@@ -20,7 +20,7 @@ class MPINetworkSolver(NetworkSolver):
         return out_latency, devices
 
     def test_acc(self, data):
-        plot = Plotter()
+#         plot = Plotter()
 
         data_train = data['train']['full']
         data_for_train = data_train
@@ -31,17 +31,17 @@ class MPINetworkSolver(NetworkSolver):
         weights, latency_train, \
             devices_train = self.network.train(data_for_train['input'], data_for_train['class'])
 
-        if self.plot:
-            plot.plot_devices(devices_train,
-                              self.settings['topology']['two_layers'])
+#         if self.plot:
+#             plot.plot_devices(devices_train,
+#                               self.settings['topology']['two_layers'])
 
         full_latency_test_train, \
             devices_test_train = self.test_data(data_train,
                                                 weights)
 
-        if self.plot:
-            plot.plot_devices(devices_test_train,
-                              self.settings['topology']['two_layers'])
+#         if self.plot:
+#             plot.plot_devices(devices_test_train,
+#                               self.settings['topology']['two_layers'])
 
         y_train = self.predict_from_latency(full_latency_test_train)
         score_train = self.prediction_score(data_train['class'],
@@ -65,9 +65,9 @@ class MPINetworkSolver(NetworkSolver):
             devices_test = self.test_data(data_test,
                                           weights)
 
-        if self.plot:
-            plot.plot_devices(devices_test,
-                              self.settings['topology']['two_layers'])
+#         if self.plot:
+#             plot.plot_devices(devices_test,
+#                               self.settings['topology']['two_layers'])
 
         y_test = self.predict_from_latency(full_latency_test)
         score_test = self.prediction_score(data_test['class'],
@@ -97,8 +97,8 @@ class MPISeparateNetworkSolver(MPINetworkSolver):
 
     """solver for separate network"""
 
-    def __init__(self, settings, plot=False):
-        super().__init__(settings, plot)
+    def __init__(self, settings):
+        super().__init__(settings)
 
     def merge_spikes(self, separate_latency_list):
         out_latency = []

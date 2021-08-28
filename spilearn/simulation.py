@@ -25,7 +25,7 @@ class Simulation():
 
 class CartPoleSimulation(Simulation):
     
-    def __init__(self, env, test_network, scaler, conv, reward, evaluation, teacher, settings):
+    def __init__(self, env, test_network, scaler, conv, reward, evaluation, teacher, settings, learning_rate=0.03):
 
         self.env = env
         self.scaler = scaler
@@ -38,7 +38,8 @@ class CartPoleSimulation(Simulation):
         self.teacher = teacher
         
         self.spikes_length = 0
-        self.lamb = settings['model']['syn_dict_stdp']['lambda']
+        self.learning_rate_default = learning_rate
+        self.learning_rate = learning_rate
         self.teacher_amp = 1.0
         
     def simulate(self):
@@ -57,7 +58,17 @@ class CartPoleSimulation(Simulation):
 
         raw_latency['spikes'] -= self.time
         return raw_latency
-    
+
+    def update_learning_rate(self, learning_rate):
+        connection = nest.GetConnections(
+            self.network.input_layer, 
+            target=self.network.layer_out
+        )
+        nest.SetStatus(
+            connection, 'lambda', 
+            learning_rate
+        )
+
     def run_state(self, state):
         state = self.scaler.transform([state])
         state = self.conv.convert(state, [1])
@@ -72,12 +83,8 @@ class CartPoleSimulation(Simulation):
         self.network.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.network.input_generators)
-        
-        connection = nest.GetConnections(
-            self.network.input_layer, 
-            target=self.network.layer_out
-        )
-        nest.SetStatus(connection, 'lambda', 0.0)
+
+        self.update_learning_rate(0.)
 
         raw_latency = self.simulate()
         self.time += full_time
@@ -86,7 +93,6 @@ class CartPoleSimulation(Simulation):
         y_pred = self.evaluation.predict_from_latency(out_latency)
         return int(y_pred[0])
 
-    
     def learn_states(self, states, actions, inhibit=False):
         states = self.scaler.transform(states)
         states = self.conv.convert(states, actions)
@@ -111,20 +117,12 @@ class CartPoleSimulation(Simulation):
         for teacher in teacher_dicts:
             teacher_dicts[teacher]['amplitude_values'] *= self.teacher_amp
             if inhibit:            
-#             for teacher in teacher_dicts:
                 teacher_dicts[teacher]['amplitude_values'] *= -1.0
                 teacher_dicts[teacher]['amplitude_times'] -= self.settings['learning']['reinforce_delta_punish']
         self.network.set_teachers_input(
             teacher_dicts=teacher_dicts)
 
-        connection = nest.GetConnections(
-            self.network.input_layer, 
-            target=self.network.layer_out
-        )
-        nest.SetStatus(
-            connection, 'lambda', 
-            self.lamb
-        )
+        self.update_learning_rate(self.learning_rate)
         
         raw_spikes = self.simulate()
         self.time += full_time
@@ -141,7 +139,7 @@ class CartPoleSimulation(Simulation):
         amps = []
         
 #         games_played = collections.deque(maxlen=5)
-        lamb = lambda reward : self.settings['model']['syn_dict_stdp']['lambda'] * (1 - reward / 200)
+        learning_rate = lambda reward : self.learning_rate_default * (1 - reward / 200)
 
         counter = 0
         success = 0
@@ -195,10 +193,10 @@ class CartPoleSimulation(Simulation):
                 punish = reward_before_action < reward_after_action
                 delta_reward = reward_after_action - reward_before_action
 
-                self.lamb = lamb(last_reward)
+                self.learning_rate = learning_rate(last_reward)
                 self.teacher_amp = (1 - last_reward / 200)
 
-                lambdas.append(self.lamb)
+                lambdas.append(self.learning_rate)
                 amps.append(self.teacher_amp * self.settings['learning']['teacher_amplitude'])
                 self.learn_states(new_state, new_action, inhibit=punish)
             

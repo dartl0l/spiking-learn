@@ -4,6 +4,9 @@ import nest
 import math
 import numpy as np
 
+from tqdm import trange
+
+nest.set_verbosity('M_QUIET')
 
 class Network:
     """base class for different network types"""
@@ -16,7 +19,11 @@ class Network:
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
     def reset_spike_detectors(self):
+        nest.SetStatus(self.spike_detector_input, {'n_events': 0})
         nest.SetStatus(self.spike_detector_out, {'n_events': 0})
+
+    def reset_voltmeter(self):
+        nest.SetStatus(self.voltmeter, {'n_events': 0})
 
     def set_input_spikes(self, spike_dict, spike_generators):
         assert len(spike_dict) == len(spike_generators)
@@ -30,7 +37,7 @@ class Network:
         nest.SetStatus(spike_generators, noise_dict)
 
     def create_spike_dict(self, dataset, train, threads=48, delta=0):
-        from concurrent.futures import ThreadPoolExecutor
+#         from concurrent.futures import ThreadPoolExecutor
         delta = self.start_delta
         epochs = self.settings['learning']['epochs'] if train else 1
         pattern_start_shape = (len(dataset[0]), 1)
@@ -39,18 +46,22 @@ class Network:
         full_time = full_length * self.h_time + delta
 
         assert len(spikes) == full_length
-        input_list = []
-        for i in range(0, full_length, threads):
-            start_id = i
-            end_id = i + threads if (i + threads) < full_length else full_length
-            current_spikes = spikes[start_id:end_id]
-            start = start_id * self.h_time + delta
-            end = end_id * self.h_time + delta
-            input_list.append((current_spikes, start, end, pattern_start_shape))
+#         input_list = []
+#         for i in range(0, full_length, threads):
+#             start_id = i
+#             end_id = i + threads if (i + threads) < full_length else full_length
+#             current_spikes = spikes[start_id:end_id]
+#             start = start_id * self.h_time + delta
+#             end = end_id * self.h_time + delta
+#             input_list.append((current_spikes, start, end, pattern_start_shape))
 
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            spike_times = np.concatenate(tuple(executor.map(
-                lambda p: self.create_spike_times(*p), input_list)))
+#         with ThreadPoolExecutor(max_workers=threads) as executor:
+#             spike_times = np.concatenate(tuple(executor.map(
+#                 lambda p: self.create_spike_times(*p), input_list)))
+            
+        spike_times = self.create_spike_times(
+            dataset, delta, full_time, pattern_start_shape
+        )
 
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
@@ -304,7 +315,7 @@ class Network:
             spike_generators=self.input_generators)
 
         if self.teacher:
-            assert len(self.teacher_layer) == len(set(y))
+#             assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=input_spikes,
                 classes=y,
@@ -385,26 +396,30 @@ class Network:
 
 
 class EpochNetwork(Network):
-    def __init__(self, settings, teacher=None):
-        super(EpochNetwork, self).__init__(settings, teacher)
+    def __init__(self, settings, teacher=None, progress=True):
+        super().__init__(settings, teacher)
+        self.progress = progress
 
     def create_spike_dict(self, dataset, threads=48, delta=0.0):
-        from concurrent.futures import ThreadPoolExecutor
+#         from concurrent.futures import ThreadPoolExecutor
         pattern_start_shape = (len(dataset[0]), 1)
         full_time = len(dataset) * self.h_time + delta
 
-        input_list = []
-        for i in range(0, len(dataset), threads):
-            start_id = i
-            end_id = i + threads if (i + threads) < len(dataset) else len(dataset)
-            start = start_id * self.h_time + delta
-            end = end_id * self.h_time + delta
-            current_spikes = dataset[start_id:end_id]
-            input_list.append((current_spikes, start, end, pattern_start_shape))
+#         input_list = []
+#         for i in range(0, len(dataset), threads):
+#             start_id = i
+#             end_id = i + threads if (i + threads) < len(dataset) else len(dataset)
+#             start = start_id * self.h_time + delta
+#             end = end_id * self.h_time + delta
+#             current_spikes = dataset[start_id:end_id]
+#             input_list.append((current_spikes, start, end, pattern_start_shape))
 
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            spike_times = np.concatenate(tuple(executor.map(
-                lambda p: self.create_spike_times(*p), input_list)))
+#         with ThreadPoolExecutor(max_workers=threads) as executor:
+#             spike_times = np.concatenate(tuple(executor.map(
+#                 lambda p: self.create_spike_times(*p), input_list)))
+        spike_times = self.create_spike_times(
+            dataset, delta, full_time, pattern_start_shape
+        )
 
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
@@ -435,11 +450,11 @@ class EpochNetwork(Network):
 
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
-            threads=self.settings['network']['num_threads'],
+#             threads=self.settings['network']['num_threads'],
             delta=self.start_delta)
 
         if self.teacher:
-            assert len(self.teacher_layer) == len(set(y))
+#             assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=x,
                 classes=y,
@@ -458,7 +473,9 @@ class EpochNetwork(Network):
         # print("start simulation")
         # split by epochs
         # nest.Prepare()
-        for epoch in range(self.settings['learning']['epochs']):
+        t = trange(self.settings['learning']['epochs']) if self.progress \
+            else range(self.settings['learning']['epochs'])
+        for epoch in t:
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
@@ -508,7 +525,7 @@ class EpochNetwork(Network):
 
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
-            threads=self.settings['network']['num_threads'],
+#             threads=self.settings['network']['num_threads'],
             delta=self.start_delta)
         self.set_input_spikes(
             spike_dict=spike_dict,
@@ -535,7 +552,7 @@ class EpochNetwork(Network):
 
 class ConvolutionNetwork(EpochNetwork):
     def __init__(self, settings, teacher=None):
-        super(ConvolutionNetwork, self).__init__(settings, teacher)
+        super().__init__(settings, teacher)
         self.kernel_size = self.settings['topology']['convolution']['kernel_size']
         self.stride = self.settings['topology']['convolution']['stride']
         self.image_dimension = int(math.sqrt(self.settings['topology']['n_input']))
@@ -598,7 +615,7 @@ class ConvolutionNetwork(EpochNetwork):
 
 class TwoLayerNetwork(Network):
     def __init__(self, settings, teacher=None):
-        super(TwoLayerNetwork, self).__init__(settings, teacher)
+        super().__init__(settings, teacher)
         self.synapse_models = [settings['model']['syn_dict_stdp_hid']['model'],
                                settings['model']['syn_dict_stdp']['model']]
 
@@ -692,7 +709,7 @@ class TwoLayerNetwork(Network):
 class FrequencyNetwork(Network):
     """base class for different network types"""
     def __init__(self, settings, teacher=None):
-        super(FrequencyNetwork, self).__init__(settings, teacher)
+        super().__init__(settings, teacher)
         self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
 
     def create_spike_dict(self, dataset, train, threads=48, delta=0.0):

@@ -128,7 +128,30 @@ class Evaluation:
             score = f1_score(y, prediction, average='micro')
         return score
 
-    
+
+class EvaluationPool(Evaluation):
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.pool_size = self.settings['learning']['teacher_pool_size']
+
+    def convert_latency(self, latency_list):
+        output_array = []
+        n_neurons = self.settings['topology']['n_layer_out']
+        for latencies in latency_list:
+            tmp_list = [np.nan] * n_neurons
+            senders = set(latencies['senders'])
+            for sender in senders:
+                mask = latencies['senders'] == sender
+                tmp_list[sender - 1] = latencies['spikes'][mask][0]
+            output_array.append(tmp_list)
+        output_array = np.array(output_array).reshape(
+            len(output_array),
+            int(n_neurons / self.pool_size),
+            self.pool_size)
+        output_array = np.mean(output_array, axis=2)
+        return output_array
+
+
 class DiehlEvaluation(Evaluation):
     
     def __init__(self, settings):

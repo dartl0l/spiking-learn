@@ -13,11 +13,11 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.datasets import load_iris, load_breast_cancer, load_digits
 from sklearn.decomposition import PCA
 
+from .teacher import *
 from .network import *
 from .converter import *
 from .evaluation import *
 from .plotter import Plotter
-from .teacher import *
 
 
 class Solver(object):
@@ -41,9 +41,9 @@ class Solver(object):
         skf = StratifiedKFold(n_splits=self.settings['learning']['n_splits'])
         for train_index, test_index in skf.split(data['input'], data['class']):
             # print("prepare data")
-            data_fold = self.prepare_data(data,
-                                          train_index,
-                                          test_index)
+            data_fold = self.prepare_data(
+                data, train_index, test_index
+            )
             data_list.append(data_fold)
         return data_list
 
@@ -100,9 +100,7 @@ class Solver(object):
 
     def test_acc_cv(self, data):
         data_list = self.split_data(data)
-
         fold_map = map(self.test_acc, data_list)
-
         out_dict = self.create_result_dict(fold_map)
         return out_dict
 
@@ -158,9 +156,8 @@ class Solver(object):
 
 class NetworkSolver(Solver):
     """solver for network"""
-    def __init__(self, network, evaluator, settings, plot=False):
+    def __init__(self, network, evaluator, settings):
         super().__init__(network, evaluator, settings)
-        self.plot = plot
 
     def test_data(self, data, weights):
         raw_latency, devices = self.network.test(data['input'], weights)
@@ -170,61 +167,76 @@ class NetworkSolver(Solver):
         return out_latency, devices
 
     def test_acc(self, data):
-        plot = Plotter()
-
-        data_train = data['train']['full']
         data_for_train = data['train']['full']
         if self.settings['learning']['reverse_learning']:
+            data_train = data['train']['full']
             data_for_train['input'] = np.nanmax(data_train['input']) - data_train['input']
             assert data_for_train['input'].shape == data_train['input'].shape
 
         weights, latency_train, \
-            devices_train = self.network.train(data_for_train['input'], data_for_train['class'])
+            devices_train = self.network.train(
+                data_for_train['input'],
+                data_for_train['class']
+        )
 
-        if self.plot:
-            plot.plot_devices(devices_train,
-                              self.settings['topology']['two_layers'])
+#         if self.plot:
+#             plot.plot_devices(
+#                 devices_train,
+#                 self.settings['topology']['two_layers']
+#             )
 
         full_latency_test_train, \
-            devices_test_train = self.test_data(data_train,
-                                                weights)
+            devices_test_train = self.test_data(
+                data_for_train, weights
+        )
 
-        if self.plot:
-            plot.plot_devices(devices_test_train,
-                              self.settings['topology']['two_layers'])
+#         if self.plot:
+#             plot.plot_devices(
+#                 devices_test_train,
+#                 self.settings['topology']['two_layers']
+#             )
 
-        y_train = self.evaluator.predict_from_latency(full_latency_test_train)
-        score_train = self.evaluator.prediction_score(data_train['class'],
-                                                      y_train)
+        y_train = self.evaluator.predict_from_latency(
+            full_latency_test_train)
+        
+        score_train = self.evaluator.prediction_score(
+            data_for_train['class'], y_train)
 
         fitness_score = 0
         if self.settings['data']['use_valid']:
             data_valid = data['valid']['full']
             full_latency_valid, \
-                devices_valid = self.test_data(data_valid,
-                                               weights)
+                devices_valid = self.test_data(
+                    data_valid, weights
+            )
 
             if self.settings['learning']['use_fitness_func']:
-                fitness_score = self.evaluator.fitness(full_latency_valid,
-                                                       data_valid)
+                fitness_score = self.evaluator.fitness(
+                    full_latency_valid, data_valid
+                )
         elif self.settings['learning']['use_fitness_func']:
-            fitness_score = self.evaluator.fitness(full_latency_test_train,
-                                                   data_train)
+            fitness_score = self.evaluator.fitness(
+                full_latency_test_train, data_for_train
+            )
         else:
             fitness_score = score_train
 
         data_test = data['test']['full']
         full_latency_test, \
-            devices_test = self.test_data(data_test,
-                                          weights)
+            devices_test = self.test_data(
+                data_test, weights
+        )
 
-        if self.plot:
-            plot.plot_devices(devices_test,
-                              self.settings['topology']['two_layers'])
+#         if self.plot:
+#             plot.plot_devices(
+#                 devices_test, 
+#                 self.settings['topology']['two_layers']
+#             )
 
-        y_test = self.evaluator.predict_from_latency(full_latency_test)
-        score_test = self.evaluator.prediction_score(data_test['class'],
-                                                     y_test)
+        y_test = self.evaluator.predict_from_latency(
+            full_latency_test)
+        score_test = self.evaluator.prediction_score(
+            data_test['class'], y_test)
 
         out_dict = {
                     'fitness_score': fitness_score,
@@ -234,7 +246,7 @@ class NetworkSolver(Solver):
                     'y_train': y_train,
                     'latency_test': full_latency_test,
                     'latency_train': full_latency_test_train,
-                    'train_classes': data_train['class'],
+                    'train_classes': data_for_train['class'],
                     'test_classes': data_test['class'],
                     'devices_test': devices_test,
                     'devices_train': devices_train,
@@ -248,9 +260,9 @@ class SeparateNetworkSolver(NetworkSolver):
         TODO: merge weights
     """
 
-    def __init__(self, network, evaluator, settings, plot=False):
+    def __init__(self, network, evaluator, settings):
         super().__init__(network, evaluator, settings)
-        self.plot = plot
+#         self.plot = plot
 
     def test_acc(self, data):
         n_classes = len(set(data['train']['full']['class']))
