@@ -220,8 +220,8 @@ class TeacherInhibitory(Teacher):
                 if current_teacher_id != teacher_id:
                     teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
                     teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
-                # else:
-                #     teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+                else:
+                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
         return teacher_dict
 
 
@@ -258,8 +258,8 @@ class TeacherInhibitoryFull(Teacher):
                 if current_teacher_id != teacher_id:
                     teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
                     teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
-                # else:
-                #     teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+                else:
+                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
         return teacher_dict
 
 
