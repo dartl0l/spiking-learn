@@ -462,3 +462,34 @@ class Plotter():
             plt.legend()
         if show:
             plt.show()
+            
+    def plot_repeating_patterns(self, latency_train, title, show=True):
+        latency_paint = []
+        epochs = []
+        epoch = 1
+
+        for latency in latency_train:
+            if list(latency['spikes']):
+                for lat in latency['spikes']:
+                    latency_paint.append(lat)
+                    epochs.append(epoch)
+            else:
+                latency_paint.append('nan')
+                epochs.append(epoch)
+            epoch += 1
+        latency_paint = np.array(latency_paint).astype(float)
+        lat_min = np.nanmin(np.array(latency_paint).astype(float))
+        lat_max = np.nanmax(np.array(latency_paint).astype(float))
+        step = np.round((lat_max - lat_min) / 5, 2)
+        plt.clf()
+        fig = plt.figure()
+        fig.patch.set_facecolor('white')
+        plt.plot(epochs, latency_paint, 'b.')
+        plt.xlabel('Numbers of presenting input pattern')
+        plt.ylabel('Latency')
+        plt.title(title)
+    #     plt.yticks(np.arange(lat_min, lat_max, step=step))
+        if show:
+            plt.show()
+
+

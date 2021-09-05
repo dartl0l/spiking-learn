@@ -24,7 +24,36 @@ class Network:
 
     def reset_voltmeter(self):
         nest.SetStatus(self.voltmeter, {'n_events': 0})
+    
+    def reset_teachers(self):
+        for teacher in self.teacher_layer:
+            nest.SetStatus([teacher], {
+                    'amplitude_times': [],
+                    'amplitude_values': []
+                })
 
+    def disconnect_layers(self):
+        layers_conn = nest.GetConnections(
+            self.input_layer,
+            self.layer_out, 
+            self.settings['model']['syn_dict_stdp']['model'])
+        if layers_conn:
+            nest.Disconnect(
+                self.input_layer,
+                self.layer_out, 'all_to_all',
+                syn_spec=self.settings['model']['syn_dict_stdp'])
+
+    def disconnect_layers_static(self):
+        layers_static_conn = nest.GetConnections(
+            self.input_layer,
+            self.layer_out, 
+            'static_synapse')
+        if layers_static_conn:
+            nest.Disconnect(
+                self.input_layer,
+                self.layer_out, 'all_to_all',
+                syn_spec='static_synapse')
+    
     def set_input_spikes(self, spike_dict, spike_generators):
         assert len(spike_dict) == len(spike_generators)
         nest.SetStatus(spike_generators, spike_dict)
@@ -60,7 +89,7 @@ class Network:
 #                 lambda p: self.create_spike_times(*p), input_list)))
             
         spike_times = self.create_spike_times(
-            dataset, delta, full_time, pattern_start_shape
+            spikes, delta, full_time, pattern_start_shape
         )
 
         spike_dict = [None] * len(dataset[0])
@@ -400,23 +429,10 @@ class EpochNetwork(Network):
         super().__init__(settings, teacher)
         self.progress = progress
 
-    def create_spike_dict(self, dataset, threads=48, delta=0.0):
-#         from concurrent.futures import ThreadPoolExecutor
+    def create_spike_dict(self, dataset, delta=0.0):
         pattern_start_shape = (len(dataset[0]), 1)
         full_time = len(dataset) * self.h_time + delta
 
-#         input_list = []
-#         for i in range(0, len(dataset), threads):
-#             start_id = i
-#             end_id = i + threads if (i + threads) < len(dataset) else len(dataset)
-#             start = start_id * self.h_time + delta
-#             end = end_id * self.h_time + delta
-#             current_spikes = dataset[start_id:end_id]
-#             input_list.append((current_spikes, start, end, pattern_start_shape))
-
-#         with ThreadPoolExecutor(max_workers=threads) as executor:
-#             spike_times = np.concatenate(tuple(executor.map(
-#                 lambda p: self.create_spike_times(*p), input_list)))
         spike_times = self.create_spike_times(
             dataset, delta, full_time, pattern_start_shape
         )
@@ -430,14 +446,10 @@ class EpochNetwork(Network):
         return spike_dict, full_time
 
     def train(self, x, y):
-        # print("start train")
-        # print("create network")
-
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        # print("connect")
         self.connect_devices()
         self.connect_teacher()
         self.connect_layers()
@@ -450,11 +462,9 @@ class EpochNetwork(Network):
 
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
-#             threads=self.settings['network']['num_threads'],
             delta=self.start_delta)
 
         if self.teacher:
-#             assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=x,
                 classes=y,
@@ -469,10 +479,6 @@ class EpochNetwork(Network):
                 noise_dict,
                 self.interpattern_noise_generator)
 
-        # nest.PrintNetwork()
-        # print("start simulation")
-        # split by epochs
-        # nest.Prepare()
         t = trange(self.settings['learning']['epochs']) if self.progress \
             else range(self.settings['learning']['epochs'])
         for epoch in t:
@@ -489,7 +495,6 @@ class EpochNetwork(Network):
             if self.teacher:
                 for teacher in teacher_dicts:
                     teacher_dicts[teacher]['amplitude_times'] += full_time
-        # nest.Cleanup()
 
         weights = self.save_weights(self.layers)
         output = {
@@ -504,20 +509,15 @@ class EpochNetwork(Network):
         return weights, output, devices
 
     def test(self, x, weights):
-        # print("start test")
-
-        # print("create network")
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        # print("connect")
         self.connect_devices()
         self.connect_layers_static()
         if self.settings['topology']['use_inhibition'] \
                 and self.settings['network']['test_with_inhibition']:
             self.connect_layers_inh()
-        # print("set status")
         self.set_neuron_status()
         if self.settings['network']['test_with_noise']:
             self.set_noise()
@@ -525,17 +525,12 @@ class EpochNetwork(Network):
 
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
-#             threads=self.settings['network']['num_threads'],
             delta=self.start_delta)
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
         
-        # nest.PrintNetwork()
-        # print("start test simulation")
         nest.Simulate(full_time)
-
-        # print(nest.GetStatus(self.voltmeter))
 
         output = {
                   'spikes': nest.GetStatus(
@@ -547,6 +542,165 @@ class EpochNetwork(Network):
                  }
 
         devices = self.get_devices()
+        return output, devices
+
+    
+class FastEpochNetwork(EpochNetwork):
+    def __init__(self, settings, teacher=None, progress=True):
+        super().__init__(settings, teacher, progress)
+        self.init_network()
+        self.create_layers()
+        self.create_devices()
+        
+        self.connect_devices()
+        self.time_elapsed = 0
+
+    def get_devices(self):
+        voltmeter = nest.GetStatus(
+            self.voltmeter, keys="events")[0]
+        voltmeter['times'] -= self.time_elapsed
+        
+        spike_detector_out = nest.GetStatus(
+            self.spike_detector_out, keys="events")[0]
+        spike_detector_out['times'] -= self.time_elapsed
+        
+        spike_detector_input = nest.GetStatus(
+            self.spike_detector_input, keys="events")[0]
+        spike_detector_input['times'] -= self.time_elapsed
+        
+        devices = {
+                    'voltmeter': voltmeter,
+                    'spike_detector_out': spike_detector_out,
+                    'spike_detector_input': spike_detector_input
+                   }
+        return devices
+
+    def train(self, x, y):
+        self.reset_spike_detectors()
+        self.reset_voltmeter()
+        self.reset_teachers()
+
+        self.disconnect_layers()
+        self.disconnect_layers_static()
+
+        self.connect_teacher()
+        self.connect_layers()
+        
+        if self.settings['topology']['use_inhibition']:
+            self.connect_layers_inh()
+
+        self.set_neuron_status()
+        if not self.settings['network']['noise_after_pattern']:
+            self.set_noise()
+
+        spike_dict, full_time = self.create_spike_dict(
+            dataset=x,
+            delta=self.start_delta)
+
+        if self.teacher:
+            teacher_dicts = self.teacher.create_teacher(
+                input_spikes=x,
+                classes=y,
+                teachers=self.teacher_layer)
+        if self.settings['learning']['threshold']:
+            nest.SetStatus(
+                self.layer_out, 
+                {'V_th': self.settings['learning']['threshold']})
+        if self.settings['network']['noise_after_pattern']:
+            noise_dict = self.create_poisson_noise(x)
+            self.set_poisson_noise(
+                noise_dict,
+                self.interpattern_noise_generator)
+
+        for spikes in spike_dict:
+            spikes['spike_times'] += self.time_elapsed
+        if self.teacher:
+            for teacher in teacher_dicts:
+                teacher_dicts[teacher]['amplitude_times'] += self.time_elapsed
+
+        t = trange(self.settings['learning']['epochs']) if self.progress \
+            else range(self.settings['learning']['epochs'])
+        time = 0
+        for epoch in t:
+            self.set_input_spikes(
+                spike_dict=spike_dict,
+                spike_generators=self.input_generators)
+            if self.teacher:
+                self.set_teachers_input(
+                    teacher_dicts)
+            nest.Simulate(full_time)
+            time += full_time
+            
+            for spikes in spike_dict:
+                spikes['spike_times'] += full_time
+            if self.teacher:
+                for teacher in teacher_dicts:
+                    teacher_dicts[teacher]['amplitude_times'] += full_time
+
+        weights = self.save_weights(self.layers)
+        spikes = nest.GetStatus(
+            self.spike_detector_out,
+            keys="events")[0]['times']
+        senders = nest.GetStatus(
+             self.spike_detector_out,
+             keys="events")[0]['senders']
+
+        output = {
+                  'spikes': spikes,
+                  'senders': senders
+                 }
+        devices = self.get_devices()
+        self.time_elapsed += time
+        
+        return weights, output, devices
+
+    def test(self, x, weights):
+        self.reset_spike_detectors()
+        self.reset_voltmeter()
+        self.reset_teachers()
+
+        self.disconnect_layers()
+        self.disconnect_layers_static()
+        
+        self.connect_layers_static()
+        self.layers_static_connected = True
+        if self.settings['topology']['use_inhibition'] \
+                and self.settings['network']['test_with_inhibition']:
+            self.connect_layers_inh()
+
+        self.set_neuron_status()
+        if self.settings['network']['test_with_noise']:
+            self.set_noise()
+        self.set_weights(weights)
+
+        spike_dict, full_time = self.create_spike_dict(
+            dataset=x,
+            delta=self.start_delta)
+        
+        for spikes in spike_dict:
+            spikes['spike_times'] += self.time_elapsed
+        
+        self.set_input_spikes(
+            spike_dict=spike_dict,
+            spike_generators=self.input_generators)
+
+        nest.Simulate(full_time)
+       
+        spikes = nest.GetStatus(
+            self.spike_detector_out,
+            keys="events")[0]['times'] - self.time_elapsed
+
+        senders = nest.GetStatus(
+             self.spike_detector_out,
+             keys="events")[0]['senders']
+
+        output = {
+                  'spikes': spikes,
+                  'senders': senders
+                 }
+
+        devices = self.get_devices()
+        self.time_elapsed += full_time
         return output, devices
 
 
