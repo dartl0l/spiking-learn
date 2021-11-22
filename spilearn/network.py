@@ -16,14 +16,14 @@ class Network:
         self.teacher = teacher
         self.h_time = settings['network']['h_time']
         self.start_delta = settings['network']['start_delta']
-        self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
+        self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
 
     def reset_spike_detectors(self):
         nest.SetStatus(self.spike_detector_input, {'n_events': 0})
         nest.SetStatus(self.spike_detector_out, {'n_events': 0})
 
     def reset_voltmeter(self):
-        nest.SetStatus(self.voltmeter, {'n_events': 0})
+        nest.SetStatus(self.multimeter, {'n_events': 0})
     
     def reset_teachers(self):
         for teacher in self.teacher_layer:
@@ -36,7 +36,7 @@ class Network:
         layers_conn = nest.GetConnections(
             self.input_layer,
             self.layer_out, 
-            self.settings['model']['syn_dict_stdp']['model'])
+            self.settings['model']['syn_dict_stdp']['synapse_model'])
         if layers_conn:
             nest.Disconnect(
                 self.input_layer,
@@ -60,7 +60,7 @@ class Network:
 
     def set_teachers_input(self, teacher_dicts):
         for teacher in teacher_dicts:
-            nest.SetStatus([teacher], teacher_dicts[teacher])
+            nest.SetStatus(teacher, teacher_dicts[teacher])
 
     def set_poisson_noise(self, noise_dict, spike_generators):
         nest.SetStatus(spike_generators, noise_dict)
@@ -152,11 +152,11 @@ class Network:
         for neuron_1 in layer:
             for neuron_2 in layer:
                 if neuron_1 != neuron_2:
-                    nest.Connect([neuron_1], [neuron_2], syn_spec=syn_dict)
+                    nest.Connect(neuron_1, neuron_2, syn_spec=syn_dict)
     
     def get_devices(self):
         devices = {
-                    'voltmeter': nest.GetStatus(self.voltmeter,
+                    'multimeter': nest.GetStatus(self.multimeter,
                                                 keys="events")[0],
                     'spike_detector_out': nest.GetStatus(
                         self.spike_detector_out, keys="events")[0],
@@ -165,10 +165,10 @@ class Network:
                    }
         return devices
 
-    def get_spikes_of_pattern(self, spike_detector, estimated_time, 
+    def get_spikes_of_pattern(self, spike_recorder, estimated_time, 
                               example_class):
-        spikes = nest.GetStatus(spike_detector, keys="events")[0]['times']
-        senders = nest.GetStatus(spike_detector, keys="events")[0]['senders']
+        spikes = nest.GetStatus(spike_recorder, keys="events")[0]['times']
+        senders = nest.GetStatus(spike_recorder, keys="events")[0]['senders']
         mask = spikes > estimated_time
         spikes = spikes[mask]
         senders = senders[mask]
@@ -216,9 +216,10 @@ class Network:
         nest.SetKernelStatus({
              'local_num_threads': self.settings['network']['num_threads'],
              'total_num_virtual_procs': num_v_procs,
-             'resolution': self.settings['network']['h'],
-             'rng_seeds': range(rng, rng + num_v_procs)
+             'resolution': self.settings['network']['h']
         })
+
+        nest.rng_seeds = range(rng, rng + num_v_procs)
 
     def create_layers(self):
         self.layer_out = nest.Create(
@@ -248,15 +249,12 @@ class Network:
             'poisson_generator', 
             self.settings['topology']['n_input'])
 
-        self.spike_detector_out = nest.Create('spike_detector')
-        self.spike_detector_input = nest.Create('spike_detector')
+        self.spike_detector_out = nest.Create('spike_recorder')
+        self.spike_detector_input = nest.Create('spike_recorder')
 
-        self.voltmeter = nest.Create(
-            'voltmeter', 1,
-            {
-             'withgid': True,
-             'withtime': True
-            }
+        self.multimeter = nest.Create(
+            'multimeter', 1,
+            {'record_from': ['V_m']}
         )
 
     def connect_devices(self):
@@ -273,22 +271,25 @@ class Network:
         nest.Connect(self.input_layer,
                      self.spike_detector_input,
                      'all_to_all')
-        nest.Connect(self.voltmeter,
+        nest.Connect(self.multimeter,
                      self.layer_out)
 
     def connect_teacher(self):
         nest.Connect(self.teacher_layer,
-                     self.layer_out, 'one_to_one',
+                     self.layer_out, 
+                     'one_to_one',
                      syn_spec='static_synapse')
 
     def connect_layers(self):
         nest.Connect(self.input_layer,
-                     self.layer_out, 'all_to_all',
+                     self.layer_out, 
+                     conn_spec={'rule': 'all_to_all'},
                      syn_spec=self.settings['model']['syn_dict_stdp'])
 
     def connect_layers_static(self):
         nest.Connect(self.input_layer,
-                     self.layer_out, 'all_to_all',
+                     self.layer_out, 
+                     'all_to_all',
                      syn_spec='static_synapse')
 
     def connect_layers_inh(self):
@@ -409,7 +410,7 @@ class Network:
         # print("start test simulation")
         nest.Simulate(full_time)
 
-        # print(nest.GetStatus(self.voltmeter))
+        # print(nest.GetStatus(self.multimeter))
 
         output = {
                   'spikes': nest.GetStatus(
@@ -465,6 +466,7 @@ class EpochNetwork(Network):
             delta=self.start_delta)
 
         if self.teacher:
+            print(self.teacher_layer.get())
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=x,
                 classes=y,
@@ -556,9 +558,9 @@ class FastEpochNetwork(EpochNetwork):
         self.time_elapsed = 0
 
     def get_devices(self):
-        voltmeter = nest.GetStatus(
-            self.voltmeter, keys="events")[0]
-        voltmeter['times'] -= self.time_elapsed
+        multimeter = nest.GetStatus(
+            self.multimeter, keys="events")[0]
+        multimeter['times'] -= self.time_elapsed
         
         spike_detector_out = nest.GetStatus(
             self.spike_detector_out, keys="events")[0]
@@ -569,7 +571,7 @@ class FastEpochNetwork(EpochNetwork):
         spike_detector_input['times'] -= self.time_elapsed
         
         devices = {
-                    'voltmeter': voltmeter,
+                    'multimeter': multimeter,
                     'spike_detector_out': spike_detector_out,
                     'spike_detector_input': spike_detector_input
                    }
@@ -770,8 +772,8 @@ class ConvolutionNetwork(EpochNetwork):
 class TwoLayerNetwork(Network):
     def __init__(self, settings, teacher=None):
         super().__init__(settings, teacher)
-        self.synapse_models = [settings['model']['syn_dict_stdp_hid']['model'],
-                               settings['model']['syn_dict_stdp']['model']]
+        self.synapse_models = [settings['model']['syn_dict_stdp_hid']['synapse_model'],
+                               settings['model']['syn_dict_stdp']['synapse_model']]
 
     def create_layers(self):
         self.layer_out = nest.Create(self.settings['model']['neuron_out_model'], 
@@ -784,10 +786,10 @@ class TwoLayerNetwork(Network):
 
     def create_devices(self):
         super().create_devices()
-        self.spike_detector_hidden = nest.Create('spike_detector')
+        self.spike_detector_hidden = nest.Create('spike_recorder')
 
         self.voltmeter_hidden = nest.Create(
-            'voltmeter', 1,
+            'multimeter', 1,
             {
              'withgid': True,
              'withtime': True
@@ -828,7 +830,7 @@ class TwoLayerNetwork(Network):
 
     def get_devices(self):
         devices = {
-                    'voltmeter': nest.GetStatus(self.voltmeter,
+                    'multimeter': nest.GetStatus(self.multimeter,
                                                 keys="events")[0],
                     'voltmeter_hidden': nest.GetStatus(self.voltmeter_hidden,
                                                        keys="events")[0],
@@ -864,7 +866,7 @@ class FrequencyNetwork(Network):
     """base class for different network types"""
     def __init__(self, settings, teacher=None):
         super().__init__(settings, teacher)
-        self.synapse_models = [settings['model']['syn_dict_stdp']['model']]
+        self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
 
     def create_spike_dict(self, dataset, train, threads=48, delta=0.0):
         print("prepare spikes freq")
