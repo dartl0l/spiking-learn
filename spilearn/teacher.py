@@ -223,17 +223,17 @@ class TeacherInhibitory(Teacher):
             assert len(amplitude_values_neg) == len(stimulation_start[class_mask]) * 2
             for teacher_id in teachers:
                 if current_teacher_id != teacher_id:
-                    teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
-                else:
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_neg
+                # else:
+                #     teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_pos
         return teacher_dict
 
 
 class TeacherInhibitoryFull(Teacher):
     
     def __init__(self, settings):
-        super(TeacherInhibitory, self).__init__(settings)
+        super(TeacherInhibitoryFull, self).__init__(settings)
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
@@ -261,10 +261,10 @@ class TeacherInhibitoryFull(Teacher):
             assert len(amplitude_values_neg) == len(stimulation_start[class_mask]) * 2
             for teacher_id in teachers:
                 if current_teacher_id != teacher_id:
-                    teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
-                else:
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_neg
+                # else:
+                #     teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_pos
         return teacher_dict
 
 
@@ -317,7 +317,7 @@ class ReinforceTeacher(Teacher):
                                          np.zeros_like(stimulation_end_current)), axis=-1).flatten()
             assert len(amplitude_times) == len(stimulation_start_current) * 2
             assert len(amplitude_values) == len(stimulation_end_current) * 2
-            teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
-            teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_values'] = amplitude_values
         return teacher_dict
 
