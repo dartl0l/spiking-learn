@@ -212,8 +212,6 @@ class Network:
         return weights
 
     def init_network(self):
-        # print("init network")
-
         np.random.seed()
         # rank = nest.Rank()
         rng = np.random.randint(500)
