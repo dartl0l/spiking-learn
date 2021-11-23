@@ -4,6 +4,9 @@ import numpy as np
 
 
 class Teacher:
+    '''
+    Teacher signal generator for EpochNetwork class
+    '''
     def __init__(self, settings):
         self.settings = settings
         
@@ -155,7 +158,9 @@ class TeacherFrequency(Teacher):
 
 
 class TeacherFull(Teacher):
-
+    '''
+    Teacher signal generator for Network class
+    '''
     def __init__(self, settings):
         super(TeacherFull, self).__init__(settings)
 

@@ -26,8 +26,12 @@ class Network:
         nest.SetStatus(self.multimeter, {'n_events': 0})
     
     def reset_teachers(self):
-        for teacher in self.teacher_layer:
-            nest.SetStatus([teacher], {
+        # for teacher in self.teacher_layer:
+        #     nest.SetStatus(teacher, {
+        #             'amplitude_times': [],
+        #             'amplitude_values': []
+        #         })
+        self.teacher_layer.set({
                     'amplitude_times': [],
                     'amplitude_values': []
                 })
@@ -59,8 +63,9 @@ class Network:
         nest.SetStatus(spike_generators, spike_dict)
 
     def set_teachers_input(self, teacher_dicts):
-        for teacher in teacher_dicts:
-            nest.SetStatus(teacher, teacher_dicts[teacher])
+        # for teacher in teacher_dicts:
+        #     nest.SetStatus(teacher, teacher_dicts[teacher])
+        self.teacher_layer.set(list(teacher_dicts.values()))
 
     def set_poisson_noise(self, noise_dict, spike_generators):
         nest.SetStatus(spike_generators, noise_dict)
@@ -180,6 +185,9 @@ class Network:
         return tmp_dict
 
     def save_weights(self, layers):
+        '''
+        replace wuth something like np.array
+        '''
         synapse_models = self.synapse_models
 
         weights = {}
@@ -193,14 +201,14 @@ class Network:
                 tmp_weight = []
                 for input_id in previous_layer:
                     conn = nest.GetConnections(
-                        [input_id], [neuron_id], 
+                        input_id, neuron_id, 
                         synapse_model=synapse_model
                     )
                     weight_one = nest.GetStatus(conn, 'weight')
                     if len(weight_one) != 0:
                         tmp_weight.append(weight_one[0])
                 if len(tmp_weight) != 0:
-                    weights[layer_name][neuron_id] = tmp_weight
+                    weights[layer_name][neuron_id.get('global_id')] = tmp_weight
         return weights
 
     def init_network(self):
@@ -312,19 +320,16 @@ class Network:
     def set_weights(self, weights):
         for neuron_id in weights['layer_0']:
             connection = nest.GetConnections(
-                self.input_layer, target=[neuron_id])
+                self.input_layer, 
+                target=nest.NodeCollection([neuron_id]))
             nest.SetStatus(connection, 'weight', 
                            weights['layer_0'][neuron_id])
 
     def train(self, x, y):
-        # print("start train")
-        # print("create network")
-
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        # print("connect")
         self.connect_devices()
         self.connect_teacher()
         self.connect_layers()
@@ -361,8 +366,6 @@ class Network:
                 noise_dict,
                 self.interpattern_noise_generator)
 
-        # nest.PrintNetwork()
-#         print("start simulation")
         nest.Simulate(full_time)
 
         weights = self.save_weights(self.layers)
@@ -378,20 +381,16 @@ class Network:
         return weights, output, devices
 
     def test(self, x, weights):
-        #         print("start test")
-
-        #         print("create network")
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        #         print("connect")
         self.connect_devices()
         self.connect_layers_static()
         if self.settings['topology']['use_inhibition'] \
                 and self.settings['network']['test_with_inhibition']:
             self.connect_layers_inh()
-        # print("set status")
+
         self.set_neuron_status()
         if self.settings['network']['test_with_noise']:
             self.set_noise()
@@ -406,11 +405,7 @@ class Network:
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
         
-        # nest.PrintNetwork()
-        # print("start test simulation")
         nest.Simulate(full_time)
-
-        # print(nest.GetStatus(self.multimeter))
 
         output = {
                   'spikes': nest.GetStatus(
@@ -466,7 +461,6 @@ class EpochNetwork(Network):
             delta=self.start_delta)
 
         if self.teacher:
-            print(self.teacher_layer.get())
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=x,
                 classes=y,
