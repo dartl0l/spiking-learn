@@ -18,6 +18,16 @@ class Network:
         self.start_delta = settings['network']['start_delta']
         self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
 
+    def _create_parameters(self, parameters):
+        for parameter in parameters:
+            for param in parameters[parameter]:
+                if isinstance(parameters[parameter][param], dict):
+                    if 'type' in parameters[parameter][param] and 'specs' in parameters[parameter][param]:
+                        parameters[parameter][param] = nest.CreateParameter(
+                            parameters[parameter][param]['type'],
+                            parameters[parameter][param]['specs'],
+                        )
+
     def reset_spike_detectors(self):
         nest.SetStatus(self.spike_detector_input, {'n_events': 0})
         nest.SetStatus(self.spike_detector_out, {'n_events': 0})
