@@ -65,8 +65,7 @@ class Network:
     def set_poisson_noise(self, noise_dict, spike_generators):
         nest.SetStatus(spike_generators, noise_dict)
 
-    def create_spike_dict(self, dataset, train, threads=48, delta=0):
-#         from concurrent.futures import ThreadPoolExecutor
+    def create_spike_dict(self, dataset, train, delta=0):
         delta = self.start_delta
         epochs = self.settings['learning']['epochs'] if train else 1
         pattern_start_shape = (len(dataset[0]), 1)
@@ -75,19 +74,6 @@ class Network:
         full_time = full_length * self.h_time + delta
 
         assert len(spikes) == full_length
-#         input_list = []
-#         for i in range(0, full_length, threads):
-#             start_id = i
-#             end_id = i + threads if (i + threads) < full_length else full_length
-#             current_spikes = spikes[start_id:end_id]
-#             start = start_id * self.h_time + delta
-#             end = end_id * self.h_time + delta
-#             input_list.append((current_spikes, start, end, pattern_start_shape))
-
-#         with ThreadPoolExecutor(max_workers=threads) as executor:
-#             spike_times = np.concatenate(tuple(executor.map(
-#                 lambda p: self.create_spike_times(*p), input_list)))
-            
         spike_times = self.create_spike_times(
             spikes, delta, full_time, pattern_start_shape
         )
@@ -204,10 +190,8 @@ class Network:
         return weights
 
     def init_network(self):
-        # print("init network")
 
         np.random.seed()
-        # rank = nest.Rank()
         rng = np.random.randint(500)
         num_v_procs = self.settings['network']['num_threads'] \
             * self.settings['network']['num_procs']
@@ -316,14 +300,10 @@ class Network:
                            weights['layer_0'][neuron_id])
 
     def train(self, x, y):
-        # print("start train")
-        # print("create network")
-
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        # print("connect")
         self.connect_devices()
         self.connect_teacher()
         self.connect_layers()
@@ -344,7 +324,6 @@ class Network:
             spike_generators=self.input_generators)
 
         if self.teacher:
-#             assert len(self.teacher_layer) == len(set(y))
             teacher_dicts = self.teacher.create_teacher(
                 input_spikes=input_spikes,
                 classes=y,
@@ -360,8 +339,6 @@ class Network:
                 noise_dict,
                 self.interpattern_noise_generator)
 
-        # nest.PrintNetwork()
-#         print("start simulation")
         nest.Simulate(full_time)
 
         weights = self.save_weights(self.layers)
@@ -377,20 +354,16 @@ class Network:
         return weights, output, devices
 
     def test(self, x, weights):
-        #         print("start test")
-
-        #         print("create network")
         self.init_network()
         self.create_layers()
         self.create_devices()
 
-        #         print("connect")
         self.connect_devices()
         self.connect_layers_static()
         if self.settings['topology']['use_inhibition'] \
                 and self.settings['network']['test_with_inhibition']:
             self.connect_layers_inh()
-        # print("set status")
+
         self.set_neuron_status()
         if self.settings['network']['test_with_noise']:
             self.set_noise()
@@ -405,11 +378,7 @@ class Network:
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
         
-        # nest.PrintNetwork()
-        # print("start test simulation")
         nest.Simulate(full_time)
-
-        # print(nest.GetStatus(self.voltmeter))
 
         output = {
                   'spikes': nest.GetStatus(

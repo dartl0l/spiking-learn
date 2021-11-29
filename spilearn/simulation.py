@@ -68,6 +68,15 @@ class CartPoleSimulation(Simulation):
             connection, 'lambda', 
             learning_rate
         )
+        
+    def set_noise(self, noise_freq):
+        nest.SetStatus(
+            self.poisson_layer,
+            {
+             'rate': noise_freq,
+             'origin': 0.0
+            }
+        )
 
     def run_state(self, state):
         state = self.scaler.transform([state])
@@ -75,7 +84,6 @@ class CartPoleSimulation(Simulation):
 
         spike_dict, full_time = self.network.create_spike_dict(
             dataset=state['input'],
-            threads=self.settings['network']['num_threads'],
             delta=0.0)
         for spikes in spike_dict:
             spikes['spike_times'] += self.time
@@ -102,7 +110,6 @@ class CartPoleSimulation(Simulation):
         spike_dict, \
         full_time = self.network.create_spike_dict(
             dataset=states['input'],
-            threads=self.settings['network']['num_threads'],
             delta=0.0)
 
         teacher_dicts = self.teacher.create_teacher(
@@ -123,7 +130,7 @@ class CartPoleSimulation(Simulation):
             teacher_dicts=teacher_dicts)
 
         self.update_learning_rate(self.learning_rate)
-        
+
         raw_spikes = self.simulate()
         self.time += full_time
         return

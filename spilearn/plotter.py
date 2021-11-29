@@ -1,5 +1,8 @@
 # coding: utf-8
 
+
+import csv
+
 import numpy as np
 from math import cos, sin, pi, ceil, sqrt
 
@@ -492,4 +495,29 @@ class Plotter():
         if show:
             plt.show()
 
+    def save_latency_to_csv(latency, epochs, filename):
+        with open(filename, 'w', encoding='UTF8') as f:
+            writer = csv.writer(f)
+            writer.writerow(latency)
+            writer.writerow(epochs)
+
+    def plot_latency_from_csv(filename, title):
+        epochs = []
+        latency_paint = []
+        with open(filename) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            for i, row in enumerate(csv_reader):
+                if i == 0:
+                    latency_paint = row
+                if i == 1:
+                    epochs = row
+        latency_paint = np.array(latency_paint).astype(float)
+        plt.clf()
+        fig = plt.figure()
+        fig.patch.set_facecolor('white')
+        plt.plot(epochs, latency_paint, 'b.')
+        plt.xlabel('Numbers of presenting input pattern')
+        plt.ylabel('Latency')
+        plt.title(title)
+        plt.show()
 

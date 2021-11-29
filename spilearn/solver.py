@@ -340,8 +340,17 @@ class SeparateNetworkSolver(NetworkSolver):
             'devices_test': devices_test,
             'devices_train': devices_train,
         }
+            
+        weights = {}
 
-        return out_dict, weights_list
+        for i, weight in enumerate(weights_list):
+            size_layers = len(weight)
+            for layer in weight:
+                if not layer in weights: weights[layer] = {}
+                for neuron in weight[layer]:
+                    weights[layer][neuron + i * size_layers] = weight[layer][neuron]
+
+        return out_dict, weights
 
 
 class FrequencyNetworkSolver(NetworkSolver):
