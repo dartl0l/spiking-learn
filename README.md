@@ -48,7 +48,7 @@ here is example of settings file for Fisher's Iris Classification settings.json
         },
         "syn_dict_inh": {
             "weight": -5,
-            "model": "static_synapse"
+            "synapse_model": "static_synapse"
         },
         "syn_dict_stdp_hid": {
             "weight": {
@@ -60,7 +60,7 @@ here is example of settings file for Fisher's Iris Classification settings.json
             "lambda": 0.03,
             "tau_plus": 10.429564842488617,
             "mu_minus": 0.0,
-            "model": "stdp_synapse",
+            "synapse_model": "stdp_synapse",
             "Wmax": {
                 "sigma": 0.0,
                 "mu": 1.0,
@@ -89,7 +89,7 @@ here is example of settings file for Fisher's Iris Classification settings.json
             "lambda": 0.03,
             "tau_plus": 6.0,
             "mu_minus": 0.0,
-            "model": "stdp_synapse",
+            "synapse_model": "stdp_synapse",
             "Wmax": {
                 "sigma": 0.0,
                 "mu": 1.0,

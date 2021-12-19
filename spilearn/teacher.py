@@ -4,6 +4,9 @@ import numpy as np
 
 
 class Teacher:
+    '''
+    Teacher signal generator for EpochNetwork class
+    '''
     def __init__(self, settings):
         self.settings = settings
         
@@ -32,7 +35,7 @@ class Teacher:
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
         teacher_dict = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
@@ -48,8 +51,8 @@ class Teacher:
                                          np.zeros_like(stimulation_end_current)), axis=-1).flatten()
             assert len(amplitude_times) == len(stimulation_start_current) * 2
             assert len(amplitude_values) == len(stimulation_end_current) * 2
-            teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
-            teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_values'] = amplitude_values
         return teacher_dict
 
     
@@ -61,7 +64,7 @@ class TeacherPool(Teacher):
 #         single_neuron = self.settings['topology']['n_layer_out'] == 1
         pool_size = self.settings['learning']['teacher_pool_size']
         teacher_dict = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
@@ -81,8 +84,8 @@ class TeacherPool(Teacher):
             assert len(amplitude_times) == len(stimulation_start_current) * 2
             assert len(amplitude_values) == len(stimulation_end_current) * 2
             for current_teacher_id in current_teacher_ids:
-                teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
-                teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+                teacher_dict[current_teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+                teacher_dict[current_teacher_id.get('global_id')]['amplitude_values'] = amplitude_values
         return teacher_dict
 
     
@@ -129,7 +132,7 @@ class TeacherFrequency(Teacher):
         teacher_amplitude = self.settings['learning']['teacher_amplitude']
 
         teacher_dicts = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dicts[teacher] = {
                                       'amplitude_times': [],
                                       'amplitude_values': []
@@ -139,7 +142,7 @@ class TeacherFrequency(Teacher):
         for _ in range(epochs):
             for spikes, cl in zip(input_spikes, classes):
                 current_teacher_id = teachers[0] if single_neuron else teachers[cl]
-                current_teacher = teacher_dicts[current_teacher_id]
+                current_teacher = teacher_dicts[current_teacher_id.get('global_id')]
                 start_of_stimulation = d_time \
                     + reinforce_delta
                 end_of_stimulation = start_of_stimulation \
@@ -155,7 +158,9 @@ class TeacherFrequency(Teacher):
 
 
 class TeacherFull(Teacher):
-
+    '''
+    Teacher signal generator for Network class
+    '''
     def __init__(self, settings):
         super(TeacherFull, self).__init__(settings)
 
@@ -165,7 +170,7 @@ class TeacherFull(Teacher):
         epochs = self.settings['learning']['epochs']
         classes_full = np.tile(classes, epochs)
         teacher_dict = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
@@ -181,8 +186,8 @@ class TeacherFull(Teacher):
                                          np.zeros_like(stimulation_end_current)), axis=-1).flatten()
             assert len(amplitude_times) == len(stimulation_start_current) * 2
             assert len(amplitude_values) == len(stimulation_end_current) * 2
-            teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
-            teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_values'] = amplitude_values
         return teacher_dict
 
 
@@ -197,7 +202,7 @@ class TeacherInhibitory(Teacher):
         # epochs = self.settings['learning']['epochs']
         # classes_full = np.tile(classes, epochs)
         teacher_dict = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
@@ -218,24 +223,24 @@ class TeacherInhibitory(Teacher):
             assert len(amplitude_values_neg) == len(stimulation_start[class_mask]) * 2
             for teacher_id in teachers:
                 if current_teacher_id != teacher_id:
-                    teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
-                else:
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_neg
+                # else:
+                #     teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_pos
         return teacher_dict
 
 
 class TeacherInhibitoryFull(Teacher):
     
     def __init__(self, settings):
-        super(TeacherInhibitory, self).__init__(settings)
+        super(TeacherInhibitoryFull, self).__init__(settings)
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
         epochs = self.settings['learning']['epochs']
         classes_full = np.tile(classes, epochs)
         teacher_dict = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
@@ -256,10 +261,10 @@ class TeacherInhibitoryFull(Teacher):
             assert len(amplitude_values_neg) == len(stimulation_start[class_mask]) * 2
             for teacher_id in teachers:
                 if current_teacher_id != teacher_id:
-                    teacher_dict[teacher_id]['amplitude_times'] = amplitude_times
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_neg
-                else:
-                    teacher_dict[teacher_id]['amplitude_values'] = amplitude_values_pos
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+                    teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_neg
+                # else:
+                #     teacher_dict[teacher_id.get('global_id')]['amplitude_values'] = amplitude_values_pos
         return teacher_dict
 
 
@@ -293,7 +298,7 @@ class ReinforceTeacher(Teacher):
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.settings['topology']['n_layer_out'] == 1
         teacher_dict = {}
-        for teacher in teachers:
+        for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
@@ -312,7 +317,7 @@ class ReinforceTeacher(Teacher):
                                          np.zeros_like(stimulation_end_current)), axis=-1).flatten()
             assert len(amplitude_times) == len(stimulation_start_current) * 2
             assert len(amplitude_values) == len(stimulation_end_current) * 2
-            teacher_dict[current_teacher_id]['amplitude_times'] = amplitude_times
-            teacher_dict[current_teacher_id]['amplitude_values'] = amplitude_values
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_times'] = amplitude_times
+            teacher_dict[current_teacher_id.get('global_id')]['amplitude_values'] = amplitude_values
         return teacher_dict
 
