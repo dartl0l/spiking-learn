@@ -346,7 +346,8 @@ class SeparateNetworkSolver(NetworkSolver):
         for i, weight in enumerate(weights_list):
             size_layers = len(weight)
             for layer in weight:
-                if not layer in weights: weights[layer] = {}
+                if not layer in weights: 
+                    weights[layer] = {}
                 for neuron in weight[layer]:
                     weights[layer][neuron + i * size_layers] = weight[layer][neuron]
 
