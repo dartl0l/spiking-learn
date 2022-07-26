@@ -57,6 +57,68 @@ class Plotter():
         if show:
             plt.show()
 
+    def plot_weights_2d_cart_pole(weights, rows, columns, show=True):
+        actions = ('Difference between right and left neurons', 'Left neuron', 'Right neuron')
+        state = ['$x$', '$\dot{x}$','$\\theta$', '$\dot{\\theta}$']
+        value = list(map(str, [-1., -0.5, 0, 0.5, 1.]))
+        ticks = [0, 4, 9, 14, 19]
+
+        neurons = weights.keys()
+        num_neurons = len(weights.keys())
+
+        ax_rows = int(ceil(sqrt(num_neurons)))
+        ax_cols = int(ceil(num_neurons / ax_rows))
+
+        plt.clf()
+        fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=(20, 16))
+
+        if (ax_rows == 1 and ax_cols == 1):
+            axs = np.array(axs)
+        for ax, neuron in zip(axs.flat, neurons):
+            current_weights = np.array(weights[neuron]).reshape(
+                (rows, columns))
+    #         ax.text(-1, -1, 'C', fontsize=28)
+            weight_img = ax.matshow(current_weights)
+            fig.colorbar(weight_img, ax=ax, anchor=(0, 0.3), shrink=0.2 * len(neurons))
+            ax.set_title(actions[neuron] + ' weights')
+            ax.set_yticklabels([''] + state)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels(value)
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_weights_2d_cart_pole_rus(weights, rows, columns, show=True):
+        actions = ('Разница весов', 'Левый нейрон', 'Правый нейрон')
+        state = ['$x$', '$\dot{x}$','$\\theta$', '$\dot{\\theta}$']
+        value = list(map(str, [-1., -0.5, 0, 0.5, 1.]))
+        ticks = [0, 4, 9, 14, 19]
+
+        neurons = weights.keys()
+        num_neurons = len(weights.keys())
+
+        ax_rows = int(ceil(sqrt(num_neurons)))
+        ax_cols = int(ceil(num_neurons / ax_rows))
+
+        plt.clf()
+        fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=(20, 16))
+
+        if (ax_rows == 1 and ax_cols == 1):
+            axs = np.array(axs)
+        for ax, neuron in zip(axs.flat, neurons):
+            current_weights = np.array(weights[neuron]).reshape(
+                (rows, columns))
+    #         ax.text(-1, -1, 'C', fontsize=28)
+            weight_img = ax.matshow(current_weights)
+            fig.colorbar(weight_img, ax=ax, anchor=(0, 0.3), shrink=0.2 * len(neurons))
+            ax.set_title(actions[neuron])
+            ax.set_yticklabels([''] + state)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels(value)
+
+        plt.tight_layout()
+        plt.show()
+
     def plot_weights(self, weights, show=True):
         plt.clf()
         fig = plt.figure()
@@ -174,11 +236,11 @@ class Plotter():
         # plt.legend()
 
     def plot_devices(self, devices, plot_last_detector=False):
-        self.plot_voltage(devices['voltmeter'])
+        self.plot_voltage(devices['multimeter'])
         plt.show()
         
         if plot_last_detector:
-            self.plot_voltage(devices['voltmeter_hidden'], False)
+            self.plot_voltage(devices['multimeter_hidden'], False)
             plt.show()
 
             self.plot_spikes(devices['spike_detector_hidden'])
@@ -192,12 +254,12 @@ class Plotter():
 
     def plot_devices_limits(self, devices, start, end,
                             plot_last_detector=False):
-        self.plot_voltage(devices['voltmeter'])
+        self.plot_voltage(devices['multimeter'])
         plt.xlim(start, end)
         plt.show()
 
         if plot_last_detector:
-            self.plot_voltage(devices['voltmeter_hidden'])
+            self.plot_voltage(devices['multimeter_hidden'])
             plt.xlim(start, end)
             plt.show()
 
@@ -452,7 +514,7 @@ class Plotter():
         fig.patch.set_facecolor('white')
 
         plt.title("Reward history")
-        plt.xlabel('Espisode')
+        plt.xlabel('Episode')
         plt.ylabel('Reward (Games played)')
         episodes = reward_history[0]
         reward_history = reward_history[1:]
@@ -495,13 +557,13 @@ class Plotter():
         if show:
             plt.show()
 
-    def save_latency_to_csv(latency, epochs, filename):
+    def save_latency_to_csv(self, latency, epochs, filename):
         with open(filename, 'w', encoding='UTF8') as f:
             writer = csv.writer(f)
             writer.writerow(latency)
             writer.writerow(epochs)
 
-    def plot_latency_from_csv(filename, title):
+    def plot_latency_from_csv(self, filename, title):
         epochs = []
         latency_paint = []
         with open(filename) as csv_file:
@@ -521,3 +583,48 @@ class Plotter():
         plt.title(title)
         plt.show()
 
+    def plot_reward(self, reward_history, name, suptitle="", start=0, end=100):
+        plt.clf()
+        fig = plt.figure(figsize=(10,5))
+        fig.patch.set_facecolor('white')
+
+        plt.xlim(start, end)
+        plt.suptitle(suptitle, x=0)
+        plt.title("Reward history")
+        plt.xlabel('Episode')
+        plt.ylabel('Reward (Steps played)')
+        episodes = reward_history[0]
+        reward_history = reward_history[1:]
+        labels = ('Steps per episode', 'Running reward')#, 'Custom reward', 'Lambda')
+        for reward, label in zip(reward_history, labels):
+            plt.plot(episodes,
+                     reward,
+                     linewidth=3,
+                     label=label)
+
+        plt.legend(loc=4)
+        plt.savefig(path + '/images/reward_history_' + name + '.png', bbox_inches='tight')
+        plt.show()
+        
+    def plot_reward_rus(self, reward_history, name, start=0, end=100):
+        plt.clf()
+        fig = plt.figure(figsize=(12,12))
+        fig.patch.set_facecolor('white')
+
+        plt.xlim(start, end)
+        plt.suptitle("A", x=0)
+        plt.title("История награды")
+        plt.xlabel('Эпизод')
+        plt.ylabel('Награда (Шагов сыграно)')
+        episodes = reward_history[0]
+        reward_history = reward_history[1:]
+        labels = ('Шагов за эпизод', 'Бегущая награда')#, 'Custom reward', 'Lambda')
+        for reward, label in zip(reward_history, labels):
+            plt.plot(episodes,
+                     reward,
+                     linewidth=3,
+                     label=label)
+
+        plt.legend(loc=4)
+        plt.savefig(path + '/images/reward_history_' + name + '_rus.png', bbox_inches='tight')
+        plt.show()

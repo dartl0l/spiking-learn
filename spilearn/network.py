@@ -17,16 +17,18 @@ class Network:
         self.h_time = settings['network']['h_time']
         self.start_delta = settings['network']['start_delta']
         self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
+        self._create_parameters(settings['model'])
 
     def _create_parameters(self, parameters):
         for parameter in parameters:
-            for param in parameters[parameter]:
-                if isinstance(parameters[parameter][param], dict):
-                    if 'type' in parameters[parameter][param] and 'specs' in parameters[parameter][param]:
-                        parameters[parameter][param] = nest.CreateParameter(
-                            parameters[parameter][param]['type'],
-                            parameters[parameter][param]['specs'],
-                        )
+            if not isinstance(parameters[parameter], str):
+                for param in parameters[parameter]:
+                    if isinstance(parameters[parameter][param], dict):
+                        if 'type' in parameters[parameter][param] and 'specs' in parameters[parameter][param]:
+                            parameters[parameter][param] = nest.CreateParameter(
+                                parameters[parameter][param]['type'],
+                                parameters[parameter][param]['specs'],
+                            )
 
     def reset_spike_detectors(self):
         nest.SetStatus(self.spike_detector_input, {'n_events': 0})
@@ -180,31 +182,56 @@ class Network:
                     }
         return tmp_dict
 
+#     def save_weights(self, layers):
+#         '''
+#         replace wuth something like np.array
+#         '''
+#         synapse_models = self.synapse_models
+
+#         weights = {}
+
+#         for i, layer in enumerate(self.layers[1:]):
+#             synapse_model = synapse_models[i]
+#             previous_layer = self.layers[i]
+#             layer_name = 'layer_' + str(i)
+#             weights[layer_name] = {}
+#             for neuron_id in layer:
+#                 tmp_weight = []
+#                 for input_id in previous_layer:
+#                     conn = nest.GetConnections(
+#                         input_id, neuron_id, 
+#                         synapse_model=synapse_model
+#                     )
+#                     weight_one = nest.GetStatus(conn, 'weight')
+#                     if len(weight_one) != 0:
+#                         tmp_weight.append(weight_one[0])
+#                 if len(tmp_weight) != 0:
+#                     weights[layer_name][neuron_id.get('global_id')] = tmp_weight
+#         return weights
+
+
     def save_weights(self, layers):
-        '''
-        replace wuth something like np.array
-        '''
         synapse_models = self.synapse_models
 
-        weights = {}
+        weights = [None] * len(self.layers[1:])
 
         for i, layer in enumerate(self.layers[1:]):
             synapse_model = synapse_models[i]
             previous_layer = self.layers[i]
-            layer_name = 'layer_' + str(i)
-            weights[layer_name] = {}
-            for neuron_id in layer:
+            weights[i] = {}
+            for neuron_id in layer.tolist():
                 tmp_weight = []
-                for input_id in previous_layer:
+                for input_id in previous_layer.tolist():
                     conn = nest.GetConnections(
-                        input_id, neuron_id, 
+                        nest.NodeCollection([input_id]), 
+                        nest.NodeCollection([neuron_id]), 
                         synapse_model=synapse_model
                     )
                     weight_one = nest.GetStatus(conn, 'weight')
                     if len(weight_one) != 0:
                         tmp_weight.append(weight_one[0])
                 if len(tmp_weight) != 0:
-                    weights[layer_name][neuron_id.get('global_id')] = tmp_weight
+                    weights[i][neuron_id] = tmp_weight
         return weights
 
     def init_network(self):
@@ -220,7 +247,7 @@ class Network:
              'resolution': self.settings['network']['h']
         })
 
-        nest.rng_seeds = range(rng, rng + num_v_procs)
+        nest.rng_seed = rng#range(rng, rng + num_v_procs)
 
     def create_layers(self):
         self.layer_out = nest.Create(
@@ -311,12 +338,20 @@ class Network:
         )
 
     def set_weights(self, weights):
-        for neuron_id in weights['layer_0']:
-            connection = nest.GetConnections(
-                self.input_layer, 
-                target=nest.NodeCollection([neuron_id]))
-            nest.SetStatus(connection, 'weight', 
-                           weights['layer_0'][neuron_id])
+        for layer_weights in weights:
+            for neuron_id in layer_weights:
+                connection = nest.GetConnections(
+                    self.input_layer, target=nest.NodeCollection([neuron_id]))
+                neuron_weights = layer_weights[neuron_id]
+                nest.SetStatus(connection, 'weight', neuron_weights)
+        
+#     def set_weights(self, weights):
+#         for neuron_id in weights['layer_0']:
+#             connection = nest.GetConnections(
+#                 self.input_layer, 
+#                 target=nest.NodeCollection([neuron_id]))
+#             nest.SetStatus(connection, 'weight', 
+#                            weights['layer_0'][neuron_id])
 
     def train(self, x, y):
         self.init_network()
@@ -549,44 +584,43 @@ class EpochNetwork(Network):
         devices = self.get_devices()
         return output, devices
 
-    def save_weights(self, layers):
-        synapse_models = self.synapse_models
+#     def save_weights(self, layers):
+#         synapse_models = self.synapse_models
 
-        weights = [None] * len(self.layers[1:])
+#         weights = [None] * len(self.layers[1:])
 
-        for i, layer in enumerate(self.layers[1:]):
-            synapse_model = synapse_models[i]
-            previous_layer = self.layers[i]
-            weights[i] = {}
-            for neuron_id in layer:
-                tmp_weight = []
-                for input_id in previous_layer:
-                    conn = nest.GetConnections(
-                        [input_id], [neuron_id], 
-                        synapse_model=synapse_model
-                    )
-                    weight_one = nest.GetStatus(conn, 'weight')
-                    if len(weight_one) != 0:
-                        tmp_weight.append(weight_one[0])
-                if len(tmp_weight) != 0:
-                    weights[i][neuron_id] = tmp_weight
-        return weights
+#         for i, layer in enumerate(self.layers[1:]):
+#             synapse_model = synapse_models[i]
+#             previous_layer = self.layers[i]
+#             weights[i] = {}
+#             for neuron_id in layer:
+#                 tmp_weight = []
+#                 for input_id in previous_layer:
+#                     conn = nest.GetConnections(
+#                         [input_id], [neuron_id], 
+#                         synapse_model=synapse_model
+#                     )
+#                     weight_one = nest.GetStatus(conn, 'weight')
+#                     if len(weight_one) != 0:
+#                         tmp_weight.append(weight_one[0])
+#                 if len(tmp_weight) != 0:
+#                     weights[i][neuron_id] = tmp_weight
+#         return weights
 
-    def set_weights(self, weights):
-        for layer_weights in weights:
-            for neuron_id in layer_weights:
-                connection = nest.GetConnections(
-                    self.input_layer, target=[neuron_id])
-                neuron_weights = layer_weights[neuron_id]
-                nest.SetStatus(connection, 'weight', neuron_weights)
+#     def set_weights(self, weights):
+#         for layer_weights in weights:
+#             for neuron_id in layer_weights:
+#                 connection = nest.GetConnections(
+#                     self.input_layer, target=[neuron_id])
+#                 neuron_weights = layer_weights[neuron_id]
+#                 nest.SetStatus(connection, 'weight', neuron_weights)
 
 
-class NormalizeEpochNetwork(EpochNetwork):
+class NormalizeEpochNetwork(Network):
     def __init__(self, settings, teacher=None, progress=True):
-        super().__init__(settings, teacher, progress)
+        super().__init__(settings, teacher)
         self.progress = progress
         self.normalize_weights = True
-
         
     def normalize(self, w_target=8):
         weights_all = self.save_weights(self.layers)
@@ -597,6 +631,22 @@ class NormalizeEpochNetwork(EpochNetwork):
                 w = w_target * w_norm
                 layer_weights[neuron] = w
         self.set_weights(weights_all)
+
+    def create_spike_dict(self, dataset, delta=0.0):
+        pattern_start_shape = (len(dataset[0]), 1)
+        full_time = len(dataset) * self.h_time + delta
+
+        spike_times = self.create_spike_times(
+            dataset, delta, full_time, pattern_start_shape
+        )
+
+        spike_dict = [None] * len(dataset[0])
+        for input_neuron in range(len(dataset[0])):
+            tmp_spikes = spike_times[:, input_neuron]
+            spike_dict[input_neuron] = {
+                'spike_times': tmp_spikes[np.isfinite(tmp_spikes)]
+            }
+        return spike_dict, full_time
 
     def train(self, x, y):
         self.init_network()
@@ -666,6 +716,42 @@ class NormalizeEpochNetwork(EpochNetwork):
                  }
         devices = self.get_devices()
         return weights, output, devices
+
+    def test(self, x, weights):
+        self.init_network()
+        self.create_layers()
+        self.create_devices()
+
+        self.connect_devices()
+        self.connect_layers_static()
+        if self.settings['topology']['use_inhibition'] \
+                and self.settings['network']['test_with_inhibition']:
+            self.connect_layers_inh()
+        self.set_neuron_status()
+        if self.settings['network']['test_with_noise']:
+            self.set_noise()
+        self.set_weights(weights)
+
+        spike_dict, full_time = self.create_spike_dict(
+            dataset=x,
+            delta=self.start_delta)
+        self.set_input_spikes(
+            spike_dict=spike_dict,
+            spike_generators=self.input_generators)
+        
+        nest.Simulate(full_time)
+
+        output = {
+                  'spikes': nest.GetStatus(
+                                self.spike_detector_out,
+                                keys="events")[0]['times'].tolist(),
+                  'senders': nest.GetStatus(
+                                 self.spike_detector_out,
+                                 keys="events")[0]['senders'].tolist()
+                 }
+
+        devices = self.get_devices()
+        return output, devices
 
             
 class NotSoFastEpochNetwork(EpochNetwork):
@@ -953,7 +1039,7 @@ class TwoLayerNetwork(Network):
         devices = {
                     'multimeter': nest.GetStatus(self.multimeter,
                                                 keys="events")[0],
-                    'voltmeter_hidden': nest.GetStatus(self.voltmeter_hidden,
+                    'multimeter_hidden': nest.GetStatus(self.voltmeter_hidden,
                                                        keys="events")[0],
                     'spike_detector_out': nest.GetStatus(self.spike_detector_out,
                                                          keys="events")[0],
