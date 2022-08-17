@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import librosa
 import numpy as np
 
 from .andrews_curve import AndrewsCurve
@@ -395,4 +396,37 @@ class SobelConverter(Converter):
             output['class'].append(yy)
         output = {'input': np.array(output['input']),
                   'class': np.array(output['class'])}
+        return output
+
+
+class SoundConverter(Converter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, pattern_time, firing_rate, dt, h):
+        self.pattern_time = pattern_time
+        self.firing_rate = firing_rate
+        self.h = h
+        self.dt = dt
+
+    def _extract_feature(self, X: np.array, **kwargs) -> np.array:
+        sr = kwargs['sr']
+        mfccs = np.mean(librosa.feature.mfcc(y=np.array(X), sr=sr, n_mfcc=kwargs['mfcc']), axis=-1)
+        mel = np.mean(librosa.feature.melspectrogram(y=np.array(X), sr=sr), axis=-1)
+        tonnetz = np.mean(librosa.feature.tonnetz(y=librosa.effects.harmonic(np.array(X)), sr=sr), axis=-1)
+        
+        stft = np.abs(librosa.stft(np.array(X)))
+        chroma = np.mean(librosa.feature.chroma_stft(S=stft, sr=sr), axis=-1)
+        contrast = np.mean(librosa.feature.spectral_contrast(S=stft, sr=sr), axis=-1)
+        
+        return np.hstack([mfccs, mel, chroma, tonnetz, contrast])
+
+    def convert(self, x, y):
+        '''
+            Function must be updated to O(n) complexity 
+        '''
+
+        output = {'input': self._extract_feature(x, mfcc=128),
+                  'class': np.array(y)}
+
         return output
