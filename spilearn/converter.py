@@ -399,34 +399,116 @@ class SobelConverter(Converter):
         return output
 
 
-class SoundConverter(Converter):
+class AudioConverter(Converter):
     '''
         Class for receptive fields data conversion
     '''
-    def __init__(self, pattern_time, firing_rate, dt, h):
-        self.pattern_time = pattern_time
-        self.firing_rate = firing_rate
-        self.h = h
-        self.dt = dt
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        pass
 
-    def _extract_feature(self, X: np.array, **kwargs) -> np.array:
-        sr = kwargs['sr']
-        mfccs = np.mean(librosa.feature.mfcc(y=np.array(X), sr=sr, n_mfcc=kwargs['mfcc']), axis=-1)
-        mel = np.mean(librosa.feature.melspectrogram(y=np.array(X), sr=sr), axis=-1)
-        tonnetz = np.mean(librosa.feature.tonnetz(y=librosa.effects.harmonic(np.array(X)), sr=sr), axis=-1)
-        
-        stft = np.abs(librosa.stft(np.array(X)))
-        chroma = np.mean(librosa.feature.chroma_stft(S=stft, sr=sr), axis=-1)
-        contrast = np.mean(librosa.feature.spectral_contrast(S=stft, sr=sr), axis=-1)
-        
-        return np.hstack([mfccs, mel, chroma, tonnetz, contrast])
+    def _extract_feature(self, X: np.array) -> np.array:
+        pass
+
+    def _framing(self, X: np.array) -> np.array:
+        return [X]
+
+    def _parse_audio(self, x : list, y : list):
+        flattened_data = list()
+        mod_class_list = list()
+        examples_list = list()
+
+        for i, (audio, cur_class) in tqdm(enumerate(zip(x, y)), total=len(x)):
+            cur_data = self._framing(audio)
+            features = self._extract_feature(np.array(cur_data))
+            flattened_data.extend(features)
+            mod_class_list.extend([cur_class] * len(cur_data))
+            examples_list.extend([i] * len(cur_data))
+
+        mod_class_list = np.array(mod_class_list)
+        return flattened_data, mod_class_list, examples_list
 
     def convert(self, x, y):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
-
-        output = {'input': self._extract_feature(x, mfcc=128),
-                  'class': np.array(y)}
-
+        x, y, ex = self._parse_audio(x, y)
+        output = {'input': np.array(x),
+                  'class': np.array(y).flatten()}
         return output
+
+
+class FramingAudioConverter(AudioConverter):
+    
+    def __init__(self, frame_length, overlapping_fraction, **kwargs):
+        super().__init__(**kwargs)
+        self.frame_length = frame_length
+        self.overlapping_fraction = overlapping_fraction
+
+    def _framing(self, X: np.array) -> np.array:
+        stride = int((1 - self.overlapping_fraction) * self.frame_length)
+        return librosa.util.frame(audio, frame_length=self.frame_length, hop_length=stride, axis=0)
+
+
+class FullAudioConverter(AudioConverter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, n_mfcc, sr, **kwargs):
+        super().__init__(**kwargs)
+
+        self.mfcc = n_mfcc
+        self.sr = sr
+
+    def _extract_feature(self, X: np.array) -> np.array:
+        mfccs = np.mean(librosa.feature.mfcc(y=np.array(X), sr=self.sr, n_mfcc=self.mfcc), axis=-1)
+        mel = np.mean(librosa.feature.melspectrogram(y=np.array(X), sr=self.sr), axis=-1)
+        tonnetz = np.mean(librosa.feature.tonnetz(y=librosa.effects.harmonic(np.array(X)), sr=self.sr), axis=-1)
+
+        stft = np.abs(librosa.stft(np.array(X)))
+        chroma = np.mean(librosa.feature.chroma_stft(S=stft, sr=self.sr), axis=-1)
+        contrast = np.mean(librosa.feature.spectral_contrast(S=stft, sr=self.sr), axis=-1)
+
+        return np.hstack([mfccs, mel, chroma, tonnetz, contrast])
+
+    
+class FullFrameAudioConverter(FramingAudioConverter, FullAudioConverter):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class MFCCConverter(AudioConverter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, n_mfcc, sr, **kwargs):
+        super().__init__(**kwargs)
+
+        self.mfcc = n_mfcc
+        self.sr = sr
+
+    def _extract_feature(self, X: np.array) -> np.array:
+        mfccs = np.mean(librosa.feature.mfcc(y=np.array(X), sr=self.sr, n_mfcc=self.mfcc), axis=-1)
+        return np.hstack([mfccs])
+
+
+class MFCCFrameConverter(FramingAudioConverter, MFCCConverter):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class MelConverter(AudioConverter):
+    '''
+        Class for receptive fields data conversion
+    '''
+    def __init__(self, sr, **kwargs):
+        super().__init__(**kwargs)
+
+        self.sr = sr
+
+    def _extract_feature(self, X: np.array) -> np.array:
+        mel = np.mean(librosa.feature.melspectrogram(y=np.array(X), sr=self.sr), axis=-1)
+        return np.hstack([mel])
+
+
+class MelFrameConverter(FramingAudioConverter, MelConverter):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
