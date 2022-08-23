@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import tqdm
 import librosa
 import numpy as np
 
