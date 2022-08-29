@@ -1,11 +1,12 @@
 # coding: utf-8
 
-import tqdm
 import librosa
 import numpy as np
 
-from .andrews_curve import AndrewsCurve
+from tqdm import tqdm
+from sklearn import preprocessing
 
+from .andrews_curve import AndrewsCurve
 
 class Converter:
     def __init__(self):
@@ -404,9 +405,10 @@ class AudioConverter(Converter):
     '''
         Class for receptive fields data conversion
     '''
-    def __init__(self, **kwargs):
+    def __init__(self, k_round=2, reshape=True, **kwargs):
         super().__init__(**kwargs)
-        pass
+        self.reshape = reshape
+        self.k_round = k_round
 
     def _extract_feature(self, X: np.array) -> np.array:
         pass
@@ -431,8 +433,14 @@ class AudioConverter(Converter):
 
     def convert(self, x, y):
         x, y, ex = self._parse_audio(x, y)
-        output = {'input': np.array(x),
-                  'class': np.array(y).flatten()}
+        x = np.round(preprocessing.minmax_scale(np.array(x)), self.k_round)
+        if self.reshape:
+            output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
+                      'class': y}
+        else:
+            output = {'input': x,
+                      'class': y}
+        
         return output
 
 
