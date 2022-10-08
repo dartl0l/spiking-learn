@@ -40,7 +40,7 @@ class Teacher:
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
             }
-        for cl in set(classes):
+        for cl in np.unique(classes):
             class_mask = classes == cl
             stimulation_start_current = stimulation_start[class_mask]
             stimulation_end_current = stimulation_end[class_mask]
@@ -72,7 +72,7 @@ class TeacherPool(Teacher):
             
         assert pool_size * len(set(classes)) == self.settings['topology']['n_layer_out']
 
-        for cl in set(classes):
+        for cl in np.unique(classes):
             class_mask = classes == cl
             stimulation_start_current = stimulation_start[class_mask]
             stimulation_end_current = stimulation_end[class_mask]
@@ -175,7 +175,7 @@ class TeacherFull(Teacher):
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
             }
-        for cl in set(classes):
+        for cl in np.unique(classes):
             class_mask = classes_full == cl
             stimulation_start_current = stimulation_start[class_mask]
             stimulation_end_current = stimulation_end[class_mask]
@@ -207,7 +207,7 @@ class TeacherInhibitory(Teacher):
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
             }
-        for cl in set(classes):
+        for cl in np.unique(classes):
             current_teacher_id = teachers[0] if single_neuron else teachers[cl]
             class_mask = classes == cl
             stimulation_start_current = stimulation_start[class_mask]
@@ -245,7 +245,7 @@ class TeacherInhibitoryFull(Teacher):
                 'amplitude_times': np.ndarray([]),
                 'amplitude_values': np.ndarray([])
             }
-        for cl in set(classes):
+        for cl in np.unique(classes):
             current_teacher_id = teachers[0] if single_neuron else teachers[cl]
             class_mask = classes_full == cl
             stimulation_start_current = stimulation_start[class_mask]

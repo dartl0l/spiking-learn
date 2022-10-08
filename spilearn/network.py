@@ -452,7 +452,6 @@ class EpochNetwork(Network):
         super().__init__(settings, teacher)
         self.progress = progress
 
-        
     def normalize_weights(self, w_target=1):
         weights_all = self.save_weights(self.layers)
         for weights_of_split in weights_all:
