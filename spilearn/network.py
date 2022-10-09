@@ -236,7 +236,7 @@ class Network:
 
     def init_network(self):
         np.random.seed()
-        rng = np.random.randint(500)
+        rng = np.random.randint(1, pow(2, 32) - 1)
         num_v_procs = self.settings['network']['num_threads'] \
             * self.settings['network']['num_procs']
 
