@@ -182,34 +182,6 @@ class Network:
                     }
         return tmp_dict
 
-#     def save_weights(self, layers):
-#         '''
-#         replace wuth something like np.array
-#         '''
-#         synapse_models = self.synapse_models
-
-#         weights = {}
-
-#         for i, layer in enumerate(self.layers[1:]):
-#             synapse_model = synapse_models[i]
-#             previous_layer = self.layers[i]
-#             layer_name = 'layer_' + str(i)
-#             weights[layer_name] = {}
-#             for neuron_id in layer:
-#                 tmp_weight = []
-#                 for input_id in previous_layer:
-#                     conn = nest.GetConnections(
-#                         input_id, neuron_id, 
-#                         synapse_model=synapse_model
-#                     )
-#                     weight_one = nest.GetStatus(conn, 'weight')
-#                     if len(weight_one) != 0:
-#                         tmp_weight.append(weight_one[0])
-#                 if len(tmp_weight) != 0:
-#                     weights[layer_name][neuron_id.get('global_id')] = tmp_weight
-#         return weights
-
-
     def save_weights(self, layers):
         synapse_models = self.synapse_models
 

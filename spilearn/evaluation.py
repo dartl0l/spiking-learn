@@ -166,7 +166,7 @@ class DiehlEvaluation(Evaluation):
 #         print(minimum_latencies_for_all_neurons)
         for current_class in set(y):
             class_size = len(np.where(y == current_class)[0])
-            print(current_class)
+#             print(current_class)
             
             if class_size == 0:
                 # This class is not present in the set,
@@ -175,12 +175,12 @@ class DiehlEvaluation(Evaluation):
 #             summa = np.sum(latencies[y == current_class], axis=0)
 #             print('sum', summa, len(summa))
             latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
-            print('mean_latency', latencies_for_this_class, len(latencies_for_this_class))
+#             print('mean_latency', latencies_for_this_class, len(latencies_for_this_class))
             for i in range(neurons_number):
                 if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
                     minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
                     assignments[i] = current_class
-        print(assignments)
+#         print(assignments)
         self.assignments = assignments
         return assignments
 
