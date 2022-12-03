@@ -235,44 +235,32 @@ class Plotter():
                      spike_detector['senders'][mask], 'b.')
         # plt.legend()
 
-    def plot_devices(self, devices, plot_last_detector=False):
+    def plot_devices(self, devices, start=None, end=None,
+                     plot_last_detector=False):
         self.plot_voltage(devices['multimeter'])
+        if start is not None and end is not None:
+            plt.xlim(start, end)
         plt.show()
         
         if plot_last_detector:
             self.plot_voltage(devices['multimeter_hidden'], False)
+            if start is not None and end is not None:
+                plt.xlim(start, end)
             plt.show()
 
             self.plot_spikes(devices['spike_detector_hidden'])
+            if start is not None and end is not None:
+                plt.xlim(start, end)
             plt.show()
 
         self.plot_spikes(devices['spike_detector_input'])
+        if start is not None and end is not None:
+            plt.xlim(start, end)
         plt.show()
 
         self.plot_spikes(devices['spike_detector_out'])
-        plt.show()
-
-    def plot_devices_limits(self, devices, start, end,
-                            plot_last_detector=False):
-        self.plot_voltage(devices['multimeter'])
-        plt.xlim(start, end)
-        plt.show()
-
-        if plot_last_detector:
-            self.plot_voltage(devices['multimeter_hidden'])
+        if start is not None and end is not None:
             plt.xlim(start, end)
-            plt.show()
-
-            self.plot_spikes(devices['spike_detector_hidden'])
-            plt.xlim(start, end)
-            plt.show()
-
-        self.plot_spikes(devices['spike_detector_input'])
-        plt.xlim(start, end)
-        plt.show()
-
-        self.plot_spikes(devices['spike_detector_out'])
-        plt.xlim(start, end)
         plt.show()
 
     def plot_latency(self, latency, classes, title, show=True):
