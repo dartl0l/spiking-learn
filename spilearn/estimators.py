@@ -1,6 +1,7 @@
-from spilearn.evaluation import *
-from spilearn.network import *
-from spilearn.teacher import *
+from .evaluation import *
+from .network import *
+from .teacher import *
+from .utils import *
 
 from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -9,8 +10,8 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 class TemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings):
-        teacher = Teacher(settings)
-        self._network = EpochNetwork(settings, teacher, progress=False)
+        self._settings = settings
+        self._network = EpochNetwork(settings, Teacher(settings), progress=False)
         self._evaluation = Evaluation(settings)
         
     def fit(self, X, y):
@@ -19,8 +20,11 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
     def predict(self, X):
         output, self._devices_predict = self._network.test(X, self._weights)
 
-        all_latency = self._evaluation.split_spikes_and_senders(output, len(X))
-        out_latency = self._evaluation.convert_latency(all_latency)
+        all_latency = split_spikes_and_senders(
+            output, len(X)
+            self._settings['network']['start_delta'],
+            self._settings['network']['h_time'])
+        out_latency = convert_latency(all_latency, self._settings['topology']['n_layer_out'])
         y_pred = self._evaluation.predict_from_latency(out_latency)
         return y_pred.astype(int)
 
