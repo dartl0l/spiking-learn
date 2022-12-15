@@ -21,7 +21,7 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
         output, self._devices_predict = self._network.test(X, self._weights)
 
         all_latency = split_spikes_and_senders(
-            output, len(X)
+            output, len(X),
             self._settings['network']['start_delta'],
             self._settings['network']['h_time'])
         out_latency = convert_latency(all_latency, self._settings['topology']['n_layer_out'])
