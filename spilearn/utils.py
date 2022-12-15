@@ -21,15 +21,6 @@ def print_settings(settings):
                 print('\t' + parameter + ' : ' + str(settings[key][parameter]))
 
 
-def print_score(result_dict):
-    print('Score train ' + "\t".join(map(lambda n: '%.2f' % n, result_dict['accs_train'])) + '\n')
-    print('Score train mean: ' + str(result_dict['accs_train_mean']) + '\n'
-          'Std train mean: ' + str(result_dict['accs_train_std']) + '\n')
-    print('Score test ' + "\t".join(map(lambda n: '%.2f' % n, result_dict['accs_test'])) + '\n')
-    print('Score test mean: ' + str(result_dict['accs_test_mean']) + '\n'
-          'Std test mean: ' + str(result_dict['accs_test_std']) + '\n')
-
-
 def split_spikes_and_senders(input_latency, n_examples, start_delta, h_time):
     output_latency = []
     d_time = start_delta

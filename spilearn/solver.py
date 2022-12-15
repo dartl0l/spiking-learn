@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.datasets import load_iris, load_breast_cancer, load_digits
 from sklearn.decomposition import PCA
 
+from .utils import *
 from .teacher import *
 from .network import *
 from .converter import *
@@ -161,9 +162,12 @@ class NetworkSolver(Solver):
 
     def test_data(self, data, weights):
         raw_latency, devices = self.network.test(data['input'], weights)
-        all_latency = self.evaluator.split_spikes_and_senders(
-            raw_latency, len(data['class']))
-        out_latency = self.evaluator.convert_latency(all_latency)
+        all_latency = split_spikes_and_senders(
+            raw_latency, len(data['class']),
+            self.settings['network']['start_delta'],
+            self.settings['network']['h_time'])
+        out_latency = convert_latency(
+            all_latency, self.settings['topology']['n_layer_out'])
         return out_latency, devices
 
     def test_acc(self, data):
