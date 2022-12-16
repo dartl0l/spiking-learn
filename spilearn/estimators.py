@@ -28,7 +28,31 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
         y_pred = self._evaluation.predict_from_latency(out_latency)
         return y_pred.astype(int)
 
+
+class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
+    def __init__(self, settings):
+        self._settings = settings
+        self._network = EpochNetwork(settings, progress=False)
+        self._evaluation = Evaluation(settings)
+        
+    def fit(self, X, y):
+        for current_class in set(y):
+            mask = y == current_class
+            self._weights, output_fit, self._devices_fit = self._network.train(X[mask], y[mask])
+
+    def predict(self, X):
+        output, self._devices_predict = self._network.test(X, self._weights)
+
+        all_latency = split_spikes_and_senders(
+            output, len(X),
+            self._settings['network']['start_delta'],
+            self._settings['network']['h_time'])
+        out_latency = convert_latency(all_latency, self._settings['topology']['n_layer_out'])
+        y_pred = self._evaluation.predict_from_latency(out_latency)
+        return y_pred.astype(int)
+
+
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
     """
         Class for receptive fields data conversion
