@@ -10,7 +10,11 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 class TemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings):
-        self._settings = settings
+        self.settings = settings
+
+        self.n_layer_out = settings['topology']['n_layer_out']
+        self.start_delta = settings['network']['start_delta']
+        self.h_time = settings['network']['h_time']
         self._network = EpochNetwork(settings, Teacher(settings), progress=False)
         self._evaluation = Evaluation(settings)
         
@@ -22,9 +26,9 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
 
         all_latency = split_spikes_and_senders(
             output, len(X),
-            self._settings['network']['start_delta'],
-            self._settings['network']['h_time'])
-        out_latency = convert_latency(all_latency, self._settings['topology']['n_layer_out'])
+            self.start_delta,
+            self.h_time)
+        out_latency = convert_latency(all_latency, self.n_layer_out)
         y_pred = self._evaluation.predict_from_latency(out_latency)
         return y_pred.astype(int)
 
@@ -32,31 +36,39 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
 class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings):
-        self._settings = settings
+        self.settings = settings
+        self.n_layer_out = settings['topology']['n_layer_out']
+        self.start_delta = settings['network']['start_delta']
+        self.h_time = settings['network']['h_time']
+        
         self._network = EpochNetwork(settings, progress=False)
         self._evaluation = Evaluation(settings)
         
     def fit(self, X, y):
+        self._weights = []
+        self._devices_fit = []
         for current_class in set(y):
             mask = y == current_class
-            self._weights, output_fit, self._devices_fit = self._network.train(X[mask], y[mask])
+            weights, output_fit, devices_fit = self._network.train(X[mask], y[mask])
+            self._weights.append(weights)
+            self._devices_fit.append(devices_fit)
 
     def predict(self, X):
-        output, self._devices_predict = self._network.test(X, self._weights)
-
-        all_latency = split_spikes_and_senders(
-            output, len(X),
-            self._settings['network']['start_delta'],
-            self._settings['network']['h_time'])
-        out_latency = convert_latency(all_latency, self._settings['topology']['n_layer_out'])
-        y_pred = self._evaluation.predict_from_latency(out_latency)
+        full_output = []
+        for weights in self._weights:
+            output, self._devices_predict = self._network.test(X, weights)
+            all_latency = split_spikes_and_senders(
+                output, len(X),
+                self.start_delta,
+                self.h_time)
+            out_latency = convert_latency(all_latency, self.n_layer_out)
+            full_output.append(out_latency)
+        y_pred = self._evaluation.predict_from_latency(np.concatenate(full_output, axis=1))
         return y_pred.astype(int)
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
-    """
-        Class for receptive fields data conversion
-    """
+
     def __init__(self, n_fields, sigma2, k_round=2, max_x=1.0, scale=1.0,
                  reshape=True, reverse=False, no_last=False):
         self.sigma2 = sigma2
@@ -96,6 +108,31 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
                 X[mask] = np.nan
 
         X *= self.scale
+        if self.reshape:
+            X = X.reshape(X.shape[0], X.shape[1], 1)
+        return X
+
+
+class TemporalTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False):
+        self.pattern_length = pattern_length
+        self.k_round = k_round
+        self.reshape = reshape
+        self.reverse = reverse
+        self.no_last = no_last
+    
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        if self.no_last:
+            zero_values = X == 0
+            X[zero_values] = np.nan
+        if self.reverse:
+            X = np.round(self.pattern_length * X, self.k_round)
+        else:
+            X = np.round(self.pattern_length * (1 - X), self.k_round)
+
         if self.reshape:
             X = X.reshape(X.shape[0], X.shape[1], 1)
         return X
