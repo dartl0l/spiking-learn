@@ -20,6 +20,7 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
         
     def fit(self, X, y):
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
+        return self
 
     def predict(self, X):
         output, self._devices_predict = self._network.test(X, self._weights)
@@ -52,6 +53,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
             weights, output_fit, devices_fit = self._network.train(X[mask], y[mask])
             self._weights.append(weights)
             self._devices_fit.append(devices_fit)
+        return self
 
     def predict(self, X):
         full_output = []
@@ -65,6 +67,56 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
             full_output.append(out_latency)
         y_pred = self._evaluation.predict_from_latency(np.concatenate(full_output, axis=1))
         return y_pred.astype(int)
+
+
+class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
+    
+    def __init__(self, settings):
+        self.settings = settings
+
+        self.n_layer_out = settings['topology']['n_layer_out']
+        self.start_delta = settings['network']['start_delta']
+        self.h_time = settings['network']['h_time']
+        self._network = EpochNetwork(settings, progress=False)
+        
+    def fit(self, X, y=None):
+        self._weights, output_fit, self._devices_fit = self._network.train(X, y)
+        return self
+
+    def transform(self, X, y=None):
+        output, self._devices_predict = self._network.test(X, self._weights)
+
+        all_latency = split_spikes_and_senders(
+            output, len(X),
+            self.start_delta,
+            self.h_time)
+        out_latency = convert_latency(all_latency, self.n_layer_out)
+        return out_latency
+
+
+class UnsupervisedConvolutionTemporalTransformer(BaseEstimator, TransformerMixin):
+    
+    def __init__(self, settings):
+        self.settings = settings
+
+        self.n_layer_out = settings['topology']['n_layer_out']
+        self.start_delta = settings['network']['start_delta']
+        self.h_time = settings['network']['h_time']
+        self._network = ConvolutionNetwork(settings, progress=False)
+        
+    def fit(self, X, y=None):
+        self._weights, output_fit, self._devices_fit = self._network.train(X, y)
+        return self
+
+    def transform(self, X, y=None):
+        output, self._devices_predict = self._network.test(X, self._weights)
+
+        all_latency = split_spikes_and_senders(
+            output, len(X),
+            self.start_delta,
+            self.h_time)
+        out_latency = convert_latency(all_latency, self.n_layer_out)
+        return out_latency
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
@@ -113,7 +165,7 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
         return X
 
 
-class TemporalTransformer(BaseEstimator, TransformerMixin):
+class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False):
         self.pattern_length = pattern_length
         self.k_round = k_round
