@@ -156,7 +156,7 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
         else:
             X = self.max_y - np.round(self._get_gaussian(X, self.sigma2, self.mu), self.k_round)
             if self.no_last:
-                mask = X > max_y - 0.09
+                mask = X > self.max_y - 0.09
                 X[mask] = np.nan
 
         X *= self.scale
