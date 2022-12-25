@@ -64,14 +64,12 @@ class Network:
                 self.input_layer,
                 self.layer_out, 'all_to_all',
                 syn_spec='static_synapse')
-    
+
     def set_input_spikes(self, spike_dict, spike_generators):
         assert len(spike_dict) == len(spike_generators)
         nest.SetStatus(spike_generators, spike_dict)
 
     def set_teachers_input(self, teacher_dicts):
-        # for teacher in teacher_dicts:
-        #     nest.SetStatus(teacher, teacher_dicts[teacher])
         self.teacher_layer.set(list(teacher_dicts.values()))
 
     def set_poisson_noise(self, noise_dict, spike_generators):
@@ -151,7 +149,7 @@ class Network:
             for neuron_2 in layer:
                 if neuron_1 != neuron_2:
                     nest.Connect(neuron_1, neuron_2, syn_spec=syn_dict)
-    
+
     def get_devices(self):
         devices = {
                     'multimeter': nest.GetStatus(self.multimeter,
@@ -214,7 +212,7 @@ class Network:
              'resolution': self.settings['network']['h']
         })
 
-        nest.rng_seed = rng#range(rng, rng + num_v_procs)
+        nest.rng_seed = rng
 
     def create_layers(self):
         self.layer_out = nest.Create(
@@ -294,7 +292,7 @@ class Network:
     def set_neuron_status(self):
         nest.SetStatus(self.layer_out,
                        self.settings['model']['neuron_out'])
-        
+
     def set_noise(self):
         nest.SetStatus(
             self.poisson_layer,
@@ -527,7 +525,7 @@ class EpochNetwork(Network):
         self.set_input_spikes(
             spike_dict=spike_dict,
             spike_generators=self.input_generators)
-        
+
         nest.Simulate(full_time)
 
         output = {
@@ -547,7 +545,7 @@ class NormalizeEpochNetwork(Network):
         super().__init__(settings, teacher)
         self.progress = progress
         self.normalize_weights = True
-        
+
     def normalize(self, w_target=8):
         weights_all = self.save_weights(self.layers)
         for layer_weights in weights_all:
@@ -679,7 +677,7 @@ class NormalizeEpochNetwork(Network):
         devices = self.get_devices()
         return output, devices
 
-            
+
 class NotSoFastEpochNetwork(EpochNetwork):
     def __init__(self, settings, teacher=None, progress=True):
         super().__init__(settings, teacher, progress)

@@ -7,9 +7,9 @@ from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 
-class TemporalClassifier(BaseEstimator, ClassifierMixin):
+class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
     
-    def __init__(self, settings):
+    def __init__(self, settings) -> None:
         self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
@@ -36,7 +36,7 @@ class TemporalClassifier(BaseEstimator, ClassifierMixin):
 
 class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
-    def __init__(self, settings):
+    def __init__(self, settings) -> None:
         self.settings = settings
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
@@ -71,7 +71,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
 
 class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
     
-    def __init__(self, settings):
+    def __init__(self, settings) -> None:
         self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
@@ -96,7 +96,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
 
 class UnsupervisedConvolutionTemporalTransformer(BaseEstimator, TransformerMixin):
     
-    def __init__(self, settings):
+    def __init__(self, settings) -> None:
         self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
@@ -122,7 +122,7 @@ class UnsupervisedConvolutionTemporalTransformer(BaseEstimator, TransformerMixin
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self, n_fields, sigma2, k_round=2, max_x=1.0, scale=1.0,
-                 reshape=True, reverse=False, no_last=False):
+                 reshape=True, reverse=False, no_last=False) -> None:
         self.sigma2 = sigma2
         self.max_x = max_x
         self.n_fields = n_fields
@@ -166,7 +166,7 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
 
 
 class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False):
+    def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False) -> None:
         self.pattern_length = pattern_length
         self.k_round = k_round
         self.reshape = reshape
@@ -189,3 +189,54 @@ class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
             X = X.reshape(X.shape[0], X.shape[1], 1)
         return X
 
+
+class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
+    def __init__(self, h_time) -> None:
+        super().__init__()
+        self.h_time = h_time
+    
+    def _get_classes_rank_per_one_vector(self, latency, set_of_classes, assignments):
+        latency = np.array(latency)
+        number_of_classes = len(set_of_classes)
+        min_latencies = [0] * number_of_classes
+        number_of_neurons_assigned_to_this_class = [0] * number_of_classes
+        for class_number, current_class in enumerate(set_of_classes):
+            number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
+            if number_of_neurons_assigned_to_this_class == 0:
+                continue
+            min_latencies[class_number] = np.min(
+                latency[assignments == current_class]
+            ) / number_of_neurons_assigned_to_this_class
+
+        return np.argsort(min_latencies)[::1]
+
+    def _get_assignments(self, latencies, y):
+        latencies = np.array(latencies)
+        neurons_number = len(latencies[0])
+        assignments = [-1] * neurons_number
+        minimum_latencies_for_all_neurons = [self.h_time] * neurons_number
+        for current_class in self.classes:
+            class_size = len(np.where(y == current_class)[0])
+            if class_size == 0:
+                continue
+            latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
+            for i in range(neurons_number):
+                if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
+                    minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
+                    assignments[i] = current_class
+        return assignments
+
+    def fit(self, X, y=None):
+        self.classes = set(y)
+        self.assignments = self._get_assignments(X, y)
+        return self
+    
+    def predict(self, X):
+        class_certainty_ranks = [
+            self._get_classes_rank_per_one_vector(
+                X[i], self.classes, self.assignments
+            )
+            for i in range(len(X))
+        ]
+        y_predicted = np.array(class_certainty_ranks)[:,0]
+        return y_predicted
