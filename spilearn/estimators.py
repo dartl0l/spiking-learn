@@ -132,6 +132,12 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
         self.reverse = reverse
         self.no_last = no_last
 
+    def _get_sigma_squared(self, min_x, max_x, n_fields):
+        # as in [Yu et al. 2014]
+        return (
+            2/3 * (max_x - min_x) / (n_fields - 2)
+        )**2
+
     def _get_gaussian(self, x, sigma2, mu):
         return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
 
@@ -198,16 +204,15 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
     def _get_classes_rank_per_one_vector(self, latency, set_of_classes, assignments):
         latency = np.array(latency)
         number_of_classes = len(set_of_classes)
-        min_latencies = [0] * number_of_classes
+        min_latencies = [np.nan] * number_of_classes
         number_of_neurons_assigned_to_this_class = [0] * number_of_classes
         for class_number, current_class in enumerate(set_of_classes):
             number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
             if number_of_neurons_assigned_to_this_class == 0:
                 continue
-            min_latencies[class_number] = np.min(
+            min_latencies[class_number] = np.median(
                 latency[assignments == current_class]
-            ) / number_of_neurons_assigned_to_this_class
-
+            )
         return np.argsort(min_latencies)[::1]
 
     def _get_assignments(self, latencies, y):
@@ -219,7 +224,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
             class_size = len(np.where(y == current_class)[0])
             if class_size == 0:
                 continue
-            latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
+            latencies_for_this_class = np.median(latencies[y == current_class], axis=0)
             for i in range(neurons_number):
                 if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
                     minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
