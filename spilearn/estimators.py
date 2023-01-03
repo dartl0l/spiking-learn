@@ -121,7 +121,7 @@ class UnsupervisedConvolutionTemporalTransformer(BaseEstimator, TransformerMixin
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
 
-    def __init__(self, n_fields, sigma2, k_round=2, max_x=1.0, scale=1.0,
+    def __init__(self, n_fields, sigma2=None, k_round=2, max_x=1.0, scale=1.0,
                  reshape=True, reverse=False, no_last=False) -> None:
         self.sigma2 = sigma2
         self.max_x = max_x
@@ -143,6 +143,9 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         h_mu = self.max_x / (self.n_fields - 1)
+        
+        if self.sigma2 is None:
+            self.sigma2 = self._get_sigma_squared(0, self.max_x, self.n_fields)
 
         self.max_y = np.round(self._get_gaussian(h_mu, self.sigma2, h_mu), 0)
 
@@ -186,13 +189,10 @@ class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
         if self.no_last:
             zero_values = X == 0
             X[zero_values] = np.nan
-        if self.reverse:
-            X = np.round(self.pattern_length * X, self.k_round)
-        else:
-            X = np.round(self.pattern_length * (1 - X), self.k_round)
-
-        if self.reshape:
-            X = X.reshape(X.shape[0], X.shape[1], 1)
+        
+        X = 1 - X if self.reverse else X
+        X = np.round(self.pattern_length * X, self.k_round)
+        X = X.reshape(X.shape[0], X.shape[1], int(self.reshape))
         return X
 
 
@@ -245,3 +245,4 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
         ]
         y_predicted = np.array(class_certainty_ranks)[:,0]
         return y_predicted
+

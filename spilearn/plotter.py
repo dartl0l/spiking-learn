@@ -35,15 +35,17 @@ class Plotter():
         plt.ylabel('Spike times of pattern')
         plt.show()
 
-    def plot_weights_2d(self, weights, rows, columns, show=True):
+    def plot_weights_2d(self, weights, rows, columns, ax_cols=None, ax_rows=None, neuron_titles=True,show=True):
         plt.clf()
         # plt.figure()
         # plt.title('Weight distribution')
 
         neurons = weights.keys()
         num_neurons = len(weights.keys())
-        ax_rows = int(ceil(sqrt(num_neurons)))
-        ax_cols = int(ceil(num_neurons / ax_rows))
+        if ax_cols is None:
+            ax_cols = int(ceil(sqrt(num_neurons)))
+        if ax_rows is None:
+            ax_rows = int(ceil(num_neurons / ax_cols))
         fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=(20, 20))
         if (ax_rows == 1 and ax_cols == 1):
             axs = np.array(axs)
@@ -51,7 +53,8 @@ class Plotter():
             current_weights = np.array(weights[neuron]).reshape(
                 (rows, columns))
             ax.matshow(current_weights)
-            ax.set_title('Neuron ' + str(neuron) + ' weights')
+            if neuron_titles:
+                ax.set_title('Neuron ' + str(neuron) + ' weights')
 
         plt.tight_layout()
         if show:
