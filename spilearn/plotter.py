@@ -42,6 +42,7 @@ class Plotter():
 
         neurons = weights.keys()
         num_neurons = len(weights.keys())
+
         if ax_cols is None:
             ax_cols = int(ceil(sqrt(num_neurons)))
         if ax_rows is None:

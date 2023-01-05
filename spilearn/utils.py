@@ -11,15 +11,17 @@ def round_decimals(value):
 
 def print_settings(settings):
     for key in settings:
-        print(key)
-        for parameter in settings[key]:
-            if isinstance(settings[key][parameter], dict):
-                print('\t' + parameter)
-                for parameter2 in settings[key][parameter]:
-                    print('\t\t' + parameter2 + ' : ' + str(settings[key][parameter][parameter2]))
-            else:
-                print('\t' + parameter + ' : ' + str(settings[key][parameter]))
-
+        if isinstance(settings[key], dict):
+            print(key)
+            for parameter in settings[key]:
+                if isinstance(settings[key][parameter], dict):
+                    print('\t' + parameter)
+                    for parameter2 in settings[key][parameter]:
+                        print('\t\t' + parameter2 + ' : ' + str(settings[key][parameter][parameter2]))
+                else:
+                    print('\t' + parameter + ' : ' + str(settings[key][parameter]))
+        else:
+            print('\t' + key + ' : ' + str(settings[key]))
 
 def split_spikes_and_senders(input_latency, n_examples, start_delta, h_time):
     output_latency = []
