@@ -9,13 +9,14 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
     
-    def __init__(self, settings) -> None:
+    def __init__(self, settings, model) -> None:
         self.settings = settings
+        self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = EpochNetwork(settings, Teacher(settings), progress=False)
+        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False)
         self._evaluation = Evaluation(settings)
         
     def fit(self, X, y):
@@ -36,13 +37,15 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
 
 class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
-    def __init__(self, settings) -> None:
+    def __init__(self, settings, model) -> None:
         self.settings = settings
+        self.model = model
+
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
         
-        self._network = EpochNetwork(settings, progress=False)
+        self._network = EpochNetwork(settings, model, progress=False)
         self._evaluation = Evaluation(settings)
         
     def fit(self, X, y):
@@ -71,13 +74,14 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
 
 class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
     
-    def __init__(self, settings) -> None:
+    def __init__(self, settings, model) -> None:
         self.settings = settings
+        self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = EpochNetwork(settings, progress=False)
+        self._network = EpochNetwork(settings, model, progress=False)
         
     def fit(self, X, y=None):
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
@@ -90,33 +94,20 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
             output, len(X),
             self.start_delta,
             self.h_time)
-        out_latency = convert_latency(all_latency, self.n_layer_out)
-        return out_latency
+        out_latency = np.array(convert_latency(all_latency, self.n_layer_out))
+        return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1)
 
 
-class UnsupervisedConvolutionTemporalTransformer(BaseEstimator, TransformerMixin):
+class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
     
-    def __init__(self, settings) -> None:
+    def __init__(self, settings, model) -> None:
         self.settings = settings
+        self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = ConvolutionNetwork(settings, progress=False)
-        
-    def fit(self, X, y=None):
-        self._weights, output_fit, self._devices_fit = self._network.train(X, y)
-        return self
-
-    def transform(self, X, y=None):
-        output, self._devices_predict = self._network.test(X, self._weights)
-
-        all_latency = split_spikes_and_senders(
-            output, len(X),
-            self.start_delta,
-            self.h_time)
-        out_latency = convert_latency(all_latency, self.n_layer_out)
-        return out_latency
+        self._network = ConvolutionNetwork(settings, model, progress=False)
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
@@ -143,35 +134,22 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         h_mu = self.max_x / (self.n_fields - 1)
-        
         if self.sigma2 is None:
             self.sigma2 = self._get_sigma_squared(0, self.max_x, self.n_fields)
-
         self.max_y = np.round(self._get_gaussian(h_mu, self.sigma2, h_mu), 0)
-
         self.mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(X[0]))
-
         return self
     
     def transform(self, X, y=None):
         X = np.repeat(X, self.n_fields, axis=1)
         assert len(self.mu) == len(X[0])
 
-        if self.reverse:
-            X = np.round(self._get_gaussian(X, self.sigma2, self.mu), self.k_round)
-            if self.no_last:
-                mask = X < 0.1
-                X[mask] = np.nan
-        else:
-            X = self.max_y - np.round(self._get_gaussian(X, self.sigma2, self.mu), self.k_round)
-            if self.no_last:
-                mask = X > self.max_y - 0.09
-                X[mask] = np.nan
-
+        X = np.round(self._get_gaussian(X, self.sigma2, self.mu), self.k_round)
+        if self.no_last:
+            X[X == 0] = np.nan
+        X = X if self.reverse else self.max_y - X
         X *= self.scale
-        if self.reshape:
-            X = X.reshape(X.shape[0], X.shape[1], 1)
-        return X
+        return X.reshape(X.shape[0], X.shape[1], int(self.reshape))
 
 
 class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
@@ -187,19 +165,19 @@ class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         if self.no_last:
-            zero_values = X == 0
-            X[zero_values] = np.nan
+            X[X == 0] = np.nan
         
         X = 1 - X if self.reverse else X
         X = np.round(self.pattern_length * X, self.k_round)
-        X = X.reshape(X.shape[0], X.shape[1], int(self.reshape))
-        return X
+        return X.reshape(X.shape[0], X.shape[1], int(self.reshape))
 
 
 class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self, h_time) -> None:
         super().__init__()
         self.h_time = h_time
+        self.classes = None
+        self.assignments = None
     
     def _get_classes_rank_per_one_vector(self, latency, set_of_classes, assignments):
         latency = np.array(latency)
