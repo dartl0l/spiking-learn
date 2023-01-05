@@ -10,13 +10,14 @@ nest.set_verbosity('M_QUIET')
 
 class Network:
     """base class for different network types"""
-    def __init__(self, settings, teacher=None):
+    def __init__(self, settings, model, teacher=None):
         # super(Network, self).__init__()
         self.settings = settings
+        self.model = model
         self.teacher = teacher
         self.h_time = settings['network']['h_time']
         self.start_delta = settings['network']['start_delta']
-        self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
+        self.synapse_models = [model['syn_dict_exc']['synapse_model']]
 
     def _create_parameters(self, parameters):
         for parameter in parameters:
@@ -46,12 +47,12 @@ class Network:
         layers_conn = nest.GetConnections(
             self.input_layer,
             self.layer_out, 
-            self.settings['model']['syn_dict_stdp']['synapse_model'])
+            self.model['syn_dict_exc']['synapse_model'])
         if layers_conn:
             nest.Disconnect(
                 self.input_layer,
                 self.layer_out, 'all_to_all',
-                syn_spec=self.settings['model']['syn_dict_stdp'])
+                syn_spec=self.model['syn_dict_exc'])
 
     def disconnect_layers_static(self):
         layers_static_conn = nest.GetConnections(
@@ -212,11 +213,11 @@ class Network:
         })
 
         nest.rng_seed = rng
-        self._create_parameters(settings['model'])
+        self._create_parameters(self.model)
 
     def create_layers(self):
         self.layer_out = nest.Create(
-            self.settings['model']['neuron_out_model'],
+            self.model['neuron_out_model'],
             self.settings['topology']['n_layer_out']
         )
         self.input_layer = nest.Create(
@@ -277,7 +278,7 @@ class Network:
         nest.Connect(self.input_layer,
                      self.layer_out, 
                      conn_spec={'rule': 'all_to_all'},
-                     syn_spec=self.settings['model']['syn_dict_stdp'])
+                     syn_spec=self.model['syn_dict_exc'])
 
     def connect_layers_static(self):
         nest.Connect(self.input_layer,
@@ -287,11 +288,11 @@ class Network:
 
     def connect_layers_inh(self):
         self.interconnect_layer(self.layer_out,
-                                self.settings['model']['syn_dict_inh'])
+                                self.model['syn_dict_inh'])
 
     def set_neuron_status(self):
         nest.SetStatus(self.layer_out,
-                       self.settings['model']['neuron_out'])
+                       self.model['neuron_out'])
 
     def set_noise(self):
         nest.SetStatus(
@@ -310,7 +311,7 @@ class Network:
                 neuron_weights = layer_weights[neuron_id]
                 nest.SetStatus(connection, 'weight', neuron_weights)
 
-    def train(self, x, y):
+    def train(self, x, y=None):
         self.init_network()
         self.create_layers()
         self.create_devices()
@@ -405,8 +406,8 @@ class Network:
 
 
 class EpochNetwork(Network):
-    def __init__(self, settings, teacher=None, progress=True):
-        super().__init__(settings, teacher)
+    def __init__(self, settings, model, teacher=None, progress=True):
+        super().__init__(settings, model, teacher)
         self.progress = progress
 
     def normalize_weights(self, w_target=1):
@@ -436,7 +437,7 @@ class EpochNetwork(Network):
             }
         return spike_dict, full_time
 
-    def train(self, x, y):
+    def train(self, x, y=None):
         self.init_network()
         self.create_layers()
         self.create_devices()
@@ -541,8 +542,8 @@ class EpochNetwork(Network):
         return output, devices
 
 class NormalizeEpochNetwork(Network):
-    def __init__(self, settings, teacher=None, progress=True):
-        super().__init__(settings, teacher)
+    def __init__(self, settings, model, teacher=None, progress=True):
+        super().__init__(settings, model, teacher)
         self.progress = progress
         self.normalize_weights = True
 
@@ -679,8 +680,8 @@ class NormalizeEpochNetwork(Network):
 
 
 class NotSoFastEpochNetwork(EpochNetwork):
-    def __init__(self, settings, teacher=None, progress=True):
-        super().__init__(settings, teacher, progress)
+    def __init__(self, settings, model, teacher=None, progress=True):
+        super().__init__(settings, model, teacher, progress)
         self.init_network()
         self.create_layers()
         self.create_devices()
@@ -838,8 +839,8 @@ class NotSoFastEpochNetwork(EpochNetwork):
 
 
 class ConvolutionNetwork(EpochNetwork):
-    def __init__(self, settings, teacher=None):
-        super().__init__(settings, teacher)
+    def __init__(self, settings, model, teacher=None):
+        super().__init__(settings, model, teacher)
         self.kernel_size = self.settings['topology']['convolution']['kernel_size']
         self.stride = self.settings['topology']['convolution']['stride']
         self.image_dimension = int(math.sqrt(self.settings['topology']['n_input']))
@@ -861,7 +862,7 @@ class ConvolutionNetwork(EpochNetwork):
                 output_indexes = np.array(self.layer_out[
                     current_combination : current_combination + self.n_combination_neurons])
                 nest.Connect(input_indexes, output_indexes, 'all_to_all',
-                             syn_spec=self.settings['model']['syn_dict_stdp'])
+                             syn_spec=self.model['syn_dict_exc'])
                 current_combination += self.n_combination_neurons
 
     def connect_layers_static(self):
@@ -896,20 +897,20 @@ class ConvolutionNetwork(EpochNetwork):
                 )
 
                 self.interconnect_layer(output_indexes,
-                                        self.settings['model']['syn_dict_inh'])
+                                        self.model['syn_dict_inh'])
                 current_combination += self.n_combination_neurons
 
 
 class TwoLayerNetwork(Network):
-    def __init__(self, settings, teacher=None):
-        super().__init__(settings, teacher)
-        self.synapse_models = [settings['model']['syn_dict_stdp_hid']['synapse_model'],
-                               settings['model']['syn_dict_stdp']['synapse_model']]
+    def __init__(self, settings, model, teacher=None):
+        super().__init__(settings, model, teacher)
+        self.synapse_models = [model['syn_dict_exc_hid']['synapse_model'],
+                               model['syn_dict_exc']['synapse_model']]
 
     def create_layers(self):
-        self.layer_out = nest.Create(self.settings['model']['neuron_out_model'], 
+        self.layer_out = nest.Create(self.model['neuron_out_model'], 
                                      self.settings['topology']['n_layer_out'])
-        self.layer_hid = nest.Create(self.settings['model']['neuron_hid_model'], 
+        self.layer_hid = nest.Create(self.model['neuron_hid_model'], 
                                      self.settings['topology']['n_layer_hid'])
         self.input_layer = nest.Create('parrot_neuron', 
                                        self.settings['topology']['n_input'])
@@ -930,14 +931,14 @@ class TwoLayerNetwork(Network):
     def connect_layers(self):
         nest.Connect(self.input_layer,
                      self.layer_hid, 'all_to_all',
-                     syn_spec=self.settings['model']['syn_dict_stdp_hid'])
+                     syn_spec=self.model['syn_dict_exc_hid'])
         nest.Connect(self.layer_hid,
                      self.layer_out, 'all_to_all',
-                     syn_spec=self.settings['model']['syn_dict_stdp'])
+                     syn_spec=self.model['syn_dict_exc'])
         if self.settings['topology']['use_reciprocal']:
             nest.Connect(self.layer_out,
                          self.layer_hid, 'all_to_all',
-                         syn_spec=self.settings['model']['syn_dict_rec'])
+                         syn_spec=self.model['syn_dict_rec'])
 
     def connect_layers_static(self):
         nest.Connect(self.input_layer,
@@ -950,7 +951,7 @@ class TwoLayerNetwork(Network):
     def connect_layers_inh(self):
         super().connect_layers_inh()
         self.interconnect_layer(self.layer_hid, 
-                                self.settings['model']['syn_dict_inh_hid'])
+                                self.model['syn_dict_inh_hid'])
 
     def connect_devices(self):
         super().connect_devices()
@@ -977,7 +978,7 @@ class TwoLayerNetwork(Network):
     def set_neuron_status(self):
         super().set_neuron_status()
         nest.SetStatus(self.layer_hid,
-                       self.settings['model']['neuron_hid'])
+                       self.model['neuron_hid'])
 
     def set_weights(self, weights):
         for neuron_id in weights['layer_0']:
@@ -995,9 +996,9 @@ class TwoLayerNetwork(Network):
 
 class FrequencyNetwork(Network):
     """base class for different network types"""
-    def __init__(self, settings, teacher=None):
-        super().__init__(settings, teacher)
-        self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
+    def __init__(self, settings, model, teacher=None):
+        super().__init__(settings, model, teacher)
+        self.synapse_models = [model['syn_dict_exc']['synapse_model']]
 
     def create_spike_dict(self, dataset, train, threads=48, delta=0.0):
         print("prepare spikes freq")
