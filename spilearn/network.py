@@ -17,7 +17,6 @@ class Network:
         self.h_time = settings['network']['h_time']
         self.start_delta = settings['network']['start_delta']
         self.synapse_models = [settings['model']['syn_dict_stdp']['synapse_model']]
-        self._create_parameters(settings['model'])
 
     def _create_parameters(self, parameters):
         for parameter in parameters:
@@ -213,6 +212,7 @@ class Network:
         })
 
         nest.rng_seed = rng
+        self._create_parameters(settings['model'])
 
     def create_layers(self):
         self.layer_out = nest.Create(
