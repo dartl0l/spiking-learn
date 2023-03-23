@@ -20,6 +20,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self._evaluation = Evaluation(settings)
         
     def fit(self, X, y):
+        self._network.settings['topology']['n_input'] = X.shape[0]
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
         return self
 
@@ -51,6 +52,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         self._weights = []
         self._devices_fit = []
+        self._network.settings['topology']['n_input'] = X.shape[0]
         for current_class in set(y):
             mask = y == current_class
             weights, output_fit, devices_fit = self._network.train(X[mask], y[mask])
@@ -84,6 +86,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self._network = EpochNetwork(settings, model, progress=False)
         
     def fit(self, X, y=None):
+        self._network.settings['topology']['n_input'] = X.shape[0]
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
         return self
 
@@ -149,11 +152,11 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
             X[X == 0] = np.nan
         X = X if self.reverse else self.max_y - X
         X *= self.scale
-        return X.reshape(X.shape[0], X.shape[1], int(self.reshape))
+        return X.reshape(X.shape[0], X.shape[1], 1) if self.reshape else X.reshape(X.shape[0], X.shape[1])
 
 
 class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False) -> None:
+    def __init__(self, pattern_length, k_round=2, reshape=True, reverse=False, no_last=False) -> None:
         self.pattern_length = pattern_length
         self.k_round = k_round
         self.reshape = reshape
@@ -169,7 +172,7 @@ class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
         
         X = 1 - X if self.reverse else X
         X = np.round(self.pattern_length * X, self.k_round)
-        return X.reshape(X.shape[0], X.shape[1], int(self.reshape))
+        return X.reshape(X.shape[0], X.shape[1], 1) if self.reshape else X.reshape(X.shape[0], X.shape[1])
 
 
 class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
