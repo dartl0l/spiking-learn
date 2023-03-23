@@ -11,6 +11,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings, model) -> None:
         self.model = model
+        self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
@@ -21,7 +22,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self._weights = None
 
     def fit(self, X, y):
-        self._network.n_input = X.shape[0]
+        self._network.n_input = len(X[0])
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
         return self
 
@@ -41,6 +42,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings, model) -> None:
         self.model = model
+        self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
@@ -54,7 +56,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         self._weights = []
         self._devices_fit = []
-        self._network.n_input = X.shape[0]
+        self._network.n_input = len(X[0])
         for current_class in set(y):
             mask = y == current_class
             weights, output_fit, devices_fit = self._network.train(X[mask], y[mask])
@@ -80,6 +82,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
     
     def __init__(self, settings, model) -> None:
         self.model = model
+        self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
@@ -89,7 +92,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self._weights = None
         
     def fit(self, X, y=None):
-        self._network.n_input = X.shape[0]
+        self._network.n_input = len(X[0])
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
         return self
 
@@ -108,6 +111,7 @@ class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer
     
     def __init__(self, settings, model) -> None:
         self.model = model
+        self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
