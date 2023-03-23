@@ -8,14 +8,15 @@ class Teacher:
     Teacher signal generator for EpochNetwork class
     '''
     def __init__(self, settings):
-        self.settings = settings
-        self.h = self.settings['network']['h']
-        self.h_time = self.settings['network']['h_time']
-        self.start = self.settings['network']['start_delta']
-        self.reinforce_time = self.settings['learning']['reinforce_time']
-        self.reinforce_delta = self.settings['learning']['reinforce_delta']
-        self.teacher_amplitude = self.settings['learning']['teacher_amplitude']
-        self.n_layer_out = self.settings['topology']['n_layer_out']
+        self.h = settings['network']['h']
+        self.h_time = settings['network']['h_time']
+        self.start = settings['network']['start_delta']
+
+        self.reinforce_time = settings['learning']['reinforce_time']
+        self.reinforce_delta = settings['learning']['reinforce_delta']
+        self.teacher_amplitude = settings['learning']['teacher_amplitude']
+
+        self.n_layer_out = settings['topology']['n_layer_out']
 
     def create_teacher(self, input_spikes, classes, teachers):  # Network
         full_time = len(input_spikes) * self.h_time + self.start
@@ -59,7 +60,7 @@ class Teacher:
 class TeacherPool(Teacher):
     def __init__(self, settings):
         super(TeacherPool, self).__init__(settings)
-        self.pool_size = self.settings['learning']['teacher_pool_size']
+        self.pool_size = settings['learning']['teacher_pool_size']
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
 #         single_neuron = self.n_layer_out == 1
@@ -113,7 +114,7 @@ class TeacherFrequency(Teacher):
     
     def __init__(self, settings):
         super(TeacherFrequency, self).__init__(settings)
-        self.epochs = self.settings['learning']['epochs']
+        self.epochs = settings['learning']['epochs']
         
     def create_teacher(self, input_spikes, classes, teachers):
         d_time = self.start
@@ -151,12 +152,12 @@ class TeacherFull(Teacher):
     '''
     def __init__(self, settings):
         super(TeacherFull, self).__init__(settings)
-        self.epochs = self.settings['learning']['epochs']
+        self.epochs = settings['learning']['epochs']
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
                             teachers, teacher_amplitude):
         single_neuron = self.n_layer_out == 1
-        # epochs = self.settings['learning']['epochs']
+        # epochs = settings['learning']['epochs']
         classes_full = np.tile(classes, self.epochs)
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
@@ -188,7 +189,7 @@ class TeacherInhibitory(Teacher):
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
                             teachers, teacher_amplitude):
         single_neuron = self.n_layer_out == 1
-        # epochs = self.settings['learning']['epochs']
+        # epochs = settings['learning']['epochs']
         # classes_full = np.tile(classes, epochs)
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
@@ -223,7 +224,7 @@ class TeacherInhibitoryFull(Teacher):
     
     def __init__(self, settings):
         super(TeacherInhibitoryFull, self).__init__(settings)
-        self.epochs = self.settings['learning']['epochs']
+        self.epochs = settings['learning']['epochs']
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
         single_neuron = self.n_layer_out == 1

@@ -10,7 +10,6 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings, model) -> None:
-        self.settings = settings
         self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']
@@ -18,9 +17,11 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.h_time = settings['network']['h_time']
         self._network = EpochNetwork(settings, model, Teacher(settings), progress=False)
         self._evaluation = Evaluation(settings)
-        
+        self._devices_fit = None
+        self._weights = None
+
     def fit(self, X, y):
-        self._network.settings['topology']['n_input'] = X.shape[0]
+        self._network.n_input = X.shape[0]
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
         return self
 
@@ -39,7 +40,6 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
 class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, settings, model) -> None:
-        self.settings = settings
         self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']
@@ -48,11 +48,13 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         
         self._network = EpochNetwork(settings, model, progress=False)
         self._evaluation = Evaluation(settings)
-        
+        self._devices_fit = None
+        self._weights = None
+
     def fit(self, X, y):
         self._weights = []
         self._devices_fit = []
-        self._network.settings['topology']['n_input'] = X.shape[0]
+        self._network.n_input = X.shape[0]
         for current_class in set(y):
             mask = y == current_class
             weights, output_fit, devices_fit = self._network.train(X[mask], y[mask])
@@ -77,16 +79,17 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
 class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
     
     def __init__(self, settings, model) -> None:
-        self.settings = settings
         self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
         self._network = EpochNetwork(settings, model, progress=False)
+        self._devices_fit = None
+        self._weights = None
         
     def fit(self, X, y=None):
-        self._network.settings['topology']['n_input'] = X.shape[0]
+        self._network.n_input = X.shape[0]
         self._weights, output_fit, self._devices_fit = self._network.train(X, y)
         return self
 
@@ -104,7 +107,6 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
 class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
     
     def __init__(self, settings, model) -> None:
-        self.settings = settings
         self.model = model
 
         self.n_layer_out = settings['topology']['n_layer_out']

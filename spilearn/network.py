@@ -12,29 +12,28 @@ nest.set_verbosity('M_QUIET')
 class Network:
     """base class for different network types"""
     def __init__(self, settings, model, teacher=None, **kwargs):
-        # super(Network, self).__init__()
-        self.settings = copy.deepcopy(settings)
         self.model = copy.deepcopy(model)
         self.teacher = teacher
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
-        self.h = self.settings['network']['h']
-        self.h_time = self.settings['network']['h_time']
-        self.start_delta = self.settings['network']['start_delta']
-        self.noise_freq = self.settings['network']['noise_freq']
-        self.num_threads = self.settings['network']['num_threads']
-        self.num_procs = self.settings['network']['num_procs']
-        self.noise_after_pattern = self.settings['network']['noise_after_pattern']
-        self.test_with_inhibition = self.settings['network']['test_with_inhibition']
+        self.h = settings['network']['h']
+        self.h_time = settings['network']['h_time']
+        self.start_delta = settings['network']['start_delta']
+        self.num_threads = settings['network']['num_threads']
+        self.num_procs = settings['network']['num_procs']
 
-        self.test_with_noise = self.settings['network']['test_with_noise']
-        self.n_layer_out = self.settings['topology']['n_layer_out']
-        self.n_input = self.settings['topology']['n_input']
-        self.use_inhibition = self.settings['topology']['use_inhibition']
+        self.noise_freq = settings['network']['noise_freq']
+        self.test_with_noise = settings['network']['test_with_noise']
+        self.noise_after_pattern = settings['network']['noise_after_pattern']
+        self.test_with_inhibition = settings['network']['test_with_inhibition']
 
-        self.epochs = self.settings['learning']['epochs']
-        self.high_threshold_teacher = self.settings['learning']['high_threshold_teacher']
-        self.learning_threshold = self.settings['learning']['threshold']
+        self.use_inhibition = settings['topology']['use_inhibition']
+        self.n_layer_out = settings['topology']['n_layer_out']
+        self.n_input = settings['topology']['n_input']
+
+        self.epochs = settings['learning']['epochs']
+        self.learning_threshold = settings['learning']['threshold']
+        self.high_threshold_teacher = settings['learning']['high_threshold_teacher']
 
     def _create_parameters(self, parameters):
         for parameter in parameters:
@@ -730,8 +729,8 @@ class NotSoFastEpochNetwork(EpochNetwork):
 class ConvolutionNetwork(EpochNetwork):
     def __init__(self, settings, model, teacher=None):
         super().__init__(settings, model, teacher)
-        self.kernel_size = self.settings['topology']['convolution']['kernel_size']
-        self.stride = self.settings['topology']['convolution']['stride']
+        self.kernel_size = settings['topology']['convolution']['kernel_size']
+        self.stride = settings['topology']['convolution']['stride']
         self.image_dimension = int(math.sqrt(self.n_input))
         self.n_combinations = (self.image_dimension - (self.kernel_size - self.stride)) ** 2
         self.n_combination_neurons = self.n_layer_out // self.n_combinations
@@ -793,8 +792,8 @@ class ConvolutionNetwork(EpochNetwork):
 class TwoLayerNetwork(Network):
     def __init__(self, settings, model, teacher=None):
         super().__init__(settings, model, teacher)
-        self.n_layer_hid = self.settings['topology']['n_layer_hid']
-        self.use_reciprocal = self.settings['topology']['use_reciprocal']
+        self.n_layer_hid = settings['topology']['n_layer_hid']
+        self.use_reciprocal = settings['topology']['use_reciprocal']
         self.synapse_models = [self.model['syn_dict_exc_hid']['synapse_model'],
                                self.model['syn_dict_exc']['synapse_model']]
 
@@ -889,7 +888,7 @@ class FrequencyNetwork(Network):
     """base class for different network types"""
     def __init__(self, settings, model, teacher=None):
         super().__init__(settings, model, teacher)
-        self.pattern_length = self.settings['data']['pattern_length']
+        self.pattern_length = settings['data']['pattern_length']
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
     def create_spike_dict(self, dataset, train, threads=48, delta=0.0):
