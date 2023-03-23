@@ -16,25 +16,25 @@ class Network:
         self.teacher = teacher
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
-        self.h = settings['network']['h']
-        self.n_procs = settings['network']['num_procs']
-        self.n_threads = settings['network']['num_threads']
+        self.h = kwargs.get('h', settings['network']['h'])
+        self.n_procs = kwargs.get('num_procs', settings['network']['num_procs'])
+        self.n_threads = kwargs.get('num_threads', settings['network']['num_threads'])
         
-        self.h_time = settings['network']['h_time']
-        self.start_delta = settings['network']['start_delta']
+        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
 
-        self.noise_freq = settings['network']['noise_freq']
-        self.test_with_noise = settings['network']['test_with_noise']
-        self.noise_after_pattern = settings['network']['noise_after_pattern']
-        self.test_with_inhibition = settings['network']['test_with_inhibition']
+        self.noise_freq = kwargs.get('noise_freq', settings['network']['noise_freq'])
+        self.test_with_noise = kwargs.get('test_with_noise', settings['network']['test_with_noise'])
+        self.noise_after_pattern = kwargs.get('noise_after_pattern', settings['network']['noise_after_pattern'])
+        self.test_with_inhibition = kwargs.get('test_with_inhibition', settings['network']['test_with_inhibition'])
 
-        self.use_inhibition = settings['topology']['use_inhibition']
-        self.n_layer_out = settings['topology']['n_layer_out']
-        self.n_input = settings['topology']['n_input']
+        self.use_inhibition = kwargs.get('use_inhibition', settings['topology']['use_inhibition'])
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
+        self.n_input = kwargs.get('n_input', settings['topology']['n_input'])
 
-        self.epochs = settings['learning']['epochs']
-        self.learning_threshold = settings['learning']['threshold']
-        self.high_threshold_teacher = settings['learning']['high_threshold_teacher']
+        self.epochs = kwargs.get('epochs', settings['learning']['epochs'])
+        self.learning_threshold = kwargs.get('threshold', settings['learning']['threshold'])
+        self.high_threshold_teacher = kwargs.get('high_threshold_teacher',  settings['learning']['high_threshold_teacher'])
 
     def _create_parameters(self, parameters):
         for parameter in parameters:
@@ -426,8 +426,8 @@ class Network:
 
 
 class EpochNetwork(Network):
-    def __init__(self, settings, model, teacher=None, progress=True, normalize_weights=False):
-        super().__init__(settings, model, teacher)
+    def __init__(self, settings, model, teacher=None, progress=True, normalize_weights=False, **kwargs):
+        super().__init__(settings, model, teacher, **kwargs)
         self.progress = progress
         self.normalize_weights = normalize_weights
 
@@ -569,8 +569,8 @@ class EpochNetwork(Network):
 
 
 class NotSoFastEpochNetwork(EpochNetwork):
-    def __init__(self, settings, model, teacher=None, progress=True):
-        super().__init__(settings, model, teacher, progress)
+    def __init__(self, settings, model, teacher=None, progress=True, **kwargs):
+        super().__init__(settings, model, teacher, progress, **kwargs)
         self.init_network()
         self.create_layers()
         self.create_devices()
@@ -728,10 +728,10 @@ class NotSoFastEpochNetwork(EpochNetwork):
 
 
 class ConvolutionNetwork(EpochNetwork):
-    def __init__(self, settings, model, teacher=None):
-        super().__init__(settings, model, teacher)
-        self.kernel_size = settings['topology']['convolution']['kernel_size']
-        self.stride = settings['topology']['convolution']['stride']
+    def __init__(self, settings, model, teacher=None, **kwargs):
+        super().__init__(settings, model, teacher, **kwargs)
+        self.kernel_size = kwargs.get('kernel_size', settings['topology']['convolution']['kernel_size'])
+        self.stride = kwargs.get('stride', settings['topology']['convolution']['stride'])
         self.image_dimension = int(math.sqrt(self.n_input))
         self.n_combinations = (self.image_dimension - (self.kernel_size - self.stride)) ** 2
         self.n_combination_neurons = self.n_layer_out // self.n_combinations
@@ -791,10 +791,10 @@ class ConvolutionNetwork(EpochNetwork):
 
 
 class TwoLayerNetwork(Network):
-    def __init__(self, settings, model, teacher=None):
-        super().__init__(settings, model, teacher)
-        self.n_layer_hid = settings['topology']['n_layer_hid']
-        self.use_reciprocal = settings['topology']['use_reciprocal']
+    def __init__(self, settings, model, teacher=None, **kwargs):
+        super().__init__(settings, model, teacher, **kwargs)
+        self.n_layer_hid = kwargs.get('n_layer_hid', settings['topology']['n_layer_hid'])
+        self.use_reciprocal = kwargs.get('use_reciprocal', settings['topology']['use_reciprocal'])
         self.synapse_models = [self.model['syn_dict_exc_hid']['synapse_model'],
                                self.model['syn_dict_exc']['synapse_model']]
 
@@ -887,9 +887,9 @@ class TwoLayerNetwork(Network):
 
 class FrequencyNetwork(Network):
     """base class for different network types"""
-    def __init__(self, settings, model, teacher=None):
-        super().__init__(settings, model, teacher)
-        self.pattern_length = settings['data']['pattern_length']
+    def __init__(self, settings, model, teacher=None, **kwargs):
+        super().__init__(settings, model, teacher, **kwargs)
+        self.pattern_length = kwargs.get('pattern_length', settings['data']['pattern_length'])
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
     def create_spike_dict(self, dataset, train, threads=48, delta=0.0):

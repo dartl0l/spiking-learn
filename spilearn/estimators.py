@@ -16,13 +16,13 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
+        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, kwargs=kwargs)
         self._devices_fit = None
         self._weights = None
 
     def fit(self, X, y):
         self._network.n_input = len(X[0])
-        self._weights, output_fit, self._devices_fit = self._network.train(X, y)
+        self._weights, _, self._devices_fit = self._network.train(X, y)
         return self
 
     def predict(self, X):
@@ -39,7 +39,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
 
 class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
     
-    def __init__(self, settings, model) -> None:
+    def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
 
@@ -47,7 +47,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
         
-        self._network = EpochNetwork(settings, model, progress=False)
+        self._network = EpochNetwork(settings, model, progress=False, kwargs=kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -57,7 +57,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self._network.n_input = len(X[0])
         for current_class in set(y):
             mask = y == current_class
-            weights, output_fit, devices_fit = self._network.train(X[mask], y[mask])
+            weights, _, devices_fit = self._network.train(X[mask], y[mask])
             self._weights.append(weights)
             self._devices_fit.append(devices_fit)
         return self
@@ -78,20 +78,21 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
 
 class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
     
-    def __init__(self, settings, model) -> None:
+    def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = EpochNetwork(settings, model, progress=False)
+        print(**kwargs)
+        self._network = EpochNetwork(settings, model, progress=False, kwargs=kwargs)
         self._devices_fit = None
         self._weights = None
         
     def fit(self, X, y=None):
         self._network.n_input = len(X[0])
-        self._weights, output_fit, self._devices_fit = self._network.train(X, y)
+        self._weights, _, self._devices_fit = self._network.train(X, y)
         return self
 
     def transform(self, X, y=None):
@@ -107,14 +108,14 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
 
 class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
     
-    def __init__(self, settings, model) -> None:
+    def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = ConvolutionNetwork(settings, model, progress=False)
+        self._network = ConvolutionNetwork(settings, model, kwargs=kwargs)
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
