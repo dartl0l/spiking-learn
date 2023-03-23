@@ -8,7 +8,7 @@ from hyperopt import hp, fmin, tpe, space_eval, Trials
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 
-from spilearn.estimators import *
+from .estimators import *
 
 
 class NpEncoder(json.JSONEncoder):
@@ -22,45 +22,7 @@ class NpEncoder(json.JSONEncoder):
         return super(NpEncoder, self).default(obj)
 
 
-def run(params, X, y, path):
-    settings = json.load(open(path + '/settings.json', 'r'))
-    model = json.load(open(path + '/model.json', 'r'))
-
-    settings['data']['scale'] = params['scale']
-    model['neuron_out']['V_th'] = params['V_th']
-    model['neuron_out']['tau_m'] = params['tau_m']
-
-    model['syn_dict_inh']['weight'] = params['inh_weight']
-    # settings['data']['n_coding_neurons'] = n_coding_neurons
-    # settings['topology']['n_input'] = settings['data']['n_coding_neurons'] * len(X[0])
-    settings['topology']['n_layer_out'] = params['n_layer_out']
-    settings['network']['noise_freq'] = 0.
-
-    round_to = 2
-    
-    trans = ReceptiveFieldsTransformer(
-        settings['data']['n_coding_neurons'],
-        settings['data']['coding_sigma'], 
-        round_to,
-        scale=settings['data']['scale'],
-        reverse=False,
-        no_last=False,
-        reshape=True
-    )
-    net = UnsupervisedTemporalTransformer(settings, model)
-    ev = FirstSpikeVotingClassifier(settings['network']['h_time'])
-    pipe = make_pipeline(
-        trans, 
-        net, 
-        ev
-    )
-    scores = cross_val_score(
-        pipe, X, y, cv=5, scoring='f1_macro')
-
-    return -1.0 * scores.mean()
-
-
-def optimize(X, y, space, path, filename, new_trial=True, max_evals=100, h_evals=10):
+def optimize(X, y, func, space, path, filename, new_trial=True, max_evals=100, h_evals=10):
     if new_trial:
         pickle.dump(Trials(), open(path + "/" + filename, "wb"))
 
@@ -68,7 +30,7 @@ def optimize(X, y, space, path, filename, new_trial=True, max_evals=100, h_evals
     while n_evals <= max_evals:
         trials = pickle.load(open(path + "/" + filename, "rb"))
         best = fmin(
-            fn=partial(run, X=X, y=y, path=path), 
+            fn=partial(func, X=X, y=y, path=path), 
             space=space, algo=tpe.suggest, 
             trials=trials, max_evals=n_evals
         )
@@ -77,8 +39,6 @@ def optimize(X, y, space, path, filename, new_trial=True, max_evals=100, h_evals
         print(best_space)
         json.dump(best_space, open(path + '/best_space.json', 'w'), indent=4, cls=NpEncoder)
         n_evals += h_evals
-
-
     best_space = space_eval(space, best)
     json.dump(best_space, open(path + '/best_space.json', 'w'), indent=4, cls=NpEncoder)
     return best_space

@@ -9,31 +9,31 @@ class Teacher:
     '''
     def __init__(self, settings):
         self.settings = settings
-        
-    def create_teacher(self, input_spikes, classes, teachers):  # Network
-        h = self.settings['network']['h']
-        h_time = self.settings['network']['h_time']
-        start = self.settings['network']['start_delta']
-        reinforce_time = self.settings['learning']['reinforce_time']
-        reinforce_delta = self.settings['learning']['reinforce_delta']
-        teacher_amplitude = self.settings['learning']['teacher_amplitude']
+        self.h = self.settings['network']['h']
+        self.h_time = self.settings['network']['h_time']
+        self.start = self.settings['network']['start_delta']
+        self.reinforce_time = self.settings['learning']['reinforce_time']
+        self.reinforce_delta = self.settings['learning']['reinforce_delta']
+        self.teacher_amplitude = self.settings['learning']['teacher_amplitude']
+        self.n_layer_out = self.settings['topology']['n_layer_out']
 
-        full_time = len(input_spikes) * h_time + start
-        times = np.arange(start, full_time, h_time)
+    def create_teacher(self, input_spikes, classes, teachers):  # Network
+        full_time = len(input_spikes) * self.h_time + self.start
+        times = np.arange(self.start, full_time, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
         assert len(input_spikes) == len(pattern_start_times)
 
         spike_times = np.add(input_spikes, pattern_start_times)
-        stimulation_start = np.nanmin(spike_times, axis=1) + reinforce_delta
-        stimulation_end = stimulation_start + reinforce_time + 2 * h
+        stimulation_start = np.nanmin(spike_times, axis=1) + self.reinforce_delta
+        stimulation_end = stimulation_start + self.reinforce_time + 2 *self. h
         assert len(stimulation_start) == len(spike_times)
 
         teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, teachers, teacher_amplitude)
+                                                classes, teachers, self.teacher_amplitude)
         return teacher_dict
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        single_neuron = self.n_layer_out == 1
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
@@ -59,10 +59,10 @@ class Teacher:
 class TeacherPool(Teacher):
     def __init__(self, settings):
         super(TeacherPool, self).__init__(settings)
+        self.pool_size = self.settings['learning']['teacher_pool_size']
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
-#         single_neuron = self.settings['topology']['n_layer_out'] == 1
-        pool_size = self.settings['learning']['teacher_pool_size']
+#         single_neuron = self.n_layer_out == 1
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
@@ -70,13 +70,13 @@ class TeacherPool(Teacher):
                 'amplitude_values': np.ndarray([])
             }
             
-        assert pool_size * len(set(classes)) == self.settings['topology']['n_layer_out']
+        assert self.pool_size * len(set(classes)) == self.n_layer_out
 
         for cl in np.unique(classes):
             class_mask = classes == cl
             stimulation_start_current = stimulation_start[class_mask]
             stimulation_end_current = stimulation_end[class_mask]
-            current_teacher_ids = teachers[cl * pool_size: cl * pool_size + pool_size]
+            current_teacher_ids = teachers[cl * self.pool_size: cl * self.pool_size + self.pool_size]
             amplitude_times = np.stack((stimulation_start_current,
                                         stimulation_end_current), axis=-1).flatten()
             amplitude_values = np.stack((np.full_like(stimulation_start_current, teacher_amplitude),
@@ -94,25 +94,18 @@ class TeacherMax(Teacher):
         super(TeacherMax, self).__init__(settings)
         
     def create_teacher(self, input_spikes, classes, teachers):  # Network
-        h = self.settings['network']['h']
-        h_time = self.settings['network']['h_time']
-        start = self.settings['network']['start_delta']
-        reinforce_time = self.settings['learning']['reinforce_time']
-        reinforce_delta = self.settings['learning']['reinforce_delta']
-        teacher_amplitude = self.settings['learning']['teacher_amplitude']
-
-        full_time = len(input_spikes) * h_time + start
-        times = np.arange(start, full_time, h_time)
+        full_time = len(input_spikes) * self.h_time + self.start
+        times = np.arange(self.start, full_time, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
         assert len(input_spikes) == len(pattern_start_times)
 
         spike_times = np.add(input_spikes, pattern_start_times)
-        stimulation_start = np.nanmax(spike_times, axis=1) + reinforce_delta
-        stimulation_end = stimulation_start + reinforce_time + 2 * h
+        stimulation_start = np.nanmax(spike_times, axis=1) + self.reinforce_delta
+        stimulation_end = stimulation_start + self.reinforce_time + 2 * self.h
         assert len(stimulation_start) == len(spike_times)
 
         teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, teachers, teacher_amplitude)
+                                                classes, teachers, self.teacher_amplitude)
         return teacher_dict
 
 
@@ -120,16 +113,11 @@ class TeacherFrequency(Teacher):
     
     def __init__(self, settings):
         super(TeacherFrequency, self).__init__(settings)
+        self.epochs = self.settings['learning']['epochs']
         
-    def create_teacher(self, input_spikes, classes, teachers):  # Network
-        h = self.settings['network']['h']
-        h_time = self.settings['network']['h_time']
-        epochs = self.settings['learning']['epochs']
-        d_time = self.settings['network']['start_delta']
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
-        reinforce_time = self.settings['learning']['reinforce_time']
-        reinforce_delta = self.settings['learning']['reinforce_delta']
-        teacher_amplitude = self.settings['learning']['teacher_amplitude']
+    def create_teacher(self, input_spikes, classes, teachers):
+        d_time = self.start
+        single_neuron = self.n_layer_out == 1
 
         teacher_dicts = {}
         for teacher in teachers.get('global_id'):
@@ -139,21 +127,21 @@ class TeacherFrequency(Teacher):
                                      }
         # TODO
         # calc amplitude times one time and concatenate
-        for _ in range(epochs):
+        for _ in range(self.epochs):
             for spikes, cl in zip(input_spikes, classes):
                 current_teacher_id = teachers[0] if single_neuron else teachers[cl]
                 current_teacher = teacher_dicts[current_teacher_id.get('global_id')]
                 start_of_stimulation = d_time \
-                    + reinforce_delta
+                    + self.reinforce_delta
                 end_of_stimulation = start_of_stimulation \
-                    + reinforce_time \
-                    + h
+                    + self.reinforce_time \
+                    + self.h
                 current_teacher['amplitude_times'].append(start_of_stimulation)
                 current_teacher['amplitude_times'].append(end_of_stimulation)
 
-                current_teacher['amplitude_values'].append(teacher_amplitude)
+                current_teacher['amplitude_values'].append(self.teacher_amplitude)
                 current_teacher['amplitude_values'].append(0.0)
-                d_time += h_time
+                d_time += self.h_time
         return teacher_dicts
 
 
@@ -163,12 +151,13 @@ class TeacherFull(Teacher):
     '''
     def __init__(self, settings):
         super(TeacherFull, self).__init__(settings)
+        self.epochs = self.settings['learning']['epochs']
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
                             teachers, teacher_amplitude):
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
-        epochs = self.settings['learning']['epochs']
-        classes_full = np.tile(classes, epochs)
+        single_neuron = self.n_layer_out == 1
+        # epochs = self.settings['learning']['epochs']
+        classes_full = np.tile(classes, self.epochs)
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
@@ -198,7 +187,7 @@ class TeacherInhibitory(Teacher):
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
                             teachers, teacher_amplitude):
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        single_neuron = self.n_layer_out == 1
         # epochs = self.settings['learning']['epochs']
         # classes_full = np.tile(classes, epochs)
         teacher_dict = {}
@@ -234,11 +223,11 @@ class TeacherInhibitoryFull(Teacher):
     
     def __init__(self, settings):
         super(TeacherInhibitoryFull, self).__init__(settings)
+        self.epochs = self.settings['learning']['epochs']
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
-        epochs = self.settings['learning']['epochs']
-        classes_full = np.tile(classes, epochs)
+        single_neuron = self.n_layer_out == 1
+        classes_full = np.tile(classes, self.epochs)
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
@@ -270,33 +259,25 @@ class TeacherInhibitoryFull(Teacher):
 
 class ReinforceTeacher(Teacher):
     def __init__(self, settings):
-        self.settings = settings
+        super(ReinforceTeacher, self).__init__(settings)
         
     def create_teacher(self, input_spikes, classes, teachers):  # Network
-        # print("prepare teacher")
-        h = self.settings['network']['h']
-        h_time = self.settings['network']['h_time']
-#         start = self.settings['network']['start_delta']
-        reinforce_time = self.settings['learning']['reinforce_time']
-        reinforce_delta = self.settings['learning']['reinforce_delta']
-        teacher_amplitude = self.settings['learning']['teacher_amplitude']
-
-        full_time = len(input_spikes) * h_time  # + start
-        times = np.arange(0, full_time, h_time)
+        full_time = len(input_spikes) * self.h_time  # + start
+        times = np.arange(0, full_time, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
         assert len(input_spikes) == len(pattern_start_times)
 
         spike_times = np.add(input_spikes, pattern_start_times)
-        stimulation_start = np.nanmin(spike_times, axis=1) + reinforce_delta
-        stimulation_end = stimulation_start + reinforce_time + 2 * h
+        stimulation_start = np.nanmin(spike_times, axis=1) + self.reinforce_delta
+        stimulation_end = stimulation_start + self.reinforce_time + 2 * self.h
         assert len(stimulation_start) == len(spike_times)
 
         teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, teachers, teacher_amplitude)
+                                                classes, teachers, self.teacher_amplitude)
         return teacher_dict
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
-        single_neuron = self.settings['topology']['n_layer_out'] == 1
+        single_neuron = self.n_layer_out == 1
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {

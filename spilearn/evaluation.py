@@ -5,7 +5,6 @@ from sklearn.metrics import accuracy_score, f1_score
 
 class Evaluation:
     def __init__(self, settings):
-        # super(Solver, self).__init__()
         self.settings = settings
         
     def convert_latency(self, latency_list):
@@ -163,38 +162,19 @@ class DiehlEvaluation(Evaluation):
         neurons_number = len(latencies[0])
         assignments = [-1] * neurons_number
         minimum_latencies_for_all_neurons = [self.settings['network']['h_time']] * neurons_number
-#         print(minimum_latencies_for_all_neurons)
         for current_class in set(y):
             class_size = len(np.where(y == current_class)[0])
-#             print(current_class)
-            
             if class_size == 0:
                 # This class is not present in the set,
                 # so no need to assign it to any neuron.
                 continue
-#             summa = np.sum(latencies[y == current_class], axis=0)
-#             print('sum', summa, len(summa))
             latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
-#             print('mean_latency', latencies_for_this_class, len(latencies_for_this_class))
             for i in range(neurons_number):
                 if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
                     minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
                     assignments[i] = current_class
-#         print(assignments)
         self.assignments = assignments
         return assignments
-
-#     def predict_from_latency(self, latency_list):
-#         latency_list = np.array(latency_list)
-        
-#         class_certainty_ranks = [
-#             self.get_classes_rank_per_one_vector(
-#                 latency, set(y), assignments
-#             )
-#             for latency in latency_list
-#         ]
-#         prediction = np.array(class_certainty_ranks)[:,0]
-#         return prediction
 
     def evaluate(self, latencies, y, latencies_for_assignments=None, y_for_assignments=None):
         if latencies_for_assignments is None:
@@ -206,8 +186,8 @@ class DiehlEvaluation(Evaluation):
         latencies_for_assignments = np.array(latencies_for_assignments)
         y_for_assignments = np.array(y_for_assignments)
 
-        number_of_classes = len(set(y))
-        neurons_number = latencies.shape[1]
+        # number_of_classes = len(set(y))
+        # neurons_number = latencies.shape[1]
         assignments = self.get_assignments(latencies_for_assignments, y_for_assignments)
         class_certainty_ranks = [
             self.get_classes_rank_per_one_vector(
@@ -216,9 +196,9 @@ class DiehlEvaluation(Evaluation):
             for i in range(len(latencies))
         ]
         y_predicted = np.array(class_certainty_ranks)[:,0]
-        difference = y_predicted - y
-        correct = len(np.where(difference == 0)[0])
-        incorrect = np.where(difference != 0)[0]
+        # difference = y_predicted - y
+        # correct = len(np.where(difference == 0)[0])
+        # incorrect = np.where(difference != 0)[0]
         return y_predicted
 
     def get_classes_rank_per_one_vector(self, latency, set_of_classes, assignments):
@@ -226,22 +206,11 @@ class DiehlEvaluation(Evaluation):
         number_of_classes = len(set_of_classes)
         min_latencies = [0] * number_of_classes
         number_of_neurons_assigned_to_this_class = [0] * number_of_classes
-#         print('set_of_classes', set_of_classes)
         for class_number, current_class in enumerate(set_of_classes):
             number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
             if number_of_neurons_assigned_to_this_class == 0:
                 continue
-#             print("current class", current_class, "with", number_of_neurons_assigned_to_this_class)
-#             print(len(latency))
-#             print(assignments == current_class)
             min_latencies[class_number] = np.min(
                 latency[assignments == current_class]
             ) / number_of_neurons_assigned_to_this_class
-
-#             print('-----')
-        # return np.array(set_of_classes)[
-        #     np.array(np.argsort(summed_rates)[::-1])
-        # ]
-#         print(min_latencies)
-        
         return np.argsort(min_latencies)[::1]
