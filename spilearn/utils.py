@@ -1,4 +1,5 @@
 import json
+import math
 import pickle
 import numpy as np
 
@@ -97,3 +98,58 @@ def convert_latency(latency_list, n_neurons):
             tmp_list[sender - 1] = latencies['spikes'][mask][0]
         output_array.append(tmp_list)
     return output_array
+
+
+def predict_from_latency(latency_list, func=np.nanargmin):
+    latency_list = np.array(latency_list)
+    mask = np.logical_not(np.all(np.isnan(latency_list), axis=1))
+    prediction = np.zeros(len(latency_list))
+    prediction[mask] = func(latency_list[mask], axis=1)
+    return prediction
+
+
+def fitness_func_time(latency_list, Y):
+    fit_list = []
+
+    for latency, y in zip(latency_list, Y):
+        latency_of_desired_neuron = latency.pop(y)
+
+        fit = -1 * latency_of_desired_neuron
+        fit_list.append(fit)
+
+    fitness_score = np.mean(fit_list)
+    if np.isnan(fitness_score):
+        fitness_score = 0
+    return fitness_score
+
+
+def fitness_func_sigma(latency_list, Y):
+    def sigmoid(x, alpha):
+        return 1 / (1 + np.exp(-2 * alpha * x))
+
+    fit_list = []
+    for latency, y in zip(latency_list, Y):
+        latency_of_desired_neuron = latency.pop(y)
+        fit = 1
+        for lat in latency:
+            fit *= sigmoid(lat - latency_of_desired_neuron, 0.1)
+        fit_list.append(fit)
+    fitness_score = np.mean(fit_list)
+    if np.isnan(fitness_score):
+        fitness_score = 0
+    return fitness_score, fit_list
+
+
+def fitness_func_exp(latency_list, Y):
+    fit_list = []
+    for latency, y in zip(latency_list, Y):
+        latency_of_desired_neuron = latency.pop(y)
+        fit = 1
+        for lat in latency:
+            fit -= math.exp(latency_of_desired_neuron - lat)
+        fit_list.append(fit)
+    fitness_score = np.mean(fit_list)
+    if np.isnan(fitness_score):
+        fitness_score = 0
+    return fitness_score, fit_list
+

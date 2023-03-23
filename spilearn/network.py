@@ -17,10 +17,11 @@ class Network:
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
         self.h = settings['network']['h']
+        self.n_procs = settings['network']['num_procs']
+        self.n_threads = settings['network']['num_threads']
+        
         self.h_time = settings['network']['h_time']
         self.start_delta = settings['network']['start_delta']
-        self.num_threads = settings['network']['num_threads']
-        self.num_procs = settings['network']['num_procs']
 
         self.noise_freq = settings['network']['noise_freq']
         self.test_with_noise = settings['network']['test_with_noise']
@@ -218,11 +219,11 @@ class Network:
     def init_network(self):
         np.random.seed()
         rng = np.random.randint(1, pow(2, 32) - 1)
-        num_v_procs = self.num_threads * self.num_procs
+        num_v_procs = self.n_threads * self.n_procs
 
         nest.ResetKernel()
         nest.SetKernelStatus({
-             'local_num_threads': self.num_threads,
+             'local_num_threads': self.n_threads,
              'total_num_virtual_procs': num_v_procs,
              'resolution': self.h
         })

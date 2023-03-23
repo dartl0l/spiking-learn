@@ -9,15 +9,14 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
     
-    def __init__(self, settings, model) -> None:
+    def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
 
         self.n_layer_out = settings['topology']['n_layer_out']
         self.start_delta = settings['network']['start_delta']
         self.h_time = settings['network']['h_time']
-        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False)
-        self._evaluation = Evaluation(settings)
+        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -34,7 +33,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
             self.start_delta,
             self.h_time)
         out_latency = convert_latency(all_latency, self.n_layer_out)
-        y_pred = self._evaluation.predict_from_latency(out_latency)
+        y_pred = predict_from_latency(out_latency)
         return y_pred.astype(int)
 
 
@@ -49,7 +48,6 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.h_time = settings['network']['h_time']
         
         self._network = EpochNetwork(settings, model, progress=False)
-        self._evaluation = Evaluation(settings)
         self._devices_fit = None
         self._weights = None
 
@@ -74,7 +72,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
                 self.h_time)
             out_latency = convert_latency(all_latency, self.n_layer_out)
             full_output.append(out_latency)
-        y_pred = self._evaluation.predict_from_latency(np.concatenate(full_output, axis=1))
+        y_pred = predict_from_latency(np.concatenate(full_output, axis=1))
         return y_pred.astype(int)
 
 

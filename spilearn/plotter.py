@@ -35,7 +35,7 @@ class Plotter():
         plt.ylabel('Spike times of pattern')
         plt.show()
 
-    def plot_weights_2d(self, weights, rows, columns, ax_cols=None, ax_rows=None, neuron_titles=True,show=True):
+    def plot_weights_2d(self, weights, rows, columns, ax_cols=None, ax_rows=None, neuron_titles=True, show=True):
         plt.clf()
         # plt.figure()
         # plt.title('Weight distribution')

@@ -6,12 +6,14 @@ from sklearn.metrics import accuracy_score, f1_score
 class Evaluation:
     def __init__(self, settings):
         self.settings = settings
+        self.n_neurons = self.settings['topology']['n_layer_out']
+        self.start_delta = self.settings['network']['start_delta']
+        self.h_time = self.settings['network']['h_time']
         
     def convert_latency(self, latency_list):
         output_array = []
-        n_neurons = self.settings['topology']['n_layer_out']
         for latencies in latency_list:
-            tmp_list = [np.nan] * n_neurons
+            tmp_list = [np.nan] * self.n_neurons
             senders = set(latencies['senders'])
             for sender in senders:
                 mask = latencies['senders'] == sender
@@ -31,12 +33,12 @@ class Evaluation:
 
     def split_spikes_and_senders(self, input_latency, n_examples):
         output_latency = []
-        d_time = self.settings['network']['start_delta']
+        d_time = self.start_delta
         input_latency['spikes'] = np.array(input_latency['spikes'])
         input_latency['senders'] = np.array(input_latency['senders'])
         for _ in range(n_examples):
             mask = (input_latency['spikes'] > d_time) & \
-                   (input_latency['spikes'] < d_time + self.settings['network']['h_time'])
+                   (input_latency['spikes'] < d_time + self.h_time)
             spikes_tmp = input_latency['spikes'][mask]
             senders_tmp = input_latency['senders'][mask]
             tmp_dict = {
@@ -44,7 +46,7 @@ class Evaluation:
                         'senders': senders_tmp
                         }
 
-            d_time += self.settings['network']['h_time']
+            d_time += self.h_time
             output_latency.append(tmp_dict)    
         return output_latency
 
@@ -132,12 +134,12 @@ class EvaluationPool(Evaluation):
     def __init__(self, settings):
         super().__init__(settings)
         self.pool_size = self.settings['learning']['teacher_pool_size']
+        self.n_neurons = self.settings['topology']['n_layer_out']
 
     def convert_latency(self, latency_list):
         output_array = []
-        n_neurons = self.settings['topology']['n_layer_out']
         for latencies in latency_list:
-            tmp_list = [np.nan] * n_neurons
+            tmp_list = [np.nan] * self.n_neurons
             senders = set(latencies['senders'])
             for sender in senders:
                 mask = latencies['senders'] == sender
@@ -145,7 +147,7 @@ class EvaluationPool(Evaluation):
             output_array.append(tmp_list)
         output_array = np.array(output_array).reshape(
             len(output_array),
-            int(n_neurons / self.pool_size),
+            int(self.n_neurons / self.pool_size),
             self.pool_size)
         output_array = np.mean(output_array, axis=2)
         return output_array
@@ -156,12 +158,13 @@ class DiehlEvaluation(Evaluation):
     def __init__(self, settings):
         super().__init__(settings)
         self.assignments = None
+        self.h_time = self.settings['network']['h_time']
 
     def get_assignments(self, latencies, y):
         latencies = np.array(latencies)
         neurons_number = len(latencies[0])
         assignments = [-1] * neurons_number
-        minimum_latencies_for_all_neurons = [self.settings['network']['h_time']] * neurons_number
+        minimum_latencies_for_all_neurons = [self.h_time] * neurons_number
         for current_class in set(y):
             class_size = len(np.where(y == current_class)[0])
             if class_size == 0:
