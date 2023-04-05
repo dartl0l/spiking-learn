@@ -13,9 +13,9 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = settings['topology']['n_layer_out']
-        self.start_delta = settings['network']['start_delta']
-        self.h_time = settings['network']['h_time']
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
+        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
+        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
         self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, kwargs=kwargs)
         self._devices_fit = None
         self._weights = None
@@ -43,9 +43,9 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = settings['topology']['n_layer_out']
-        self.start_delta = settings['network']['start_delta']
-        self.h_time = settings['network']['h_time']
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
+        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
+        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
         
         self._network = EpochNetwork(settings, model, progress=False, kwargs=kwargs)
         self._devices_fit = None
@@ -82,10 +82,10 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = settings['topology']['n_layer_out']
-        self.start_delta = settings['network']['start_delta']
-        self.h_time = settings['network']['h_time']
-        print(**kwargs)
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
+        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
+        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+
         self._network = EpochNetwork(settings, model, progress=False, kwargs=kwargs)
         self._devices_fit = None
         self._weights = None
@@ -112,9 +112,10 @@ class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = settings['topology']['n_layer_out']
-        self.start_delta = settings['network']['start_delta']
-        self.h_time = settings['network']['h_time']
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
+        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
+        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+
         self._network = ConvolutionNetwork(settings, model, kwargs=kwargs)
 
 

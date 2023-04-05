@@ -9,8 +9,6 @@ from hyperopt import hp, fmin, tpe, space_eval, Trials
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 
-from .estimators import *
-
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -24,12 +22,10 @@ class NpEncoder(json.JSONEncoder):
 
 
 def optimize(X, y, func, space, path, filename, new_trial=True, max_evals=100, h_evals=10):
-    if new_trial:
-        pickle.dump(Trials(), open(path + "/" + filename, "wb"))
+    trials = Trials() if new_trial else pickle.load(open(path + "/" + filename, "rb"))
 
     n_evals = h_evals
     while n_evals <= max_evals:
-        trials = pickle.load(open(path + "/" + filename, "rb"))
         best = fmin(
             fn=partial(func, X=X, y=y, path=path), 
             space=space, algo=tpe.suggest, 
@@ -37,7 +33,6 @@ def optimize(X, y, func, space, path, filename, new_trial=True, max_evals=100, h
         )
         pickle.dump(trials, open(path + "/" + filename, "wb"))
         best_space = space_eval(space, best)
-        print(best_space)
         json.dump(best_space, open(path + '/best_space.json', 'w'), indent=4, cls=NpEncoder)
         n_evals += h_evals
     best_space = space_eval(space, best)
