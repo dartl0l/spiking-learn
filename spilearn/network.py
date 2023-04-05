@@ -426,10 +426,10 @@ class Network:
 
 
 class EpochNetwork(Network):
-    def __init__(self, settings, model, teacher=None, progress=True, normalize_weights=False, **kwargs):
+    def __init__(self, settings, model, teacher=None, progress=True, **kwargs):
         super().__init__(settings, model, teacher, **kwargs)
         self.progress = progress
-        self.normalize_weights = normalize_weights
+        self.normalize_weights = kwargs.get('normalize_weights', False)
 
     def normalize(self, w_target=1):
         weights_all = self.save_weights(self.layers)
