@@ -21,13 +21,13 @@ class NpEncoder(json.JSONEncoder):
         return super(NpEncoder, self).default(obj)
 
 
-def optimize(X, y, func, space, path, filename, new_trial=True, max_evals=100, h_evals=10):
+def optimize(X, y, func, space, path, filename, new_trial=True, max_evals=100, h_evals=10, X_test=None, y_test=None):
     trials = Trials() if new_trial else pickle.load(open(path + "/" + filename, "rb"))
 
     n_evals = h_evals
     while n_evals <= max_evals:
         best = fmin(
-            fn=partial(func, X=X, y=y, path=path), 
+            fn=partial(func, X=X, y=y, path=path, X_test=X_test, y_test=y_test), 
             space=space, algo=tpe.suggest, 
             trials=trials, max_evals=n_evals
         )
