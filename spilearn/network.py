@@ -14,6 +14,8 @@ class Network:
     def __init__(self, settings, model, teacher=None, **kwargs):
         self.model = copy.deepcopy(model)
         self.teacher = teacher
+        self.need_devices = kwargs.get('need_devices', False)
+
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
         self.h = kwargs.get('h', settings['network']['h'])
@@ -35,7 +37,7 @@ class Network:
         self.epochs = kwargs.get('epochs', settings['learning']['epochs'])
         self.learning_threshold = kwargs.get('threshold', settings['learning']['threshold'])
         self.high_threshold_teacher = kwargs.get('high_threshold_teacher',  settings['learning']['high_threshold_teacher'])
-
+        
     def _create_parameters(self, parameters):
         for parameter in parameters:
             if not isinstance(parameters[parameter], str):
@@ -269,18 +271,20 @@ class Network:
 
     def connect_devices(self):
         nest.Connect(self.input_generators, 
-                     self.input_layer, 'one_to_one', 
+                     self.input_layer,
+                     'one_to_one', 
                      syn_spec='static_synapse')
         nest.Connect(self.poisson_layer,
-                     self.input_layer, 'one_to_one',
+                     self.input_layer,
+                     'one_to_one',
                      syn_spec='static_synapse')
 
         nest.Connect(self.layer_out,
                      self.spike_detector_out,
-                     'all_to_all')
+                     conn_spec={'rule': 'all_to_all'})
         nest.Connect(self.input_layer,
                      self.spike_detector_input,
-                     'all_to_all')
+                     conn_spec={'rule': 'all_to_all'})
         nest.Connect(self.multimeter,
                      self.layer_out)
 
@@ -299,7 +303,7 @@ class Network:
     def connect_layers_static(self):
         nest.Connect(self.input_layer,
                      self.layer_out, 
-                     'all_to_all',
+                     conn_spec={'rule': 'all_to_all'},
                      syn_spec='static_synapse')
 
     def connect_layers_inh(self):
@@ -384,7 +388,7 @@ class Network:
                                 self.spike_detector_out,
                                 keys="events")[0]['senders'].tolist()
                  }
-        devices = self.get_devices()
+        devices = self.get_devices() if self.need_devices else None
         return weights, output, devices
 
     def test(self, x, weights):
@@ -394,8 +398,7 @@ class Network:
 
         self.connect_devices()
         self.connect_layers_static()
-        if self.use_inhibition \
-                and self.test_with_inhibition:
+        if self.use_inhibition and self.test_with_inhibition:
             self.connect_layers_inh()
 
         self.set_neuron_status()
@@ -421,14 +424,14 @@ class Network:
                                 keys="events")[0]['senders'].tolist()
                  }
 
-        devices = self.get_devices()
+        devices = self.get_devices() if self.need_devices else None
         return output, devices
 
 
 class EpochNetwork(Network):
-    def __init__(self, settings, model, teacher=None, progress=True, **kwargs):
+    def __init__(self, settings, model, teacher=None, **kwargs):
         super().__init__(settings, model, teacher, **kwargs)
-        self.progress = progress
+        self.progress = kwargs.get('progress', True)
         self.normalize_weights = kwargs.get('normalize_weights', False)
 
     def normalize(self, w_target=1):
@@ -471,9 +474,8 @@ class EpochNetwork(Network):
         return full_time, spike_dict, teacher_dicts
 
     def simulate(self, full_time, spike_dict, teacher_dicts=None):
-        t = trange(self.epochs) if self.progress \
-            else range(self.epochs)
-        for epoch in t:
+        t = trange(self.epochs) if self.progress else range(self.epochs)
+        for _ in t:
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
@@ -528,7 +530,7 @@ class EpochNetwork(Network):
                                 self.spike_detector_out,
                                 keys="events")[0]['senders'].tolist()
                  }
-        devices = self.get_devices()
+        devices = self.get_devices() if self.need_devices else None
         return weights, output, devices
 
     def test(self, x, weights):
@@ -556,15 +558,15 @@ class EpochNetwork(Network):
         nest.Simulate(full_time)
 
         output = {
-          'spikes': nest.GetStatus(
+            'spikes': nest.GetStatus(
                         self.spike_detector_out,
                         keys="events")[0]['times'].tolist(),
-          'senders': nest.GetStatus(
-                         self.spike_detector_out,
-                         keys="events")[0]['senders'].tolist()
-         }
+            'senders': nest.GetStatus(
+                            self.spike_detector_out,
+                            keys="events")[0]['senders'].tolist()
+        }
 
-        devices = self.get_devices()
+        devices = self.get_devices() if self.need_devices else None
         return output, devices
 
 
@@ -641,10 +643,9 @@ class NotSoFastEpochNetwork(EpochNetwork):
             for teacher in teacher_dicts:
                 teacher_dicts[teacher]['amplitude_times'] += self.time_elapsed
 
-        t = trange(self.epochs) if self.progress \
-            else range(self.epochs)
+        t = trange(self.epochs) if self.progress else range(self.epochs)
         time = 0
-        for epoch in t:
+        for _ in t:
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
@@ -672,7 +673,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
                   'spikes': spikes,
                   'senders': senders
                  }
-        devices = self.get_devices()
+        devices = self.get_devices() if self.need_devices else None
         self.time_elapsed += time
         
         return weights, output, devices
@@ -722,7 +723,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
                   'senders': senders
                  }
 
-        devices = self.get_devices()
+        devices = self.get_devices() if self.need_devices else None
         self.time_elapsed += full_time
         return output, devices
 
@@ -854,9 +855,9 @@ class TwoLayerNetwork(Network):
     def get_devices(self):
         devices = {
                     'multimeter': nest.GetStatus(self.multimeter,
-                                                keys="events")[0],
+                                                 keys="events")[0],
                     'multimeter_hidden': nest.GetStatus(self.voltmeter_hidden,
-                                                       keys="events")[0],
+                                                        keys="events")[0],
                     'spike_detector_out': nest.GetStatus(self.spike_detector_out,
                                                          keys="events")[0],
                     'spike_detector_input': nest.GetStatus(self.spike_detector_input,
