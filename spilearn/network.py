@@ -310,11 +310,11 @@ class Network:
         self.interconnect_layer(self.layer_out,
                                 self.model['syn_dict_inh'])
 
-    def set_neuron_status(self):
+    def set_neuron_status(self, override_threshold=False):
         nest.SetStatus(self.layer_out,
                        self.model['neuron_out'])
 
-        if self.high_threshold_teacher:
+        if override_threshold:
             nest.SetStatus(
                 self.layer_out,
                 {'V_th': self.learning_threshold})
@@ -358,7 +358,7 @@ class Network:
         if self.use_inhibition:
             self.connect_layers_inh()
 
-        self.set_neuron_status()
+        self.set_neuron_status(self.high_threshold_teacher)
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=x, train=True,
@@ -507,7 +507,7 @@ class EpochNetwork(Network):
         if self.use_inhibition:
             self.connect_layers_inh()
 
-        self.set_neuron_status()
+        self.set_neuron_status(self.high_threshold_teacher)
 
         full_time, spike_dict, teacher_dicts = self.create_spikes(x, y)
 
@@ -523,13 +523,13 @@ class EpochNetwork(Network):
 
         weights = self.save_weights(self.layers)
         output = {
-                  'spikes': nest.GetStatus(
-                                self.spike_detector_out,
-                                keys="events")[0]['times'].tolist(),
-                  'senders': nest.GetStatus(
-                                self.spike_detector_out,
-                                keys="events")[0]['senders'].tolist()
-                 }
+            'spikes': nest.GetStatus(
+                        self.spike_detector_out,
+                        keys="events")[0]['times'].tolist(),
+            'senders': nest.GetStatus(
+                        self.spike_detector_out,
+                        keys="events")[0]['senders'].tolist()
+        }
         devices = self.get_devices() if self.need_devices else None
         return weights, output, devices
 
@@ -614,7 +614,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
         if self.use_inhibition:
             self.connect_layers_inh()
 
-        self.set_neuron_status()
+        self.set_neuron_status(self.high_threshold_teacher)
         if not self.noise_after_pattern:
             self.set_noise()
 
@@ -867,8 +867,8 @@ class TwoLayerNetwork(Network):
                    }
         return devices
 
-    def set_neuron_status(self):
-        super().set_neuron_status()
+    def set_neuron_status(self, override_threshold):
+        super().set_neuron_status(override_threshold)
         nest.SetStatus(self.layer_hid,
                        self.model['neuron_hid'])
 

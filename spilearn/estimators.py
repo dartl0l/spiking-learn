@@ -16,10 +16,10 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
-        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, kwargs=kwargs)
+        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
-
+        
     def fit(self, X, y):
         self._network.n_input = len(X[0])
         self._weights, _, self._devices_fit = self._network.train(X, y)
@@ -47,7 +47,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
         
-        self._network = EpochNetwork(settings, model, progress=False, kwargs=kwargs)
+        self._network = EpochNetwork(settings, model, progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -86,7 +86,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
 
-        self._network = EpochNetwork(settings, model, progress=False, kwargs=kwargs)
+        self._network = EpochNetwork(settings, model, progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
         
@@ -116,7 +116,7 @@ class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
 
-        self._network = ConvolutionNetwork(settings, model, kwargs=kwargs)
+        self._network = ConvolutionNetwork(settings, model, **kwargs)
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
