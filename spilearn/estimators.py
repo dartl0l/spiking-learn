@@ -8,7 +8,7 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 
 class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
-    
+
     def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
@@ -19,7 +19,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
-        
+
     def fit(self, X, y):
         self._network.n_input = len(X[0])
         self._weights, _, self._devices_fit = self._network.train(X, y)
@@ -37,8 +37,8 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         return y_pred.astype(int)
 
 
-class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
-    
+class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
+
     def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
@@ -46,7 +46,21 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
-        
+        self._network = TwoLayerNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
+        self._devices_fit = None
+        self._weights = None
+
+
+class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
+
+    def __init__(self, settings, model, **kwargs) -> None:
+        self.model = model
+        self.settings = settings
+
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
+        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
+        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+
         self._network = EpochNetwork(settings, model, progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
@@ -77,7 +91,7 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
 
 
 class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
-    
+
     def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
@@ -86,10 +100,10 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
 
-        self._network = EpochNetwork(settings, model, progress=False, **kwargs)
+        self._network = kwargs.get('network', EpochNetwork(settings, model, progress=False, **kwargs))
         self._devices_fit = None
         self._weights = None
-        
+
     def fit(self, X, y=None):
         self._network.n_input = len(X[0])
         self._weights, _, self._devices_fit = self._network.train(X, y)
@@ -107,7 +121,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
 
 
 class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
-    
+
     def __init__(self, settings, model, **kwargs) -> None:
         self.model = model
         self.settings = settings
@@ -148,7 +162,7 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
         self.max_y = np.round(self._get_gaussian(h_mu, self.sigma2, h_mu), 0)
         self.mu = np.tile(np.linspace(0, self.max_x, self.n_fields), len(X[0]))
         return self
-    
+
     def transform(self, X, y=None):
         X = np.repeat(X, self.n_fields, axis=1)
         assert len(self.mu) == len(X[0])
@@ -168,14 +182,14 @@ class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
         self.reshape = reshape
         self.reverse = reverse
         self.no_last = no_last
-    
+
     def fit(self, X, y=None):
         return self
 
     def transform(self, X, y=None):
         if self.no_last:
             X[X == 0] = np.nan
-        
+
         X = 1 - X if self.reverse else X
         X = np.round(self.pattern_length * X, self.k_round)
         return X.reshape(X.shape[0], X.shape[1], 1) if self.reshape else X.reshape(X.shape[0], X.shape[1])
@@ -187,7 +201,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
         self.h_time = h_time
         self.classes = None
         self.assignments = None
-    
+
     def _get_classes_rank_per_one_vector(self, latency, set_of_classes, assignments):
         latency = np.array(latency)
         number_of_classes = len(set_of_classes)
@@ -222,7 +236,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
         self.classes = set(y)
         self.assignments = self._get_assignments(X, y)
         return self
-    
+
     def predict(self, X):
         class_certainty_ranks = [
             self._get_classes_rank_per_one_vector(
