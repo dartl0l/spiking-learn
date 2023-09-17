@@ -454,15 +454,15 @@ class EpochNetwork(Network):
         self.normalize_weights = kwargs.get('normalize_weights', False)
 
     def normalize(self, w_target=1):
-        weights_all = self.save_weights(self.layers)
-        for weights_of_split in weights_all:
-            for layer_weights in weights_of_split:
-                for neuron in layer_weights:
-                    w = np.array(layer_weights[neuron])
-                    w_norm = w / sum(abs(w))
-                    w = w_target * w_norm
-                    layer_weights[neuron] = w
-        self.set_weights(weights_all)
+        weights = self.save_weights(self.layers)
+
+        for layer_weights in weights:
+            for neuron in layer_weights:
+                w = np.array(layer_weights[neuron])
+                w_norm = w / sum(abs(w))
+                w = w_target * w_norm
+                layer_weights[neuron] = w
+        self.set_weights(weights)
 
     def create_spike_dict(self, dataset, delta=0.0):
         pattern_start_shape = (len(dataset[0]), 1)
@@ -597,11 +597,18 @@ class LiteEpochNetwork(EpochNetwork):
     def create_devices(self):
         self.teacher_layer = nest.Create(
             'step_current_generator',
-            self.n_layer_out)
+            self.n_layer_out
+        )
 
         self.input_generators = nest.Create(
-            'spike_generator',
-            self.n_input)
+            'spike_train_injector',
+            self.n_input
+        )
+
+        self.poisson_layer = nest.Create(
+            'poisson_generator',
+            self.n_input
+        )
 
         self.spike_detector_out = nest.Create('spike_recorder')
 
