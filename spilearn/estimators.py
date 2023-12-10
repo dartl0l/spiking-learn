@@ -99,6 +99,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+        self.reshape = kwargs.get('reshape', True)
 
         self._network = kwargs.get('network', EpochNetwork(settings, model, progress=False, **kwargs))
         self._devices_fit = None
@@ -117,7 +118,7 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
             self.start_delta,
             self.h_time)
         out_latency = np.array(convert_latency(all_latency, self.n_layer_out))
-        return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1)
+        return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1) if self.reshape else out_latency
 
 
 class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):

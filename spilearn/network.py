@@ -8,10 +8,12 @@ import numpy as np
 from tqdm import trange
 
 nest.set_verbosity('M_QUIET')
+nest.Install('stdptanhmodule')
 
 class Network:
     """base class for different network types"""
     def __init__(self, settings, model, teacher=None, **kwargs):
+
         self.model = copy.deepcopy(model)
         self.teacher = teacher
         self.need_devices = kwargs.get('need_devices', False)
@@ -505,7 +507,7 @@ class EpochNetwork(Network):
                 nest.Simulate(self.start_delta)
                 for _ in spike_dict:
                     nest.Simulate(self.h_time)
-                    self.normalize()
+                self.normalize()
             else:
                 nest.Simulate(full_time)
 
@@ -590,6 +592,7 @@ class EpochNetwork(Network):
         devices = self.get_devices() if self.need_devices else None
         return output, devices
 
+
 class LiteEpochNetwork(EpochNetwork):
     def __init__(self, settings, model, teacher=None, **kwargs):
         super().__init__(settings, model, teacher, **kwargs)
@@ -611,6 +614,38 @@ class LiteEpochNetwork(EpochNetwork):
         )
 
         self.spike_detector_out = nest.Create('spike_recorder')
+
+
+class WeightedEpochNetwork(EpochNetwork):
+    def __init__(self, settings, model, teacher=None, **kwargs):
+        super().__init__(settings, model, teacher, **kwargs)
+        self.spike_weights_scale = kwargs.get('spike_weights_scale', 10)
+
+    def create_spike_weights(self, spikes, spike_weights_scale):
+        weights = np.exp(-spikes / spike_weights_scale)
+        return weights
+
+    def create_spike_dict(self, dataset, delta=0.0):
+        pattern_start_shape = (len(dataset[0]), 1)
+        full_time = len(dataset) * self.h_time + delta
+
+        spike_times = self.create_spike_times(
+            dataset, delta, full_time, pattern_start_shape
+        )
+
+        spike_weights = self.create_spike_weights(
+            dataset, self.spike_weights_scale
+        )
+
+        spike_dict = [None] * len(dataset[0])
+        for input_neuron in range(len(dataset[0])):
+            tmp_spikes = spike_times[:, input_neuron]
+            tmp_weights = spike_weights[:, input_neuron]
+            spike_dict[input_neuron] = {
+                'spike_times': tmp_spikes[np.isfinite(tmp_spikes)],
+                'spike_weights': tmp_weights[np.isfinite(tmp_weights)]
+            }
+        return spike_dict, full_time
 
 
 class NotSoFastEpochNetwork(EpochNetwork):
