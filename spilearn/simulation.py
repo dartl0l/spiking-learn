@@ -25,11 +25,12 @@ class Simulation():
 
 class CartPoleSimulation(Simulation):
     
-    def __init__(self, env, test_network, scaler, conv, reward, evaluation, teacher, settings, learning_rate=0.03):
+    def __init__(self, env, test_network, scaler, conv, reward, evaluation, teacher, settings, model, learning_rate=0.03):
 
         self.env = env
         self.scaler = scaler
         self.settings = settings
+        self.model = model
         self.conv = conv
         
         self.evaluation = evaluation
@@ -220,7 +221,7 @@ class CartPoleSimulation(Simulation):
                 np.array(amps)
 
 
-class CartPoleSimulationTanh(CartPoleSimulation):
+class CartPoleSimulationNC(CartPoleSimulation):
 
     def update_learning_rate(self, learning_rate):
         connection = nest.GetConnections(
@@ -229,11 +230,11 @@ class CartPoleSimulationTanh(CartPoleSimulation):
         )
         nest.SetStatus(
             connection, 'a_plus', 
-            learning_rate * self.settings['model']['syn_dict_stdp']['a_plus']
+            learning_rate * self.model['syn_dict_stdp']['a_plus']
         )
         nest.SetStatus(
             connection, 'a_minus', 
-            learning_rate * self.settings['model']['syn_dict_stdp']['a_minus']
+            learning_rate * self.model['syn_dict_stdp']['a_minus']
         )
         
     def learn_states(self, states, actions, inhibit=False):
@@ -356,7 +357,7 @@ class CartPoleSimulationTanh(CartPoleSimulation):
                 np.array(amps)
 
 
-class CartPoleSimulationMem(CartPoleSimulation):
+class CartPoleSimulationPPX(CartPoleSimulation):
 
     def update_learning_rate(self, learning_rate):
         connection = nest.GetConnections(
@@ -365,11 +366,11 @@ class CartPoleSimulationMem(CartPoleSimulation):
         )
         nest.SetStatus(
             connection, 'alpha_plus', 
-            learning_rate * self.settings['model']['syn_dict_stdp']['alpha_plus']
+            learning_rate * self.model['syn_dict_stdp']['alpha_plus']
         )
         nest.SetStatus(
             connection, 'alpha_minus', 
-            learning_rate * self.settings['model']['syn_dict_stdp']['alpha_minus']
+            learning_rate * self.model['syn_dict_stdp']['alpha_minus']
         )
 
     def run(self, n_episodes=100, n_states_max=10000):

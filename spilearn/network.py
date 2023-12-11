@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import os
 import nest
 import math
 import copy
@@ -8,12 +9,13 @@ import numpy as np
 from tqdm import trange
 
 nest.set_verbosity('M_QUIET')
-nest.Install('stdptanhmodule')
+
+if 'NEST_MODULES' not in os.environ:
+    nest.Install('stdptanhmodule')
 
 class Network:
     """base class for different network types"""
     def __init__(self, settings, model, teacher=None, **kwargs):
-
         self.model = copy.deepcopy(model)
         self.teacher = teacher
         self.need_devices = kwargs.get('need_devices', False)

@@ -1,6 +1,5 @@
 # spiking-learn
 This is "framework" for spiking neural networks machine learning based on temporal encoding.
-It can be running with mpi.
 
 ### Citation
 Please, cite my last paper while using this repo https://www.mendeley.com/profiles/danila-vlasov/publications/
@@ -11,8 +10,8 @@ Please, cite my last paper while using this repo https://www.mendeley.com/profil
   * sklearn
   * numpy
   * matplotlib
-  * mpi4py
-  * MultiNEAT http://multineat.com/index.html (needed for genetic.py)
+  * hyperopt
+  * tqdm
 
 ## Running
 To start simulation create your own py file and add

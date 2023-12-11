@@ -5,3 +5,4 @@ venv/
 .idea/
 __init__.pyc
 *.pyc
+.code-workspace
