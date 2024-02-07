@@ -259,19 +259,23 @@ class Network:
     def create_devices(self):
         self.teacher_layer = nest.Create(
             'step_current_generator',
-            self.n_layer_out)
+            self.n_layer_out
+        ) if self.teacher else None
 
         self.input_generators = nest.Create(
             'spike_generator',
-            self.n_input)
+            self.n_input
+        )
 
         self.interpattern_noise_generator = nest.Create(
             'spike_generator',
-            self.n_input)
+            self.n_input
+        )
 
         self.poisson_layer = nest.Create(
             'poisson_generator',
-            self.n_input)
+            self.n_input
+        )
 
         self.spike_detector_out = nest.Create('spike_recorder')
         self.spike_detector_input = nest.Create('spike_recorder')
@@ -397,7 +401,7 @@ class Network:
             self.set_poisson_noise(
                 noise_dict,
                 self.interpattern_noise_generator)
-        else:
+        elif self.poisson_layer:
             self.set_noise()
 
         self.simulate(full_time, spike_dict, teacher_dicts)
@@ -425,7 +429,7 @@ class Network:
             self.connect_layers_inh()
 
         self.set_neuron_status()
-        if self.test_with_noise:
+        if self.test_with_noise and self.poisson_layer:
             self.set_noise()
         self.set_weights(weights)
 
@@ -456,6 +460,7 @@ class EpochNetwork(Network):
         super().__init__(settings, model, teacher, **kwargs)
         self.progress = kwargs.get('progress', True)
         self.normalize_weights = kwargs.get('normalize_weights', False)
+        self.normalize_step = kwargs.get('normalize_step', None)
 
     def normalize(self, w_target=1):
         weights = self.save_weights(self.layers)
@@ -507,9 +512,12 @@ class EpochNetwork(Network):
                     teacher_dicts)
             if self.normalize_weights:
                 nest.Simulate(self.start_delta)
-                for _ in spike_dict:
+                for i in spike_dict:
                     nest.Simulate(self.h_time)
-                self.normalize()
+                    if self.normalize_step and i % self.normalize_step == 0:
+                        self.normalize()
+                if not self.normalize_step: 
+                    self.normalize()
             else:
                 nest.Simulate(full_time)
 
@@ -565,11 +573,10 @@ class EpochNetwork(Network):
 
         self.connect_devices()
         self.connect_layers_static()
-        if self.use_inhibition \
-                and self.test_with_inhibition:
+        if self.use_inhibition and self.test_with_inhibition:
             self.connect_layers_inh()
         self.set_neuron_status()
-        if self.test_with_noise:
+        if self.test_with_noise and self.poisson_layer:
             self.set_noise()
         self.set_weights(weights)
 
@@ -603,17 +610,12 @@ class LiteEpochNetwork(EpochNetwork):
         self.teacher_layer = nest.Create(
             'step_current_generator',
             self.n_layer_out
-        )
+        ) if self.teacher else None
 
         self.input_generators = nest.Create(
             'spike_train_injector',
             self.n_input
         )
-
-        # self.poisson_layer = nest.Create(
-        #     'poisson_generator',
-        #     self.n_input
-        # )
 
         self.spike_detector_out = nest.Create('spike_recorder')
 
@@ -695,7 +697,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
             self.connect_layers_inh()
 
         self.set_neuron_status(self.high_threshold_teacher)
-        if not self.noise_after_pattern:
+        if not self.noise_after_pattern and self.poisson_layer:
             self.set_noise()
 
         spike_dict, full_time = self.create_spike_dict(
@@ -770,7 +772,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
             self.connect_layers_inh()
 
         self.set_neuron_status()
-        if self.test_with_noise:
+        if self.test_with_noise and self.poisson_layer:
             self.set_noise()
         self.set_weights(weights)
 
