@@ -610,10 +610,10 @@ class LiteEpochNetwork(EpochNetwork):
             self.n_input
         )
 
-        self.poisson_layer = nest.Create(
-            'poisson_generator',
-            self.n_input
-        )
+        # self.poisson_layer = nest.Create(
+        #     'poisson_generator',
+        #     self.n_input
+        # )
 
         self.spike_detector_out = nest.Create('spike_recorder')
 

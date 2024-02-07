@@ -16,7 +16,7 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
         self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
         self.h_time = kwargs.get('h_time', settings['network']['h_time'])
-        self._network = EpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
+        self._network = LiteEpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -213,7 +213,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
             number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
             if number_of_neurons_assigned_to_this_class == 0:
                 continue
-            min_latencies[class_number] = np.median(
+            min_latencies[class_number] = np.mean(
                 latency[assignments == current_class]
             )
         return np.argsort(min_latencies)[::1]
@@ -227,7 +227,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
             class_size = len(np.where(y == current_class)[0])
             if class_size == 0:
                 continue
-            latencies_for_this_class = np.median(latencies[y == current_class], axis=0)
+            latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
             for i in range(neurons_number):
                 if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
                     minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
