@@ -7,16 +7,16 @@ class Teacher:
     '''
     Teacher signal generator for EpochNetwork class
     '''
-    def __init__(self, settings):
-        self.h = settings['network']['h']
-        self.h_time = settings['network']['h_time']
-        self.start = settings['network']['start_delta']
+    def __init__(self, settings, **kwargs):
+        self.h = kwargs.get('h', settings['network'].get('h', 0.01))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+        self.start = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
 
-        self.reinforce_time = settings['learning']['reinforce_time']
-        self.reinforce_delta = settings['learning']['reinforce_delta']
-        self.teacher_amplitude = settings['learning']['teacher_amplitude']
+        self.reinforce_time = kwargs.get('reinforce_time', settings['learning'].get('reinforce_time', 0))
+        self.reinforce_delta = kwargs.get('reinforce_delta', settings['learning'].get('reinforce_delta', 0))
+        self.teacher_amplitude = kwargs.get('teacher_amplitude', settings['learning'].get('teacher_amplitude', 1000))
 
-        self.n_layer_out = settings['topology']['n_layer_out']
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
 
     def create_teacher(self, input_spikes, classes, teachers):  # Network
         full_time = len(input_spikes) * self.h_time + self.start
@@ -58,8 +58,8 @@ class Teacher:
 
     
 class TeacherPool(Teacher):
-    def __init__(self, settings):
-        super(TeacherPool, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(TeacherPool, self).__init__(settings, **kwargs)
         self.pool_size = settings['learning']['teacher_pool_size']
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
@@ -91,8 +91,8 @@ class TeacherPool(Teacher):
 
     
 class TeacherMax(Teacher):
-    def __init__(self, settings):
-        super(TeacherMax, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(TeacherMax, self).__init__(settings, **kwargs)
         
     def create_teacher(self, input_spikes, classes, teachers):  # Network
         full_time = len(input_spikes) * self.h_time + self.start
@@ -112,8 +112,8 @@ class TeacherMax(Teacher):
 
 class TeacherFrequency(Teacher):
     
-    def __init__(self, settings):
-        super(TeacherFrequency, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(TeacherFrequency, self).__init__(settings, **kwargs)
         self.epochs = settings['learning']['epochs']
         
     def create_teacher(self, input_spikes, classes, teachers):
@@ -150,8 +150,8 @@ class TeacherFull(Teacher):
     '''
     Teacher signal generator for Network class
     '''
-    def __init__(self, settings):
-        super(TeacherFull, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(TeacherFull, self).__init__(settings, **kwargs)
         self.epochs = settings['learning']['epochs']
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
@@ -183,8 +183,8 @@ class TeacherFull(Teacher):
 
 class TeacherInhibitory(Teacher):
     
-    def __init__(self, settings):
-        super(TeacherInhibitory, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(TeacherInhibitory, self).__init__(settings, **kwargs)
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes,
                             teachers, teacher_amplitude):
@@ -222,8 +222,8 @@ class TeacherInhibitory(Teacher):
 
 class TeacherInhibitoryFull(Teacher):
     
-    def __init__(self, settings):
-        super(TeacherInhibitoryFull, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(TeacherInhibitoryFull, self).__init__(settings, **kwargs)
         self.epochs = settings['learning']['epochs']
         
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
@@ -259,8 +259,8 @@ class TeacherInhibitoryFull(Teacher):
 
 
 class ReinforceTeacher(Teacher):
-    def __init__(self, settings):
-        super(ReinforceTeacher, self).__init__(settings)
+    def __init__(self, settings, **kwargs):
+        super(ReinforceTeacher, self).__init__(settings, **kwargs)
         
     def create_teacher(self, input_spikes, classes, teachers):  # Network
         full_time = len(input_spikes) * self.h_time  # + start

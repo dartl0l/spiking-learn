@@ -13,10 +13,11 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
-        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
-        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
-        self._network = LiteEpochNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+
+        self._network = LiteEpochNetwork(settings, model, Teacher(settings), **kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -43,10 +44,10 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
-        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
-        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
-        self._network = TwoLayerNetwork(settings, model, Teacher(settings), progress=False, **kwargs)
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+        self._network = TwoLayerNetwork(settings, model, Teacher(settings), **kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -57,11 +58,11 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
-        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
-        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
 
-        self._network = EpochNetwork(settings, model, progress=False, **kwargs)
+        self._network = EpochNetwork(settings, model, **kwargs)
         self._devices_fit = None
         self._weights = None
 
@@ -96,12 +97,12 @@ class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
-        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
-        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
         self.reshape = kwargs.get('reshape', True)
 
-        self._network = kwargs.get('network', EpochNetwork(settings, model, progress=False, **kwargs))
+        self._network = kwargs.get('network', EpochNetwork(settings, model, **kwargs))
         self._devices_fit = None
         self._weights = None
 
@@ -127,9 +128,9 @@ class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer
         self.model = model
         self.settings = settings
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
-        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
-        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
 
         self._network = ConvolutionNetwork(settings, model, **kwargs)
 

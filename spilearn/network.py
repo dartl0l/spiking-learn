@@ -6,7 +6,7 @@ import math
 import copy
 import numpy as np
 
-from tqdm import trange
+from tqdm import trange, tqdm
 
 nest.set_verbosity('M_QUIET')
 
@@ -22,26 +22,27 @@ class Network:
 
         self.synapse_models = [self.model['syn_dict_exc']['synapse_model']]
 
-        self.h = kwargs.get('h', settings['network']['h'])
-        self.n_procs = kwargs.get('num_procs', settings['network']['num_procs'])
-        self.n_threads = kwargs.get('num_threads', settings['network']['num_threads'])
+        self.h = kwargs.get('h', settings['network'].get('h', 0.01))
+        self.n_procs = kwargs.get('num_procs', settings['network'].get('num_procs', 1))
+        self.n_threads = kwargs.get('num_threads', settings['network'].get('num_threads', 1))
 
-        self.h_time = kwargs.get('h_time', settings['network']['h_time'])
-        self.start_delta = kwargs.get('start_delta', settings['network']['start_delta'])
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
 
-        self.noise_freq = kwargs.get('noise_freq', settings['network']['noise_freq'])
-        self.test_with_noise = kwargs.get('test_with_noise', settings['network']['test_with_noise'])
-        self.noise_after_pattern = kwargs.get('noise_after_pattern', settings['network']['noise_after_pattern'])
-        self.test_with_inhibition = kwargs.get('test_with_inhibition', settings['network']['test_with_inhibition'])
+        self.noise_freq = kwargs.get('noise_freq', settings['network'].get('noise_freq', 0.0))
+        self.test_with_noise = kwargs.get('test_with_noise', settings['network'].get('test_with_noise', False))
+        self.noise_after_pattern = kwargs.get('noise_after_pattern', settings['network'].get('noise_after_pattern', False))
+        self.test_with_inhibition = kwargs.get('test_with_inhibition', settings['network'].get('test_with_inhibition', False))
 
-        self.use_inhibition = kwargs.get('use_inhibition', settings['topology']['use_inhibition'])
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology']['n_layer_out'])
-        self.n_input = kwargs.get('n_input', settings['topology']['n_input'])
+        self.use_inhibition = kwargs.get('use_inhibition', settings['topology'].get('use_inhibition', True))
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.n_input = kwargs.get('n_input', settings['topology'].get('n_input', 2))
 
-        self.epochs = kwargs.get('epochs', settings['learning']['epochs'])
-        self.learning_threshold = kwargs.get('threshold', settings['learning']['threshold'])
-        self.high_threshold_teacher = kwargs.get('high_threshold_teacher',  settings['learning']['high_threshold_teacher'])
+        self.epochs = kwargs.get('epochs', settings['learning'].get('epochs', 1))
+        self.learning_threshold = kwargs.get('threshold', settings['learning'].get('threshold', 1000))
+        self.high_threshold_teacher = kwargs.get('high_threshold_teacher',  settings['learning'].get('high_threshold_teacher', False))
 
+        self.data_len = None
         self.teacher_layer = None
         self.input_generators = None
         self.interpattern_noise_generator = None
@@ -324,13 +325,13 @@ class Network:
     def connect_layers(self):
         nest.Connect(self.input_layer,
                      self.layer_out,
-                     conn_spec={'rule': 'all_to_all'},
+                     conn_spec=self.model['conn_dict_exc'] if 'conn_dict_exc' in self.model else {'rule': 'all_to_all'},
                      syn_spec=self.model['syn_dict_exc'])
 
     def connect_layers_static(self):
         nest.Connect(self.input_layer,
                      self.layer_out,
-                     conn_spec={'rule': 'all_to_all'},
+                     conn_spec=self.model['conn_dict_exc'] if 'conn_dict_exc' in self.model else {'rule': 'all_to_all'},
                      syn_spec='static_synapse')
 
     def connect_layers_inh(self):
@@ -387,6 +388,8 @@ class Network:
 
         self.set_neuron_status(self.high_threshold_teacher)
 
+        self.data_len = len(x)
+
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=x, train=True,
             delta=self.start_delta)
@@ -432,6 +435,8 @@ class Network:
         if self.test_with_noise and self.poisson_layer:
             self.set_noise()
         self.set_weights(weights)
+
+        self.data_len = len(x)
 
         spike_dict, full_time, input_spikes = self.create_spike_dict(
             dataset=x, train=False,
@@ -502,8 +507,13 @@ class EpochNetwork(Network):
         return full_time, spike_dict, teacher_dicts
 
     def simulate(self, full_time, spike_dict, teacher_dicts=None):
-        t = trange(self.epochs) if self.progress else range(self.epochs)
-        for _ in t:
+        progress_bar = tqdm(
+            total=self.epochs * self.data_len * int(self.progress) + self.epochs * int(not self.progress),
+            disable=not self.progress,
+        )
+
+        nest.Prepare()
+        for _ in range(self.epochs):
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
@@ -511,21 +521,28 @@ class EpochNetwork(Network):
                 self.set_teachers_input(
                     teacher_dicts)
             if self.normalize_weights:
-                nest.Simulate(self.start_delta)
-                for i in spike_dict:
-                    nest.Simulate(self.h_time)
-                    if self.normalize_step and i % self.normalize_step == 0:
+                nest.Run(self.start_delta)
+                for i in range(self.data_len):
+                    nest.Run(self.h_time)
+                    progress_bar.update()
+                    if (self.normalize_step and i % self.normalize_step == 0) or not self.normalize_step:
                         self.normalize()
-                if not self.normalize_step: 
-                    self.normalize()
+            elif self.progress:
+                nest.Run(self.start_delta)
+                for _ in range(self.data_len):
+                    nest.Run(self.h_time)         
+                    progress_bar.update()
             else:
-                nest.Simulate(full_time)
+                nest.Run(full_time)
+                progress_bar.update()
 
             for spikes in spike_dict:
                 spikes['spike_times'] += full_time
             if self.teacher:
                 for teacher in teacher_dicts:
                     teacher_dicts[teacher]['amplitude_times'] += full_time
+        nest.Cleanup()
+        progress_bar.close()
 
     def train(self, x, y=None):
         self.init_network()
@@ -542,6 +559,7 @@ class EpochNetwork(Network):
 
         self.set_neuron_status(self.high_threshold_teacher)
 
+        self.data_len = len(x)
         full_time, spike_dict, teacher_dicts = self.create_spikes(x, y)
 
         if self.noise_after_pattern and self.interpattern_noise_generator:
@@ -580,6 +598,7 @@ class EpochNetwork(Network):
             self.set_noise()
         self.set_weights(weights)
 
+        self.data_len = len(x)
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
             delta=self.start_delta)
@@ -700,6 +719,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
         if not self.noise_after_pattern and self.poisson_layer:
             self.set_noise()
 
+        self.data_len = len(x)
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
             delta=self.start_delta)
@@ -810,8 +830,8 @@ class NotSoFastEpochNetwork(EpochNetwork):
 class ConvolutionNetwork(EpochNetwork):
     def __init__(self, settings, model, teacher=None, **kwargs):
         super().__init__(settings, model, teacher, **kwargs)
-        self.kernel_size = kwargs.get('kernel_size', settings['topology']['convolution']['kernel_size'])
-        self.stride = kwargs.get('stride', settings['topology']['convolution']['stride'])
+        self.kernel_size = kwargs.get('kernel_size', 2)
+        self.stride = kwargs.get('stride', 2)
         self.image_dimension = int(math.sqrt(self.n_input))
         self.n_combinations = (self.image_dimension - (self.kernel_size - self.stride)) ** 2
         self.n_combination_neurons = self.n_layer_out // self.n_combinations
