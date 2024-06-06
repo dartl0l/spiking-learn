@@ -506,21 +506,21 @@ class EpochNetwork(Network):
 
         return full_time, spike_dict, teacher_dicts
 
-    def simulate(self, full_time, spike_dict, teacher_dicts=None):
+    def simulate(self, full_time, spike_dict, epochs=1, teacher_dicts=None, normalize_weights=False):
         progress_bar = tqdm(
-            total=self.epochs * self.data_len * int(self.progress) + self.epochs * int(not self.progress),
+            total=epochs * self.data_len * int(self.progress) + epochs * int(not self.progress),
             disable=not self.progress,
         )
 
         nest.Prepare()
-        for _ in range(self.epochs):
+        for _ in range(epochs):
             self.set_input_spikes(
                 spike_dict=spike_dict,
                 spike_generators=self.input_generators)
-            if self.teacher and self.teacher_layer:
+            if teacher_dicts and self.teacher and self.teacher_layer:
                 self.set_teachers_input(
                     teacher_dicts)
-            if self.normalize_weights:
+            if normalize_weights:
                 nest.Run(self.start_delta)
                 for i in range(self.data_len):
                     nest.Run(self.h_time)
@@ -538,7 +538,7 @@ class EpochNetwork(Network):
 
             for spikes in spike_dict:
                 spikes['spike_times'] += full_time
-            if self.teacher:
+            if teacher_dicts and self.teacher:
                 for teacher in teacher_dicts:
                     teacher_dicts[teacher]['amplitude_times'] += full_time
         nest.Cleanup()
@@ -570,16 +570,18 @@ class EpochNetwork(Network):
         elif self.poisson_layer:
             self.set_noise()
 
-        self.simulate(full_time, spike_dict, teacher_dicts)
+        self.simulate(full_time, spike_dict, self.epochs, teacher_dicts, self.normalize_weights)
 
         weights = self.save_weights(self.layers)
         output = {
             'spikes': nest.GetStatus(
-                        self.spike_detector_out,
-                        keys="events")[0]['times'].tolist(),
+                self.spike_detector_out,
+                keys="events"
+            )[0]['times'].tolist(),
             'senders': nest.GetStatus(
-                        self.spike_detector_out,
-                        keys="events")[0]['senders'].tolist()
+                self.spike_detector_out,
+                keys="events"
+            )[0]['senders'].tolist()
         }
         devices = self.get_devices() if self.need_devices else None
         return weights, output, devices
@@ -602,19 +604,18 @@ class EpochNetwork(Network):
         spike_dict, full_time = self.create_spike_dict(
             dataset=x,
             delta=self.start_delta)
-        self.set_input_spikes(
-            spike_dict=spike_dict,
-            spike_generators=self.input_generators)
 
-        nest.Simulate(full_time)
+        self.simulate(full_time, spike_dict)
 
         output = {
             'spikes': nest.GetStatus(
-                        self.spike_detector_out,
-                        keys="events")[0]['times'].tolist(),
+                self.spike_detector_out,
+                keys="events"
+            )[0]['times'].tolist(),
             'senders': nest.GetStatus(
-                            self.spike_detector_out,
-                            keys="events")[0]['senders'].tolist()
+                self.spike_detector_out,
+                keys="events"
+            )[0]['senders'].tolist()
         }
 
         devices = self.get_devices() if self.need_devices else None
