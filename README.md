@@ -2,7 +2,7 @@
 This is "framework" for spiking neural networks machine learning based on temporal encoding.
 
 ### Citation
-Please, cite my last paper while using this repo https://www.mendeley.com/profiles/danila-vlasov/publications/
+Please, cite my last paper while using this repo https://scholar.google.com/citations?user=wiwYfQMAAAAJ&hl=en
 
 ### Dependencies
   * Python3
@@ -14,6 +14,9 @@ Please, cite my last paper while using this repo https://www.mendeley.com/profil
   * tqdm
 
 ## Running
+
+all below is deprecated
+
 To start simulation create your own py file and add
 
 ```
