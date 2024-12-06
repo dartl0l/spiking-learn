@@ -60,10 +60,9 @@ class Teacher:
 class TeacherPool(Teacher):
     def __init__(self, settings, **kwargs):
         super(TeacherPool, self).__init__(settings, **kwargs)
-        self.pool_size = settings['learning']['teacher_pool_size']
+        self.pool_size = kwargs.get('teacher_pool_size', settings['learning'].get('teacher_pool_size', 1))
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
-#         single_neuron = self.n_layer_out == 1
         teacher_dict = {}
         for teacher in teachers.get('global_id'):
             teacher_dict[teacher] = {
