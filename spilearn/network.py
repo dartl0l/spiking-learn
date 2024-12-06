@@ -1,16 +1,22 @@
 # coding: utf-8
 
+use_gpu = True
+
 import os
-import nest
+if use_gpu:
+    import nestgpu as nest
+else:
+    import nest as nest
 import math
 import copy
 import numpy as np
 
 from tqdm import trange, tqdm
 
-nest.set_verbosity('M_QUIET')
+if not use_gpu:
+    nest.set_verbosity('M_QUIET')
 
-if 'NEST_MODULES' not in os.environ:
+if 'NEST_MODULES' not in os.environ and not use_gpu:
     nest.Install('stdptanhmodule')
 
 class Network:
@@ -236,12 +242,13 @@ class Network:
         rng = np.random.randint(1, pow(2, 32) - 1)
         num_v_procs = self.n_threads * self.n_procs
 
-        nest.ResetKernel()
-        nest.SetKernelStatus({
-             'local_num_threads': self.n_threads,
-             'total_num_virtual_procs': num_v_procs,
-             'resolution': self.h
-        })
+        if not use_gpu:
+            nest.ResetKernel()
+            nest.SetKernelStatus({
+                'local_num_threads': self.n_threads,
+                'total_num_virtual_procs': num_v_procs,
+                'resolution': self.h
+            })
 
         nest.rng_seed = rng
         self._create_parameters(self.model)
