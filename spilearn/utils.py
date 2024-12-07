@@ -95,6 +95,17 @@ def convert_latency(latency_list, n_neurons):
     return output_array
 
 
+def convert_latency_pool(latency_list, n_neurons, pool_size):
+    output_array = convert_latency(latency_list, n_neurons)
+    output_array = np.array(output_array).reshape(
+        len(output_array),
+        int(n_neurons / pool_size),
+        pool_size
+    )
+    output_array = np.mean(output_array, axis=2)
+    return output_array
+
+
 def predict_from_latency(latency_list, func=np.nanargmin):
     latency_list = np.array(latency_list)
     mask = np.logical_not(np.all(np.isnan(latency_list), axis=1))

@@ -38,6 +38,33 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         return y_pred.astype(int)
 
 
+class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
+
+    def __init__(self, settings, model, **kwargs) -> None:
+        self.model = model
+        self.settings = settings
+
+        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
+        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
+        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+        self.pool_size = kwargs.get('pool_size', 10)
+
+        self._network = LiteEpochNetwork(settings, model, TeacherPool(settings, teacher_pool_size=self.pool_size), **kwargs)
+        self._devices_fit = None
+        self._weights = None
+
+    def predict(self, X):
+        output, self._devices_predict = self._network.test(X, self._weights)
+
+        all_latency = split_spikes_and_senders(
+            output, len(X),
+            self.start_delta,
+            self.h_time)
+        out_latency = convert_latency_pool(all_latency, self.n_layer_out, self.pool_size)
+        y_pred = predict_from_latency(out_latency)
+        return y_pred.astype(int)
+
+
 class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
 
     def __init__(self, settings, model, **kwargs) -> None:
@@ -47,6 +74,7 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
         self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
         self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+
         self._network = TwoLayerNetwork(settings, model, Teacher(settings), **kwargs)
         self._devices_fit = None
         self._weights = None
