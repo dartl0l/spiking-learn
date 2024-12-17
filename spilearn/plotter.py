@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib import animation, rc, cm
 from mpl_toolkits.mplot3d import Axes3D
 
+from .utils import *
+
 
 class Plotter():
     def __init__(self, grayscale=False):
@@ -35,10 +37,12 @@ class Plotter():
         plt.ylabel('Spike times of pattern')
         plt.show()
 
-    def plot_weights_2d(self, weights, rows, columns, ax_cols=None, ax_rows=None, fig_size=(20, 20), neuron_titles=True, show=True):
+    def plot_weights_2d(self, in_weights, rows, columns, ax_cols=None, ax_rows=None, fig_size=(20, 20), neuron_titles=True, show=True):
         plt.clf()
         # plt.figure()
         # plt.title('Weight distribution')
+
+        weights = convert_layer_weights(in_weights)
 
         neurons = weights.keys()
         num_neurons = len(weights.keys())
@@ -61,11 +65,13 @@ class Plotter():
         if show:
             plt.show()
 
-    def plot_weights_2d_cart_pole(weights, rows, columns, show=True):
+    def plot_weights_2d_cart_pole(in_weights, rows, columns, show=True):
         actions = ('Difference between right and left neurons', 'Left neuron', 'Right neuron')
         state = ['$x$', '$\dot{x}$','$\\theta$', '$\dot{\\theta}$']
         value = list(map(str, [-1., -0.5, 0, 0.5, 1.]))
         ticks = [0, 4, 9, 14, 19]
+
+        weights = convert_layer_weights(in_weights)
 
         neurons = weights.keys()
         num_neurons = len(weights.keys())
@@ -92,11 +98,13 @@ class Plotter():
         plt.tight_layout()
         plt.show()
 
-    def plot_weights_2d_cart_pole_rus(weights, rows, columns, show=True):
+    def plot_weights_2d_cart_pole_rus(in_weights, rows, columns, show=True):
         actions = ('Разница весов', 'Левый нейрон', 'Правый нейрон')
         state = ['$x$', '$\dot{x}$','$\\theta$', '$\dot{\\theta}$']
         value = list(map(str, [-1., -0.5, 0, 0.5, 1.]))
         ticks = [0, 4, 9, 14, 19]
+
+        weights = convert_layer_weights(in_weights)
 
         neurons = weights.keys()
         num_neurons = len(weights.keys())

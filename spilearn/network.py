@@ -71,9 +71,9 @@ class Network:
 
     def reset_teachers(self):
         self.teacher_layer.set({
-                    'amplitude_times': [],
-                    'amplitude_values': []
-                })
+            'amplitude_times': [],
+            'amplitude_values': []
+        })
 
     def disconnect_layers(self):
         layers_conn = nest.GetConnections(
@@ -184,8 +184,8 @@ class Network:
 
     def get_devices(self):
         devices = {
-                    'multimeter': nest.GetStatus(self.multimeter,
-                                                keys="events")[0],
+                    'multimeter': nest.GetStatus(
+                        self.multimeter, keys="events")[0],
                     'spike_detector_out': nest.GetStatus(
                         self.spike_detector_out, keys="events")[0],
                     'spike_detector_input': nest.GetStatus(
@@ -207,17 +207,15 @@ class Network:
                     }
         return tmp_dict
 
-    def save_weights(self, layers):
-        synapse_models = self.synapse_models
+    def save_weights(self, layers, synapse_models):
+        weights = [None] * len(layers[1:])
 
-        weights = [None] * len(self.layers[1:])
-
-        for i, layer in enumerate(self.layers[1:]):
+        for i, layer in enumerate(layers[1:]):
             synapse_model = synapse_models[i]
-            previous_layer = self.layers[i]
+            previous_layer = layers[i]
             weights[i] = {}
             for neuron_id in layer.tolist():
-                tmp_weight = []
+                weights[i][neuron_id] = {}
                 for input_id in previous_layer.tolist():
                     conn = nest.GetConnections(
                         nest.NodeCollection([input_id]),
@@ -226,9 +224,9 @@ class Network:
                     )
                     weight_one = nest.GetStatus(conn, 'weight')
                     if len(weight_one) != 0:
-                        tmp_weight.append(weight_one[0])
-                if len(tmp_weight) != 0:
-                    weights[i][neuron_id] = tmp_weight
+                        weights[i][neuron_id][input_id] = weight_one[0]
+                    else:
+                        weights[i][neuron_id][input_id] = None
         return weights
 
     def init_network(self):
@@ -359,10 +357,14 @@ class Network:
     def set_weights(self, weights):
         for layer_weights in weights:
             for neuron_id in layer_weights:
-                connection = nest.GetConnections(
-                    self.input_layer, target=nest.NodeCollection([neuron_id]))
-                neuron_weights = layer_weights[neuron_id]
-                nest.SetStatus(connection, 'weight', neuron_weights)
+                for input_id in layer_weights[neuron_id]:
+                    connection = nest.GetConnections(
+                        nest.NodeCollection([input_id]),
+                        target=nest.NodeCollection([neuron_id])
+                    )
+                    neuron_weights = layer_weights[neuron_id][input_id]
+                    if neuron_weights is not None:
+                        nest.SetStatus(connection, 'weight', neuron_weights)
 
     def simulate(self, full_time, spike_dict, teacher_dicts=None):
         self.set_input_spikes(
@@ -409,7 +411,7 @@ class Network:
 
         self.simulate(full_time, spike_dict, teacher_dicts)
 
-        weights = self.save_weights(self.layers)
+        weights = self.save_weights(self.layers, self.synapse_models)
         output = {
                   'spikes': nest.GetStatus(
                                 self.spike_detector_out,
@@ -438,7 +440,7 @@ class Network:
 
         self.data_len = len(x)
 
-        spike_dict, full_time, input_spikes = self.create_spike_dict(
+        spike_dict, full_time, _ = self.create_spike_dict(
             dataset=x, train=False,
             delta=self.start_delta)
         self.set_input_spikes(
@@ -468,7 +470,7 @@ class EpochNetwork(Network):
         self.normalize_step = kwargs.get('normalize_step', None)
 
     def normalize(self, w_target=1):
-        weights = self.save_weights(self.layers)
+        weights = self.save_weights(self.layers, self.synapse_models)
 
         for layer_weights in weights:
             for neuron in layer_weights:
@@ -572,7 +574,7 @@ class EpochNetwork(Network):
 
         self.simulate(full_time, spike_dict, self.epochs, teacher_dicts, self.normalize_weights)
 
-        weights = self.save_weights(self.layers)
+        weights = self.save_weights(self.layers, self.synapse_models)
         output = {
             'spikes': nest.GetStatus(
                 self.spike_detector_out,
@@ -761,7 +763,7 @@ class NotSoFastEpochNetwork(EpochNetwork):
                 for teacher in teacher_dicts:
                     teacher_dicts[teacher]['amplitude_times'] += full_time
 
-        weights = self.save_weights(self.layers)
+        weights = self.save_weights(self.layers, self.synapse_models)
         spikes = nest.GetStatus(
             self.spike_detector_out,
             keys="events")[0]['times']

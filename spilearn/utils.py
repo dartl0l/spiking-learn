@@ -6,8 +6,6 @@ import numpy as np
 from functools import partial
 
 from hyperopt import hp, fmin, tpe, space_eval, Trials
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import cross_val_score
 
 
 class NpEncoder(json.JSONEncoder):
@@ -114,6 +112,22 @@ def predict_from_latency(latency_list, func=np.nanargmin):
     return prediction
 
 
+def convert_layer_weights(weights):
+    out_weights = {}
+    for neuron_id in weights:
+        out_weights[neuron_id] = np.zeros(len(weights[neuron_id]))
+        for i, input_id in enumerate(weights[neuron_id]):
+            out_weights[neuron_id][i] = weights[neuron_id][input_id]
+    return out_weights
+
+
+def convert_weights(weights):
+    out_weights = []
+    for layer_weights in weights:
+        out_weights.append(convert_layer_weights(layer_weights))
+    return out_weights
+
+
 def fitness_func_time(latency_list, Y):
     fit_list = []
 
@@ -158,4 +172,3 @@ def fitness_func_exp(latency_list, Y):
     if np.isnan(fitness_score):
         fitness_score = 0
     return fitness_score, fit_list
-
