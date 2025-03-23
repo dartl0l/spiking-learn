@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 
 from functools import partial
+from scipy.stats import mode
 
 from hyperopt import hp, fmin, tpe, space_eval, Trials
 
@@ -93,7 +94,7 @@ def convert_latency(latency_list, n_neurons):
     return output_array
 
 
-def convert_latency_pool(latency_list, n_neurons, pool_size):
+def convert_latency_pool_mean(latency_list, n_neurons, pool_size):
     output_array = convert_latency(latency_list, n_neurons)
     output_array = np.array(output_array).reshape(
         len(output_array),
@@ -109,6 +110,22 @@ def predict_from_latency(latency_list, func=np.nanargmin):
     mask = np.logical_not(np.all(np.isnan(latency_list), axis=1))
     prediction = np.zeros(len(latency_list))
     prediction[mask] = func(latency_list[mask], axis=1)
+    return prediction
+
+
+def convert_latency_pool(latency_list, n_neurons, pool_size):
+    output_array = convert_latency(latency_list, n_neurons)
+    output_array = np.array(output_array).reshape(
+        len(output_array),
+        int(n_neurons / pool_size),
+        pool_size
+    )
+    return output_array
+
+
+def predict_from_latency_pool(latency_list, func=np.nanargmin):
+    predictions = func(latency_list, axis=1)
+    prediction = mode(predictions, axis=1).mode.flatten()
     return prediction
 
 

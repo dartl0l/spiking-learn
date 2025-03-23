@@ -7,19 +7,25 @@ from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 
-class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
-
-    def __init__(self, settings, model, **kwargs) -> None:
+class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
+    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
         self.model = model
         self.settings = settings
 
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
         self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
         self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+        self.reshape = reshape
 
-        self._network = LiteEpochNetwork(settings, model, Teacher(settings), **kwargs)
+        self._network = self._init_network(settings, model, **kwargs)
         self._devices_fit = None
-        self._weights = None
+        self._weights = None   
+
+    def _init_network(self, settings, model, **kwargs):
+        return LiteEpochNetwork(
+            settings, model, 
+            **kwargs
+        )
 
     def fit(self, X, y):
         self._network.n_input = len(X[0])
@@ -37,21 +43,64 @@ class SupervisedTemporalClassifier(BaseEstimator, ClassifierMixin):
         y_pred = predict_from_latency(out_latency)
         return y_pred.astype(int)
 
+    def transform(self, X, y=None):
+        output, self._devices_predict = self._network.test(X, self._weights)
+
+        all_latency = split_spikes_and_senders(
+            output, len(X),
+            self.start_delta,
+            self.h_time)
+        out_latency = np.array(convert_latency(all_latency, self.n_layer_out))
+        return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1) if self.reshape else out_latency
+
+
+class SupervisedTemporalClassifier(BaseTemporalEstimator):
+
+    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
+        self.teacher_amplitude = kwargs.get('teacher_amplitude', settings['learning'].get('teacher_amplitude', 1000))
+        self.reinforce_delta = kwargs.get('reinforce_delta', settings['learning'].get('reinforce_delta', 0))
+        self.reinforce_time = kwargs.get('reinforce_time', settings['learning'].get('reinforce_time', 0))
+        super().__init__(settings, model, reshape, **kwargs)
+
+    
+    def _init_network(self, settings, model, **kwargs):
+        return LiteEpochNetwork(
+            settings, model, 
+            Teacher(
+                n_layer_out=self.n_layer_out, 
+                teacher_amplitude=self.teacher_amplitude,
+                reinforce_delta=self.reinforce_delta,
+                reinforce_time=self.reinforce_time,
+                start=self.start_delta,
+                h_time=self.h_time,
+                h=kwargs.get('h', settings['network'].get('h', 0.01))
+            ),
+            **kwargs
+        )
+
 
 class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
 
-    def __init__(self, settings, model, **kwargs) -> None:
-        self.model = model
-        self.settings = settings
+    def __init__(self, settings, model, pool_size, reshape=True, **kwargs) -> None:
+        self.pool_size = pool_size
+        self.reshape = reshape
+        super().__init__(settings, model, reshape, **kwargs)
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
-        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
-        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
-        self.pool_size = kwargs.get('pool_size', 10)
-
-        self._network = LiteEpochNetwork(settings, model, TeacherPool(settings, teacher_pool_size=self.pool_size), **kwargs)
-        self._devices_fit = None
-        self._weights = None
+    def _init_network(self, settings, model, **kwargs):
+        return LiteEpochNetwork(
+            settings, model, 
+            TeacherPool(
+                n_layer_out=self.n_layer_out,
+                pool_size=self.pool_size,
+                teacher_amplitude=self.teacher_amplitude,
+                reinforce_delta=self.reinforce_delta,
+                reinforce_time=self.reinforce_time,
+                start=self.start_delta,
+                h_time=self.h_time,
+                h=kwargs.get('h', settings['network'].get('h', 0.01))
+            ),
+            **kwargs
+        )
 
     def predict(self, X):
         output, self._devices_predict = self._network.test(X, self._weights)
@@ -61,38 +110,35 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
             self.start_delta,
             self.h_time)
         out_latency = convert_latency_pool(all_latency, self.n_layer_out, self.pool_size)
-        y_pred = predict_from_latency(out_latency)
+        y_pred = predict_from_latency_pool(out_latency)
         return y_pred.astype(int)
 
 
 class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
 
-    def __init__(self, settings, model, **kwargs) -> None:
-        self.model = model
-        self.settings = settings
+    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
+        super().__init__(settings, model, reshape, **kwargs)
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
-        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
-        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+    def _init_network(self, settings, model, **kwargs):
+        return TwoLayerNetwork(
+            settings, model,
+            Teacher(
+                n_layer_out=self.n_layer_out, 
+                teacher_amplitude=self.teacher_amplitude,
+                reinforce_delta=self.reinforce_delta,
+                reinforce_time=self.reinforce_time,
+                start=self.start_delta,
+                h_time=self.h_time,
+                h=kwargs.get('h', settings['network'].get('h', 0.01))
+            ),
+            **kwargs
+        )
 
-        self._network = TwoLayerNetwork(settings, model, Teacher(settings), **kwargs)
-        self._devices_fit = None
-        self._weights = None
 
+class ClasswiseTemporalClassifier(BaseTemporalEstimator):
 
-class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
-
-    def __init__(self, settings, model, **kwargs) -> None:
-        self.model = model
-        self.settings = settings
-
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
-        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
-        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
-
-        self._network = EpochNetwork(settings, model, **kwargs)
-        self._devices_fit = None
-        self._weights = None
+    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
+        super().__init__(settings, model, reshape, **kwargs)
 
     def fit(self, X, y):
         self._weights = []
@@ -118,49 +164,35 @@ class ClasswiseTemporalClassifier(BaseEstimator, ClassifierMixin):
         y_pred = predict_from_latency(np.concatenate(full_output, axis=1))
         return y_pred.astype(int)
 
-
-class UnsupervisedTemporalTransformer(BaseEstimator, TransformerMixin):
-
-    def __init__(self, settings, model, **kwargs) -> None:
-        self.model = model
-        self.settings = settings
-
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
-        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
-        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
-        self.reshape = kwargs.get('reshape', True)
-
-        self._network = kwargs.get('network', EpochNetwork(settings, model, **kwargs))
-        self._devices_fit = None
-        self._weights = None
-
-    def fit(self, X, y=None):
-        self._network.n_input = len(X[0])
-        self._weights, _, self._devices_fit = self._network.train(X, y)
-        return self
-
     def transform(self, X, y=None):
-        output, self._devices_predict = self._network.test(X, self._weights)
-
-        all_latency = split_spikes_and_senders(
-            output, len(X),
-            self.start_delta,
-            self.h_time)
-        out_latency = np.array(convert_latency(all_latency, self.n_layer_out))
+        full_output = []
+        for weights in self._weights:
+            output, self._devices_predict = self._network.test(X, weights)
+            all_latency = split_spikes_and_senders(
+                output, len(X),
+                self.start_delta,
+                self.h_time)
+            out_latency = convert_latency(all_latency, self.n_layer_out)
+            full_output.append(out_latency)
+        out_latency = np.concatenate(full_output, axis=1)
         return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1) if self.reshape else out_latency
+
+
+class UnsupervisedTemporalTransformer(BaseTemporalEstimator):
+
+    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
+        super().__init__(settings, model, reshape, **kwargs)
 
 
 class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
 
-    def __init__(self, settings, model, **kwargs) -> None:
-        self.model = model
-        self.settings = settings
+    def __init__(self, settings, model, kernel_size, stride, reshape=True, **kwargs) -> None:
+        self.kernel_size = kernel_size
+        self.stride = stride
+        super().__init__(settings, model, reshape, **kwargs)
 
-        self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
-        self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
-        self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
-
-        self._network = ConvolutionNetwork(settings, model, **kwargs)
+    def _init_network(self, settings, model, **kwargs):
+        return ConvolutionNetwork(settings, model, kernel_size=self.kernel_size, stride=self.stride, **kwargs)
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
@@ -232,6 +264,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
         self.h_time = h_time
         self.classes = None
         self.assignments = None
+        self.func = np.mean
 
     def _get_classes_rank_per_one_vector(self, latency, set_of_classes, assignments):
         latency = np.array(latency)
@@ -242,7 +275,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
             number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
             if number_of_neurons_assigned_to_this_class == 0:
                 continue
-            min_latencies[class_number] = np.mean(
+            min_latencies[class_number] = self.func(
                 latency[assignments == current_class]
             )
         return np.argsort(min_latencies)[::1]
@@ -256,7 +289,7 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
             class_size = len(np.where(y == current_class)[0])
             if class_size == 0:
                 continue
-            latencies_for_this_class = np.mean(latencies[y == current_class], axis=0)
+            latencies_for_this_class = self.func(latencies[y == current_class], axis=0)
             for i in range(neurons_number):
                 if latencies_for_this_class[i] < minimum_latencies_for_all_neurons[i]:
                     minimum_latencies_for_all_neurons[i] = latencies_for_this_class[i]
@@ -275,6 +308,6 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
             )
             for i in range(len(X))
         ]
-        y_predicted = np.array(class_certainty_ranks)[:,0]
+        y_predicted = np.array(class_certainty_ranks)[:, 0]
         return y_predicted
 

@@ -831,64 +831,63 @@ class NotSoFastEpochNetwork(EpochNetwork):
 
 
 class ConvolutionNetwork(EpochNetwork):
-    def __init__(self, settings, model, teacher=None, **kwargs):
+    def __init__(self, settings, model, kernel_size, stride=1, teacher=None, **kwargs):
         super().__init__(settings, model, teacher, **kwargs)
-        self.kernel_size = kwargs.get('kernel_size', 2)
-        self.stride = kwargs.get('stride', 2)
+        self.kernel_size = kernel_size
+        self.stride = stride
         self.image_dimension = int(math.sqrt(self.n_input))
-        self.n_combinations = (self.image_dimension - (self.kernel_size - self.stride)) ** 2
+        self.n_combinations = int((((self.image_dimension - self.kernel_size) / self.stride) + 1) ** 2)
         self.n_combination_neurons = self.n_layer_out // self.n_combinations
 
         self.two_dimensional_image_indices = np.arange(
             self.n_input
         ).reshape(self.image_dimension, self.image_dimension)
+    
+    def get_indexes(self, image_row, image_column, current_combination):
+        input_indexes = np.concatenate(
+            self.two_dimensional_image_indices[
+                image_row : image_row + self.kernel_size,
+                image_column : image_column + self.kernel_size
+            ]
+        )
+        input_indexes = np.array(self.input_layer)[input_indexes]
+        output_indexes = np.array(
+            self.layer_out[
+                current_combination : current_combination + self.n_combination_neurons
+            ]
+        )
+        return input_indexes, output_indexes
+
+    def connect_exc(self, spec):
+        current_combination = 0
+        for image_row in range(0, self.image_dimension - self.kernel_size + 1, self.stride):
+            for image_column in range(0, self.image_dimension - self.kernel_size + 1, self.stride):
+                input_indexes, output_indexes = self.get_indexes(
+                    image_row, image_column, current_combination
+                )
+                nest.Connect(
+                    nest.NodeCollection(input_indexes), 
+                    nest.NodeCollection(output_indexes), 
+                    'all_to_all',
+                    syn_spec=spec
+                )
+                current_combination += self.n_combination_neurons
 
     def connect_layers(self):
-        current_combination = 0
-        for image_row in range(0, self.image_dimension - self.kernel_size, self.stride):
-            for image_column in range(0, self.image_dimension - self.kernel_size, self.stride):
-                input_indexes = np.concatenate(self.two_dimensional_image_indices[
-                    image_row: image_row + self.kernel_size,
-                    image_column: image_column + self.kernel_size])
-                input_indexes = np.array(self.input_layer)[input_indexes]
-                output_indexes = np.array(self.layer_out[
-                    current_combination : current_combination + self.n_combination_neurons])
-                nest.Connect(input_indexes, output_indexes, 'all_to_all',
-                             syn_spec=self.model['syn_dict_exc'])
-                current_combination += self.n_combination_neurons
+        self.connect_exc(self.model['syn_dict_exc'])
 
     def connect_layers_static(self):
-        current_combination = 0
-        for image_row in range(0, self.image_dimension - self.kernel_size, self.stride):
-            for image_column in range(0, self.image_dimension - self.kernel_size, self.stride):
-                input_indexes = np.concatenate(self.two_dimensional_image_indices[
-                    image_row: image_row + self.kernel_size,
-                    image_column: image_column + self.kernel_size])
-                input_indexes = np.array(self.input_layer)[input_indexes]
-                output_indexes = np.array(self.layer_out[
-                    current_combination: current_combination + self.n_combination_neurons])
-                nest.Connect(input_indexes, output_indexes, 'all_to_all',
-                             syn_spec='static_synapse')
-                current_combination += self.n_combination_neurons
+        self.connect_exc('static_synapse')
 
     def connect_layers_inh(self):
         current_combination = 0
-        for image_row in range(0, self.image_dimension - self.kernel_size, self.stride):
-            for image_column in range(0, self.image_dimension - self.kernel_size, self.stride):
-                input_indexes = np.concatenate(
-                    self.two_dimensional_image_indices[
-                        image_row : image_row + self.kernel_size,
-                        image_column : image_column + self.kernel_size]
+        for image_row in range(0, self.image_dimension - self.kernel_size + 1, self.stride):
+            for image_column in range(0, self.image_dimension - self.kernel_size + 1, self.stride):
+                _, output_indexes = self.get_indexes(
+                    image_row, image_column, current_combination
                 )
-                input_indexes = np.array(self.input_layer)[input_indexes]
-
-                output_indexes = np.array(
-                    self.layer_out[
-                        current_combination:
-                        current_combination + self.n_combination_neurons]
-                )
-
-                self.interconnect_layer(output_indexes,
+                
+                self.interconnect_layer(nest.NodeCollection(output_indexes),
                                         self.model['syn_dict_inh'])
                 current_combination += self.n_combination_neurons
 
@@ -1054,3 +1053,16 @@ class FrequencyNetwork(Network):
                 'spike_times': times[random_distribution_mask]
             }
         return noise_dict
+
+
+class CriticNetwork(EpochNetwork):
+    def __init__(self, settings, model, teacher=None, **kwargs):
+        super().__init__(settings, model, teacher, **kwargs)
+        
+        self.critic_neuron_count = kwargs.get('critic_neuron_count', 1)
+
+    def interconnect_layer(self, layer, syn_dict):
+        for neuron_1 in layer[:-self.critic_neuron_count]:
+            for neuron_2 in layer[:-self.critic_neuron_count]:
+                if neuron_1 != neuron_2:
+                    nest.Connect(neuron_1, neuron_2, syn_spec=syn_dict)
