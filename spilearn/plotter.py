@@ -249,10 +249,11 @@ class Plotter():
 
     def plot_devices(self, devices, start=None, end=None,
                      plot_last_detector=False):
-        self.plot_voltage(devices['multimeter'])
-        if start is not None and end is not None:
-            plt.xlim(start, end)
-        plt.show()
+        if 'multimeter' in devices:
+            self.plot_voltage(devices['multimeter'])
+            if start is not None and end is not None:
+                plt.xlim(start, end)
+            plt.show()
         
         if plot_last_detector:
             self.plot_voltage(devices['multimeter_hidden'], False)
@@ -265,10 +266,11 @@ class Plotter():
                 plt.xlim(start, end)
             plt.show()
 
-        self.plot_spikes(devices['spike_detector_input'])
-        if start is not None and end is not None:
-            plt.xlim(start, end)
-        plt.show()
+        if 'spike_detector_input' in devices:
+            self.plot_spikes(devices['spike_detector_input'])
+            if start is not None and end is not None:
+                plt.xlim(start, end)
+            plt.show()
 
         self.plot_spikes(devices['spike_detector_out'])
         if start is not None and end is not None:

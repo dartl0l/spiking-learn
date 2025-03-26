@@ -15,6 +15,7 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         self.n_layer_out = kwargs.get('n_layer_out', settings['topology'].get('n_layer_out', 2))
         self.start_delta = kwargs.get('start_delta', settings['network'].get('start_delta', 50))
         self.h_time = kwargs.get('h_time', settings['network'].get('h_time', 50))
+        self.h = kwargs.get('h', settings['network'].get('h', 0.01))
         self.reshape = reshape
 
         self._network = self._init_network(settings, model, **kwargs)
@@ -56,24 +57,24 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
 
 class SupervisedTemporalClassifier(BaseTemporalEstimator):
 
-    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
+    def __init__(self, settings, model, **kwargs) -> None:
         self.teacher_amplitude = kwargs.get('teacher_amplitude', settings['learning'].get('teacher_amplitude', 1000))
         self.reinforce_delta = kwargs.get('reinforce_delta', settings['learning'].get('reinforce_delta', 0))
         self.reinforce_time = kwargs.get('reinforce_time', settings['learning'].get('reinforce_time', 0))
-        super().__init__(settings, model, reshape, **kwargs)
+        super().__init__(settings, model, **kwargs)
 
     
     def _init_network(self, settings, model, **kwargs):
         return LiteEpochNetwork(
             settings, model, 
-            Teacher(
+            teacher=Teacher(
                 n_layer_out=self.n_layer_out, 
                 teacher_amplitude=self.teacher_amplitude,
                 reinforce_delta=self.reinforce_delta,
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
-                h=kwargs.get('h', settings['network'].get('h', 0.01))
+                h=self.h
             ),
             **kwargs
         )
@@ -81,15 +82,14 @@ class SupervisedTemporalClassifier(BaseTemporalEstimator):
 
 class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
 
-    def __init__(self, settings, model, pool_size, reshape=True, **kwargs) -> None:
+    def __init__(self, settings, model, pool_size, **kwargs) -> None:
         self.pool_size = pool_size
-        self.reshape = reshape
-        super().__init__(settings, model, reshape, **kwargs)
+        super().__init__(settings, model, **kwargs)
 
     def _init_network(self, settings, model, **kwargs):
         return LiteEpochNetwork(
             settings, model, 
-            TeacherPool(
+            teacher=TeacherPool(
                 n_layer_out=self.n_layer_out,
                 pool_size=self.pool_size,
                 teacher_amplitude=self.teacher_amplitude,
@@ -97,7 +97,7 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
-                h=kwargs.get('h', settings['network'].get('h', 0.01))
+                h=self.h
             ),
             **kwargs
         )
@@ -116,20 +116,20 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
 
 class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
 
-    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
-        super().__init__(settings, model, reshape, **kwargs)
+    def __init__(self, settings, model, **kwargs) -> None:
+        super().__init__(settings, model, **kwargs)
 
     def _init_network(self, settings, model, **kwargs):
         return TwoLayerNetwork(
             settings, model,
-            Teacher(
+            teacher=Teacher(
                 n_layer_out=self.n_layer_out, 
                 teacher_amplitude=self.teacher_amplitude,
                 reinforce_delta=self.reinforce_delta,
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
-                h=kwargs.get('h', settings['network'].get('h', 0.01))
+                h=self.h
             ),
             **kwargs
         )
@@ -137,8 +137,8 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
 
 class ClasswiseTemporalClassifier(BaseTemporalEstimator):
 
-    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
-        super().__init__(settings, model, reshape, **kwargs)
+    def __init__(self, settings, model, **kwargs) -> None:
+        super().__init__(settings, model, **kwargs)
 
     def fit(self, X, y):
         self._weights = []
@@ -180,16 +180,16 @@ class ClasswiseTemporalClassifier(BaseTemporalEstimator):
 
 class UnsupervisedTemporalTransformer(BaseTemporalEstimator):
 
-    def __init__(self, settings, model, reshape=True, **kwargs) -> None:
-        super().__init__(settings, model, reshape, **kwargs)
+    def __init__(self, settings, model, **kwargs) -> None:
+        super().__init__(settings, model, **kwargs)
 
 
 class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
 
-    def __init__(self, settings, model, kernel_size, stride, reshape=True, **kwargs) -> None:
+    def __init__(self, settings, model, kernel_size, stride, **kwargs) -> None:
         self.kernel_size = kernel_size
         self.stride = stride
-        super().__init__(settings, model, reshape, **kwargs)
+        super().__init__(settings, model, **kwargs)
 
     def _init_network(self, settings, model, **kwargs):
         return ConvolutionNetwork(settings, model, kernel_size=self.kernel_size, stride=self.stride, **kwargs)
