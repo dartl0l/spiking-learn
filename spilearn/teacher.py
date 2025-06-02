@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import nest
 import numpy as np
 
 
@@ -19,7 +20,30 @@ class Teacher:
 
         self.n_layer_out = n_layer_out
 
-    def create_teacher(self, input_spikes, classes, teachers):  # Network
+        self.teacher_layer = None
+
+    def reset_teachers(self):
+        self.teacher_layer.set({
+            'amplitude_times': [],
+            'amplitude_values': []
+        })
+
+    def set_teachers_input(self, teacher_dicts):
+        self.teacher_layer.set(list(teacher_dicts.values()))    
+
+    def create_teacher_layer(self):
+        self.teacher_layer = nest.Create(
+            'step_current_generator',
+            self.n_layer_out
+        )
+
+    def connect_teacher(self, layer_out):
+        nest.Connect(self.teacher_layer,
+                     layer_out,
+                     'one_to_one',
+                     syn_spec='static_synapse')
+
+    def create_teacher(self, input_spikes, classes):
         full_time = len(input_spikes) * self.h_time + self.start
         times = np.arange(self.start, full_time, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
@@ -31,7 +55,7 @@ class Teacher:
         assert len(stimulation_start) == len(spike_times)
 
         teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, teachers, self.teacher_amplitude)
+                                                classes, self.teacher_layer, self.teacher_amplitude)
         return teacher_dict
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
@@ -95,7 +119,7 @@ class TeacherMax(Teacher):
     def __init__(self, **kwargs):
         super(TeacherMax, self).__init__(**kwargs)
         
-    def create_teacher(self, input_spikes, classes, teachers):  # Network
+    def create_teacher(self, input_spikes, classes):
         full_time = len(input_spikes) * self.h_time + self.start
         times = np.arange(self.start, full_time, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
@@ -107,7 +131,7 @@ class TeacherMax(Teacher):
         assert len(stimulation_start) == len(spike_times)
 
         teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, teachers, self.teacher_amplitude)
+                                                classes, self.teacher_layer, self.teacher_amplitude)
         return teacher_dict
 
 
@@ -117,12 +141,12 @@ class TeacherFrequency(Teacher):
         super(TeacherFrequency, self).__init__(**kwargs)
         self.epochs = epochs
         
-    def create_teacher(self, input_spikes, classes, teachers):
+    def create_teacher(self, input_spikes, classes):
         d_time = self.start
         single_neuron = self.n_layer_out == 1
 
         teacher_dicts = {}
-        for teacher in teachers.get('global_id'):
+        for teacher in self.teacher_layer.get('global_id'):
             teacher_dicts[teacher] = {
                                       'amplitude_times': [],
                                       'amplitude_values': []
@@ -131,7 +155,7 @@ class TeacherFrequency(Teacher):
         # calc amplitude times one time and concatenate
         for _ in range(self.epochs):
             for spikes, cl in zip(input_spikes, classes):
-                current_teacher_id = teachers[0] if single_neuron else teachers[cl]
+                current_teacher_id = self.teacher_layer[0] if single_neuron else self.teacher_layer[cl]
                 current_teacher = teacher_dicts[current_teacher_id.get('global_id')]
                 start_of_stimulation = d_time \
                     + self.reinforce_delta
@@ -263,7 +287,7 @@ class ReinforceTeacher(Teacher):
     def __init__(self, **kwargs):
         super(ReinforceTeacher, self).__init__(**kwargs)
         
-    def create_teacher(self, input_spikes, classes, teachers):  # Network
+    def create_teacher(self, input_spikes, classes):
         full_time = len(input_spikes) * self.h_time  # + start
         times = np.arange(0, full_time, self.h_time)
         pattern_start_times = np.expand_dims(np.tile(times, (len(input_spikes[0]), 1)).T, axis=2)
@@ -275,7 +299,7 @@ class ReinforceTeacher(Teacher):
         assert len(stimulation_start) == len(spike_times)
 
         teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, teachers, self.teacher_amplitude)
+                                                classes, self.teacher_layer, self.teacher_amplitude)
         return teacher_dict
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):

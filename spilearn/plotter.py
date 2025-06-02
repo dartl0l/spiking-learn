@@ -13,6 +13,37 @@ from mpl_toolkits.mplot3d import Axes3D
 from .utils import *
 
 
+def plot_reward(reward_history, name, start=None, end=None, skip_figure=False):
+    from IPython import display
+
+    plt.clf()
+    if not skip_figure:
+        fig = plt.figure()
+        fig.patch.set_facecolor('white')
+    
+    if start is not None and end is not None:
+        plt.xlim(start, end)
+    plt.title("Reward history")
+    plt.xlabel('Episode')
+    plt.ylabel('Reward (Steps played)')
+    episodes = reward_history[0]
+    reward_history = reward_history[1:]
+    labels = (
+        'Steps per episode',
+        'Running reward'
+    )#, 'Custom reward', 'Lambda')
+    for reward, label in zip(reward_history, labels):
+        plt.plot(episodes,
+                 reward,
+                 label=label)
+
+    plt.legend(loc=4)
+#     plt.savefig(path + '/images/reward_history_' + name + '.png', bbox_inches='tight')
+#     plt.show()
+    display.clear_output(wait=True)
+    display.display(plt.gcf())
+
+
 class Plotter():
     def __init__(self, grayscale=False):
         if grayscale:
@@ -229,7 +260,7 @@ class Plotter():
         if legend:
             plt.legend()
 
-    def plot_spikes(self, spike_detector):
+    def plot_spikes(self, spike_detector, legend=False):
         plt.clf()
         fig = plt.figure()
         fig.patch.set_facecolor('white')
@@ -245,34 +276,36 @@ class Plotter():
                 == len(spike_detector['senders'][mask])
             plt.plot(spike_detector['times'][mask],
                      spike_detector['senders'][mask], 'b.')
-        # plt.legend()
-
+        if legend:
+            plt.legend()
+            
     def plot_devices(self, devices, start=None, end=None,
-                     plot_last_detector=False):
+                     plot_last_detector=False, **kwargs):
         if 'multimeter' in devices:
-            self.plot_voltage(devices['multimeter'])
+            self.plot_voltage(devices['multimeter'], **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
         
-        if plot_last_detector:
-            self.plot_voltage(devices['multimeter_hidden'], False)
+        if 'multimeter_hidden' in devices:
+            self.plot_voltage(devices['multimeter_hidden'], **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
 
-            self.plot_spikes(devices['spike_detector_hidden'])
+        if 'spike_detector_hidden' in devices:
+            self.plot_spikes(devices['spike_detector_hidden'], **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
 
         if 'spike_detector_input' in devices:
-            self.plot_spikes(devices['spike_detector_input'])
+            self.plot_spikes(devices['spike_detector_input'], **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
 
-        self.plot_spikes(devices['spike_detector_out'])
+        self.plot_spikes(devices['spike_detector_out'], **kwargs)
         if start is not None and end is not None:
             plt.xlim(start, end)
         plt.show()
