@@ -99,10 +99,12 @@ class SupervisedTemporalClassifier(BaseTemporalEstimator):
             teacher_amplitude: Optional[float] = None,
             reinforce_delta: Optional[float] = None,
             reinforce_time: Optional[float] = None,
+            use_min_teacher=True,
             **kwargs) -> None:
         self.teacher_amplitude = teacher_amplitude or settings['learning'].get('teacher_amplitude', 1000)
         self.reinforce_delta = reinforce_delta or settings['learning'].get('reinforce_delta', 0)
         self.reinforce_time = reinforce_time or settings['learning'].get('reinforce_time', 0)
+        self.use_min_teacher = use_min_teacher
         super().__init__(
             settings, model, reshape, n_layer_out, 
             n_input, epochs, h_time, start_delta, h,
@@ -126,7 +128,8 @@ class SupervisedTemporalClassifier(BaseTemporalEstimator):
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
-                h=self.h
+                h=self.h,
+                use_min=self.use_min_teacher
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
@@ -148,6 +151,7 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
         teacher_amplitude: Optional[float] = None,
         reinforce_delta: Optional[float] = None,
         reinforce_time: Optional[float] = None,
+        use_min_teacher=True,
         **kwargs
     ) -> None:
         self.pool_size = pool_size
@@ -158,6 +162,7 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
             teacher_amplitude, 
             reinforce_delta, 
             reinforce_time, 
+            use_min_teacher,
             **kwargs
         )
 
@@ -180,7 +185,8 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
-                h=self.h
+                h=self.h,
+                use_min=self.use_min_teacher
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
@@ -214,14 +220,16 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
             teacher_amplitude: Optional[float] = None,
             reinforce_delta: Optional[float] = None,
             reinforce_time: Optional[float] = None,
+            use_min_teacher=True,
             **kwargs) -> None:
         super().__init__(
             settings, model,
-            reshape, n_layer_out, n_input, 
+            reshape, n_layer_out, n_input,
             epochs, h_time, start_delta, h,
-            teacher_amplitude, 
-            reinforce_delta, 
-            reinforce_time, 
+            teacher_amplitude,
+            reinforce_delta,
+            reinforce_time,
+            use_min_teacher,
             **kwargs
         )
 
@@ -243,7 +251,8 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
-                h=self.h
+                h=self.h,
+                use_min=self.use_min_teacher
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,

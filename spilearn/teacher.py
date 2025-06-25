@@ -9,10 +9,11 @@ class Teacher:
     Teacher signal generator for EpochNetwork class
     '''
     def __init__(self, n_layer_out, teacher_amplitude, reinforce_delta=0.0, reinforce_time=0.0, 
-                 start=50, h_time=50, h=0.01):
+                 start=50, h_time=50, h=0.01, use_min=True):
         self.h = h
         self.h_time = h_time
         self.start = start
+        self.use_min = use_min
 
         self.reinforce_time = reinforce_time
         self.reinforce_delta = reinforce_delta
@@ -50,12 +51,14 @@ class Teacher:
         assert len(input_spikes) == len(pattern_start_times)
 
         spike_times = np.add(input_spikes, pattern_start_times)
-        stimulation_start = np.nanmin(spike_times, axis=1) + self.reinforce_delta
+        stimulation_start = (np.nanmin(spike_times, axis=1) if self.use_min else times) + self.reinforce_delta
         stimulation_end = stimulation_start + self.reinforce_time + 2 *self. h
         assert len(stimulation_start) == len(spike_times)
 
-        teacher_dict = self.create_teacher_dict(stimulation_start, stimulation_end,
-                                                classes, self.teacher_layer, self.teacher_amplitude)
+        teacher_dict = self.create_teacher_dict(
+            stimulation_start, stimulation_end,
+            classes, self.teacher_layer, self.teacher_amplitude
+        )
         return teacher_dict
 
     def create_teacher_dict(self, stimulation_start, stimulation_end, classes, teachers, teacher_amplitude):
