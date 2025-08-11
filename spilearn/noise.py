@@ -93,8 +93,8 @@ class NoiseGenerator():
             nest.SetStatus(
                 self.layer,
                 {
-                'rate': self.noise_freq,
-                'origin': 0.0
+                    'rate': self.noise_freq,
+                    'origin': 0.0
                 }
             )
 

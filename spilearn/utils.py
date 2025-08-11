@@ -1,12 +1,22 @@
+import os
+import copy
 import json
 import math
 import pickle
+
 import numpy as np
 
-from functools import partial
+from struct import unpack
+
 from scipy.stats import mode
 
-from hyperopt import hp, fmin, tpe, space_eval, Trials
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import f1_score
+
+from ray import train, tune
+from ray.tune.search import ConcurrencyLimiter
+from ray.tune.search.optuna import OptunaSearch
+from ray.tune.schedulers import ASHAScheduler
 
 
 class NpEncoder(json.JSONEncoder):
@@ -20,23 +30,99 @@ class NpEncoder(json.JSONEncoder):
         return super(NpEncoder, self).default(obj)
 
 
-def optimize(X, y, func, space, path, filename, new_trial=True, max_evals=100, h_evals=10, X_test=None, y_test=None):
-    trials = Trials() if new_trial else pickle.load(open(path + "/" + filename, "rb"))
+def get_labeled_data(picklename, MNIST_data_path, bTrain = True):
+    """Read input-vector (image) and target class (label, 0-9) and return
+       it as list of tuples.
+    """
+    picklename = MNIST_data_path + picklename
+    if os.path.isfile('%s.pickle' % picklename):
+        data = pickle.load(open('%s.pickle' % picklename, 'rb'))
+    else:
+        # Open the images with gzip in read binary mode
+        if bTrain:
+            images = open(MNIST_data_path + 'train-images.idx3-ubyte','rb')
+            labels = open(MNIST_data_path + 'train-labels.idx1-ubyte','rb')
+        else:
+            images = open(MNIST_data_path + 't10k-images.idx3-ubyte','rb')
+            labels = open(MNIST_data_path + 't10k-labels.idx1-ubyte','rb')
+        # Get metadata for images
+        images.read(4)  # skip the magic_number
+        number_of_images = unpack('>I', images.read(4))[0]
+        rows = unpack('>I', images.read(4))[0]
+        cols = unpack('>I', images.read(4))[0]
+        # Get metadata for labels
+        labels.read(4)  # skip the magic_number
+        N = unpack('>I', labels.read(4))[0]
+        if number_of_images != N:
+            raise Exception('number of labels did not match the number of images')
+        # Get the data
+        x = np.zeros((N, rows, cols), dtype=np.uint8)  # Initialize numpy array
+        y = np.zeros((N, 1), dtype=np.uint8)  # Initialize numpy array
+        for i in range(N):
+            if i % 1000 == 0:
+                print("i: %i" % i)
+            x[i] = [[unpack('>B', images.read(1))[0] for unused_col in range(cols)]  for unused_row in range(rows) ]
+            y[i] = unpack('>B', labels.read(1))[0]
+        data = {'x': x, 'y': y, 'rows': rows, 'cols': cols}
+        pickle.dump(data, open("%s.pickle" % picklename, 'wb'))
+    return data
 
-    n_evals = h_evals
-    while n_evals <= max_evals:
-        best = fmin(
-            fn=partial(func, X=X, y=y, path=path, X_test=X_test, y_test=y_test), 
-            space=space, algo=tpe.suggest, 
-            trials=trials, max_evals=n_evals
+
+def run_train_test(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
+    model = copy.deepcopy(model_in)
+
+    pipe = create_pipe(model, params)
+
+    pipe.fit(X, y)
+    y_test_pred = pipe.predict(X_test)
+    train.report({"mean_accuracy": f1_score(y_test, y_test_pred, average='macro')})
+
+
+def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
+    model = copy.deepcopy(model_in)
+
+    pipe = create_pipe(model, params)
+
+    scores = cross_val_score(
+        pipe, X, y, cv=5, scoring='f1_macro', n_jobs=5)
+    train.report({"mean_accuracy": scores.mean()})
+
+
+def optimize_ray(X, y, func, create_pipe, space, model, exp_name, new_trial=True, max_evals=100, 
+                 X_test=None, y_test=None, max_concurrent=11):
+    ray_path = os.path.expanduser("~/ray_results")
+    exp_dir = os.path.join(ray_path, exp_name)
+
+    if tune.Tuner.can_restore(exp_dir) and not new_trial:
+        tuner = tune.Tuner.restore(
+            exp_dir,
+            trainable=tune.with_parameters(
+                func, X=X, y=y, model_in=model,
+                create_pipe=create_pipe, X_test=X_test, y_test=y_test
+            ),
+            resume_errored=True)
+    else:
+        search_alg = OptunaSearch(seed=42)
+
+        search_alg = ConcurrencyLimiter(search_alg, max_concurrent=max_concurrent)
+        tuner = tune.Tuner(
+            tune.with_parameters(
+                func, X=X, y=y, model_in=model,
+                create_pipe=create_pipe, X_test=X_test, y_test=y_test
+            ),
+            tune_config=tune.TuneConfig(
+                num_samples=max_evals,
+                search_alg=search_alg,
+                scheduler=ASHAScheduler(),
+                metric="mean_accuracy",
+                mode="max",
+            ),
+            run_config=train.RunConfig(
+                name=exp_name, 
+            ),
+            param_space=space
         )
-        pickle.dump(trials, open(path + "/" + filename, "wb"))
-        best_space = space_eval(space, best)
-        json.dump(best_space, open(path + '/best_space.json', 'w'), indent=4, cls=NpEncoder)
-        n_evals += h_evals
-    best_space = space_eval(space, best)
-    json.dump(best_space, open(path + '/best_space.json', 'w'), indent=4, cls=NpEncoder)
-    return best_space
+    return tuner.fit()
 
 
 def round_decimals(value):
