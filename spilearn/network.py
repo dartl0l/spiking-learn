@@ -669,11 +669,10 @@ class LiteRlNetwork(EpochNetwork):
 
             counter_batch = 0
             if y is not None:
-                n_classes = len(set(y))
                 nest.Run(self.start_delta)
                 self.time += self.start_delta
                 for i in range(self.data_len):
-                    pred = self.run(n_classes)
+                    pred = self.run(self.n_layer_out)
                     if pred == y[i]:
                         counter += 1
                         self.learning_rate = self.learning_rate_default * scale
