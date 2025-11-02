@@ -247,12 +247,13 @@ class SupervisedTemporalRLClassifier(BaseTemporalEstimator):
         )
 
 
-class SupervisedTemporalRLPoolClassifier(BaseTemporalEstimator):
+class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
 
     def __init__(
             self, 
-            settings, model, 
+            settings, model,
             pool_size,
+            learning_rate, 
             reshape=True,
             n_layer_out: Optional[int] = None,
             n_input: Optional[int] = None,
@@ -264,13 +265,15 @@ class SupervisedTemporalRLPoolClassifier(BaseTemporalEstimator):
             ) -> None:
         self.pool_size = pool_size
         super().__init__(
-            settings, model, reshape, n_layer_out, 
+            settings, model, learning_rate, reshape, n_layer_out, 
             n_input, epochs, h_time, start_delta, h,
             **kwargs)
-        
+
     def _init_network(self, settings, model, **kwargs):
-        return LiteRlNetwork(
+        return LitePoolRlNetwork(
             settings, model,
+            pool_size=self.pool_size,
+            learning_rate=self.learning_rate,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
@@ -285,6 +288,16 @@ class SupervisedTemporalRLPoolClassifier(BaseTemporalEstimator):
             **kwargs
         )
 
+    def predict(self, X):
+        output, self._devices_predict = self._network.test(X, self._weights)
+
+        all_latency = split_spikes_and_senders(
+            output, len(X),
+            self.start_delta,
+            self.h_time)
+        out_latency = convert_latency_pool(all_latency, self.n_layer_out, self.pool_size)
+        y_pred = predict_from_latency_pool(out_latency)
+        return y_pred.astype(int)
 
 
 class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
