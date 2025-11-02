@@ -9,7 +9,7 @@ class Evaluation:
         self.n_neurons = self.settings['topology']['n_layer_out']
         self.start_delta = self.settings['network']['start_delta']
         self.h_time = self.settings['network']['h_time']
-        
+
     def convert_latency(self, latency_list):
         output_array = []
         for latencies in latency_list:
@@ -22,10 +22,7 @@ class Evaluation:
         return output_array
 
     def merge_spikes_and_senders(self, raw_latency_list):
-        raw_latency = {
-                       'spikes': [],
-                       'senders': []
-                      }
+        raw_latency = {'spikes': [], 'senders': []}
         for tmp_latency in raw_latency_list:
             raw_latency['spikes'].extend(tmp_latency['spikes'])
             raw_latency['senders'].extend(tmp_latency['senders'])
@@ -37,17 +34,15 @@ class Evaluation:
         input_latency['spikes'] = np.array(input_latency['spikes'])
         input_latency['senders'] = np.array(input_latency['senders'])
         for _ in range(n_examples):
-            mask = (input_latency['spikes'] > d_time) & \
-                   (input_latency['spikes'] < d_time + self.h_time)
+            mask = (input_latency['spikes'] > d_time) & (
+                input_latency['spikes'] < d_time + self.h_time
+            )
             spikes_tmp = input_latency['spikes'][mask]
             senders_tmp = input_latency['senders'][mask]
-            tmp_dict = {
-                        'spikes': spikes_tmp - d_time,
-                        'senders': senders_tmp
-                        }
+            tmp_dict = {'spikes': spikes_tmp - d_time, 'senders': senders_tmp}
 
             d_time += self.h_time
-            output_latency.append(tmp_dict)    
+            output_latency.append(tmp_dict)
         return output_latency
 
     def predict_from_latency(self, latency_list):
@@ -105,11 +100,9 @@ class Evaluation:
 
         fitness_score = 0
         if settings['learning']['fitness_func'] == 'exp':
-            fitness_score, fit_list = self.fitness_func_exp(full_latency,
-                                                            data)
+            fitness_score, fit_list = self.fitness_func_exp(full_latency, data)
         elif settings['learning']['fitness_func'] == 'sigma':
-            fitness_score, fit_list = self.fitness_func_sigma(full_latency,
-                                                              data)
+            fitness_score, fit_list = self.fitness_func_sigma(full_latency, data)
         elif settings['learning']['fitness_func'] == 'time':
             fitness_score = self.fitness_func_time(full_latency, data)
         elif settings['learning']['fitness_func'] == 'acc':
@@ -146,15 +139,13 @@ class EvaluationPool(Evaluation):
                 tmp_list[sender - 1] = latencies['spikes'][mask][0]
             output_array.append(tmp_list)
         output_array = np.array(output_array).reshape(
-            len(output_array),
-            int(self.n_neurons / self.pool_size),
-            self.pool_size)
+            len(output_array), int(self.n_neurons / self.pool_size), self.pool_size
+        )
         output_array = np.mean(output_array, axis=2)
         return output_array
 
 
 class DiehlEvaluation(Evaluation):
-    
     def __init__(self, settings):
         super().__init__(settings)
         self.assignments = None
@@ -179,7 +170,9 @@ class DiehlEvaluation(Evaluation):
         self.assignments = assignments
         return assignments
 
-    def evaluate(self, latencies, y, latencies_for_assignments=None, y_for_assignments=None):
+    def evaluate(
+        self, latencies, y, latencies_for_assignments=None, y_for_assignments=None
+    ):
         if latencies_for_assignments is None:
             latencies_for_assignments = latencies
         if y_for_assignments is None:
@@ -193,12 +186,10 @@ class DiehlEvaluation(Evaluation):
         # neurons_number = latencies.shape[1]
         assignments = self.get_assignments(latencies_for_assignments, y_for_assignments)
         class_certainty_ranks = [
-            self.get_classes_rank_per_one_vector(
-                latencies[i], set(y), assignments
-            )
+            self.get_classes_rank_per_one_vector(latencies[i], set(y), assignments)
             for i in range(len(latencies))
         ]
-        y_predicted = np.array(class_certainty_ranks)[:,0]
+        y_predicted = np.array(class_certainty_ranks)[:, 0]
         # difference = y_predicted - y
         # correct = len(np.where(difference == 0)[0])
         # incorrect = np.where(difference != 0)[0]
@@ -210,10 +201,13 @@ class DiehlEvaluation(Evaluation):
         min_latencies = [0] * number_of_classes
         number_of_neurons_assigned_to_this_class = [0] * number_of_classes
         for class_number, current_class in enumerate(set_of_classes):
-            number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
+            number_of_neurons_assigned_to_this_class = len(
+                np.where(assignments == current_class)[0]
+            )
             if number_of_neurons_assigned_to_this_class == 0:
                 continue
-            min_latencies[class_number] = np.min(
-                latency[assignments == current_class]
-            ) / number_of_neurons_assigned_to_this_class
+            min_latencies[class_number] = (
+                np.min(latency[assignments == current_class])
+                / number_of_neurons_assigned_to_this_class
+            )
         return np.argsort(min_latencies)[::1]

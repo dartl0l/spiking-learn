@@ -20,39 +20,35 @@ def plot_reward(reward_history, name, start=None, end=None, skip_figure=False):
     if not skip_figure:
         fig = plt.figure()
         fig.patch.set_facecolor('white')
-    
+
     if start is not None and end is not None:
         plt.xlim(start, end)
-    plt.title("Reward history")
+    plt.title('Reward history')
     plt.xlabel('Episode')
     plt.ylabel('Reward (Steps played)')
     episodes = reward_history[0]
     reward_history = reward_history[1:]
-    labels = (
-        'Steps per episode',
-        'Running reward'
-    )#, 'Custom reward', 'Lambda')
+    labels = ('Steps per episode', 'Running reward')  # , 'Custom reward', 'Lambda')
     for reward, label in zip(reward_history, labels):
-        plt.plot(episodes,
-                 reward,
-                 label=label)
+        plt.plot(episodes, reward, label=label)
 
     plt.legend(loc=4)
-#     plt.savefig(path + '/images/reward_history_' + name + '.png', bbox_inches='tight')
-#     plt.show()
+    #     plt.savefig(path + '/images/reward_history_' + name + '.png', bbox_inches='tight')
+    #     plt.show()
     display.clear_output(wait=True)
     display.display(plt.gcf())
 
 
-class Plotter():
+class Plotter:
     def __init__(self, grayscale=False):
         if grayscale:
             plt.style.use('grayscale')
 
     def plot_field(self, sigma2, max_x, n_fields):
-
         def get_gaussian(x, sigma2, mu):
-            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (
+                -((x - mu) ** 2) / (2 * sigma2)
+            )
 
         h_mu = max_x / (n_fields - 1)
         mu = 0
@@ -68,7 +64,17 @@ class Plotter():
         plt.ylabel('Spike times of pattern')
         plt.show()
 
-    def plot_weights_2d(self, in_weights, rows, columns, ax_cols=None, ax_rows=None, fig_size=(20, 20), neuron_titles=True, show=True):
+    def plot_weights_2d(
+        self,
+        in_weights,
+        rows,
+        columns,
+        ax_cols=None,
+        ax_rows=None,
+        fig_size=(20, 20),
+        neuron_titles=True,
+        show=True,
+    ):
         plt.clf()
         # plt.figure()
         # plt.title('Weight distribution')
@@ -83,11 +89,10 @@ class Plotter():
         if ax_rows is None:
             ax_rows = int(ceil(num_neurons / ax_cols))
         fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=fig_size)
-        if (ax_rows == 1 and ax_cols == 1):
+        if ax_rows == 1 and ax_cols == 1:
             axs = np.array(axs)
         for ax, neuron in zip(axs.flat, neurons):
-            current_weights = np.array(weights[neuron]).reshape(
-                (rows, columns))
+            current_weights = np.array(weights[neuron]).reshape((rows, columns))
             ax.matshow(current_weights)
             if neuron_titles:
                 ax.set_title('Neuron ' + str(neuron) + ' weights')
@@ -97,9 +102,13 @@ class Plotter():
             plt.show()
 
     def plot_weights_2d_cart_pole(in_weights, rows, columns, show=True):
-        actions = ('Difference between right and left neurons', 'Left neuron', 'Right neuron')
-        state = ['$x$', '$\dot{x}$','$\\theta$', '$\dot{\\theta}$']
-        value = list(map(str, [-1., -0.5, 0, 0.5, 1.]))
+        actions = (
+            'Difference between right and left neurons',
+            'Left neuron',
+            'Right neuron',
+        )
+        state = ['$x$', '$\dot{x}$', '$\\theta$', '$\dot{\\theta}$']
+        value = list(map(str, [-1.0, -0.5, 0, 0.5, 1.0]))
         ticks = [0, 4, 9, 14, 19]
 
         weights = convert_layer_weights(in_weights)
@@ -113,12 +122,11 @@ class Plotter():
         plt.clf()
         fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=(20, 16))
 
-        if (ax_rows == 1 and ax_cols == 1):
+        if ax_rows == 1 and ax_cols == 1:
             axs = np.array(axs)
         for ax, neuron in zip(axs.flat, neurons):
-            current_weights = np.array(weights[neuron]).reshape(
-                (rows, columns))
-    #         ax.text(-1, -1, 'C', fontsize=28)
+            current_weights = np.array(weights[neuron]).reshape((rows, columns))
+            #         ax.text(-1, -1, 'C', fontsize=28)
             weight_img = ax.matshow(current_weights)
             fig.colorbar(weight_img, ax=ax, anchor=(0, 0.3), shrink=0.2 * len(neurons))
             ax.set_title(actions[neuron] + ' weights')
@@ -131,8 +139,8 @@ class Plotter():
 
     def plot_weights_2d_cart_pole_rus(in_weights, rows, columns, show=True):
         actions = ('Разница весов', 'Левый нейрон', 'Правый нейрон')
-        state = ['$x$', '$\dot{x}$','$\\theta$', '$\dot{\\theta}$']
-        value = list(map(str, [-1., -0.5, 0, 0.5, 1.]))
+        state = ['$x$', '$\dot{x}$', '$\\theta$', '$\dot{\\theta}$']
+        value = list(map(str, [-1.0, -0.5, 0, 0.5, 1.0]))
         ticks = [0, 4, 9, 14, 19]
 
         weights = convert_layer_weights(in_weights)
@@ -146,12 +154,11 @@ class Plotter():
         plt.clf()
         fig, axs = plt.subplots(nrows=ax_rows, ncols=ax_cols, figsize=(20, 16))
 
-        if (ax_rows == 1 and ax_cols == 1):
+        if ax_rows == 1 and ax_cols == 1:
             axs = np.array(axs)
         for ax, neuron in zip(axs.flat, neurons):
-            current_weights = np.array(weights[neuron]).reshape(
-                (rows, columns))
-    #         ax.text(-1, -1, 'C', fontsize=28)
+            current_weights = np.array(weights[neuron]).reshape((rows, columns))
+            #         ax.text(-1, -1, 'C', fontsize=28)
             weight_img = ax.matshow(current_weights)
             fig.colorbar(weight_img, ax=ax, anchor=(0, 0.3), shrink=0.2 * len(neurons))
             ax.set_title(actions[neuron])
@@ -168,9 +175,12 @@ class Plotter():
         fig.patch.set_facecolor('white')
         plt.title('Weight distribution')
         for neuron in weights:
-            plt.plot(list(range(len(weights[neuron]))),
-                     weights[neuron], '.',
-                     label=str(neuron))
+            plt.plot(
+                list(range(len(weights[neuron]))),
+                weights[neuron],
+                '.',
+                label=str(neuron),
+            )
         plt.xlabel('Input synapse number')
         plt.ylabel('Synapse weight')
         plt.legend()
@@ -183,22 +193,24 @@ class Plotter():
         fig.patch.set_facecolor('white')
         plt.title('Распределение весов')
         for neuron in weights:
-            plt.plot(list(range(len(weights[neuron]))),
-                     weights[neuron], '.',
-                     label='Нейрон ' + str(neuron))
+            plt.plot(
+                list(range(len(weights[neuron]))),
+                weights[neuron],
+                '.',
+                label='Нейрон ' + str(neuron),
+            )
         plt.xlabel('Номер входного синапса')
         plt.ylabel('Синаптический вес')
         plt.legend()
         if show:
             plt.show()
-            
+
     def plot_norm(self, norm_history, show=True):
         plt.clf()
         plt.title('Weight norm')
         # norm_history = np.array(norm_history).T.tolist()
         # print(norm_history)
-        plt.plot(list(range(len(norm_history))),
-                 norm_history, '-')
+        plt.plot(list(range(len(norm_history))), norm_history, '-')
         # plt.legend()
         if show:
             plt.show()
@@ -210,8 +222,7 @@ class Plotter():
         # norm_history = np.array(norm_history).T.tolist()
         # print(norm_history)
         for i, norms in enumerate(norm_history):
-            plt.plot(list(range(len(norms.tolist()))),
-                     norms, colors[i], label=str(i))
+            plt.plot(list(range(len(norms.tolist()))), norms, colors[i], label=str(i))
         plt.legend()
         if show:
             plt.show()
@@ -221,8 +232,14 @@ class Plotter():
             neurons = weights.keys()
             plt.title('Weight distribution')
 
-            plot = plt.plot(range(len(weights[neurons[0]])), weights[neurons[0]], 'r.',
-                            range(len(weights[neurons[1]])), weights[neurons[1]], 'b.')
+            plot = plt.plot(
+                range(len(weights[neurons[0]])),
+                weights[neurons[0]],
+                'r.',
+                range(len(weights[neurons[1]])),
+                weights[neurons[1]],
+                'b.',
+            )
 
             return plot
 
@@ -246,17 +263,23 @@ class Plotter():
         fig = plt.figure()
         fig.patch.set_facecolor('white')
         neurons = set(voltmeter['senders'])
-        assert len(voltmeter['senders']) == len(voltmeter['V_m']) == len(voltmeter['times'])
+        assert (
+            len(voltmeter['senders'])
+            == len(voltmeter['V_m'])
+            == len(voltmeter['times'])
+        )
 
-        plt.title("Membrane potential")
+        plt.title('Membrane potential')
         plt.xlabel('Time (ms)')
         plt.ylabel('Membrane potential (mV)')
         for neuron in neurons:
             mask = voltmeter['senders'] == neuron
             assert len(voltmeter['times'][mask]) == len(voltmeter['V_m'][mask])
-            plt.plot(voltmeter['times'][mask],
-                     voltmeter['V_m'][mask],
-                     label='neuron ' + str(neuron))
+            plt.plot(
+                voltmeter['times'][mask],
+                voltmeter['V_m'][mask],
+                label='neuron ' + str(neuron),
+            )
         if legend:
             plt.legend()
 
@@ -267,26 +290,29 @@ class Plotter():
         neurons = set(spike_detector['senders'])
         assert len(spike_detector['senders']) == len(spike_detector['times'])
 
-        plt.title("Spikes")
+        plt.title('Spikes')
         plt.xlabel('Time (ms)')
         plt.ylabel('Neuron')
         for neuron in neurons:
             mask = spike_detector['senders'] == neuron
-            assert len(spike_detector['times'][mask]) \
-                == len(spike_detector['senders'][mask])
-            plt.plot(spike_detector['times'][mask],
-                     spike_detector['senders'][mask], 'b.')
+            assert len(spike_detector['times'][mask]) == len(
+                spike_detector['senders'][mask]
+            )
+            plt.plot(
+                spike_detector['times'][mask], spike_detector['senders'][mask], 'b.'
+            )
         if legend:
             plt.legend()
-            
-    def plot_devices(self, devices, start=None, end=None,
-                     plot_last_detector=False, **kwargs):
+
+    def plot_devices(
+        self, devices, start=None, end=None, plot_last_detector=False, **kwargs
+    ):
         if 'multimeter' in devices:
             self.plot_voltage(devices['multimeter'], **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
-        
+
         if 'multimeter_hidden' in devices:
             self.plot_voltage(devices['multimeter_hidden'], **kwargs)
             if start is not None and end is not None:
@@ -321,16 +347,20 @@ class Plotter():
         plt.title(title)
         # colors = ['rx', 'gx', 'bx', 'cx', 'mx', 'yx', 'kx',
         #           'ro', 'go', 'bo', 'co', 'mo', 'yo', 'ko']
-#         shapes = ['x', 's', 'd']
+        #         shapes = ['x', 's', 'd']
 
         classes_set = set(classes)
         for cl in classes_set:
             class_mask = classes == cl
             latencies = np.array(latency)[class_mask]
             neurons = np.tile(np.arange(len(classes_set)), (len(latencies), 1))
-            plt.plot(latencies.flatten(), neurons.flatten(), '.',
-                     # colors[cl],
-                     label='class ' + str(cl))
+            plt.plot(
+                latencies.flatten(),
+                neurons.flatten(),
+                '.',
+                # colors[cl],
+                label='class ' + str(cl),
+            )
         plt.legend()
         if show:
             plt.show()
@@ -439,9 +469,13 @@ class Plotter():
         if show:
             plt.show()
 
-    def plot_params(self, parameters_acc_pairs,
-                    title='Parameters distribution',
-                    normalize_colors=True, show=True):
+    def plot_params(
+        self,
+        parameters_acc_pairs,
+        title='Parameters distribution',
+        normalize_colors=True,
+        show=True,
+    ):
         def get_polar(r, fi):
             return r * cos(fi), r * sin(fi)
 
@@ -476,9 +510,14 @@ class Plotter():
 
         for parameters, acc in parameters_acc_pairs:
             accs.append(acc)
-            all_params.append([x for _, x in sorted(
-                zip(list(parameters.keys()),
-                    list(parameters.values())))])
+            all_params.append(
+                [
+                    x
+                    for _, x in sorted(
+                        zip(list(parameters.keys()), list(parameters.values()))
+                    )
+                ]
+            )
 
         plt.title(title)
 
@@ -516,8 +555,12 @@ class Plotter():
         classes_set = set(y)
         for cl in classes_set:
             class_mask = y == cl
-            plt.plot(Xpca[class_mask].T[0], Xpca[class_mask].T[1], '.',
-                     label='class ' + str(cl))
+            plt.plot(
+                Xpca[class_mask].T[0],
+                Xpca[class_mask].T[1],
+                '.',
+                label='class ' + str(cl),
+            )
         plt.legend()
         if show:
             plt.show()
@@ -537,8 +580,12 @@ class Plotter():
         classes_set = set(y)
         for cl in classes_set:
             class_mask = y == cl
-            plt.plot(Xpca[class_mask].T[0], Xpca[class_mask].T[1], '.',
-                     label='class ' + str(cl))
+            plt.plot(
+                Xpca[class_mask].T[0],
+                Xpca[class_mask].T[1],
+                '.',
+                label='class ' + str(cl),
+            )
         plt.legend()
         if show:
             plt.show()
@@ -548,21 +595,19 @@ class Plotter():
         fig = plt.figure()
         fig.patch.set_facecolor('white')
 
-        plt.title("Reward history")
+        plt.title('Reward history')
         plt.xlabel('Episode')
         plt.ylabel('Reward (Games played)')
         episodes = reward_history[0]
         reward_history = reward_history[1:]
         labels = ('games', 'running reward', 'custom reward', 'lambda')
         for reward, label in zip(reward_history, labels):
-            plt.plot(episodes,
-                     reward,
-                     label=label)
+            plt.plot(episodes, reward, label=label)
         if legend:
             plt.legend()
         if show:
             plt.show()
-            
+
     def plot_repeating_patterns(self, latency_train, title, show=True):
         latency_paint = []
         epochs = []
@@ -588,7 +633,7 @@ class Plotter():
         plt.xlabel('Numbers of presenting input pattern')
         plt.ylabel('Latency')
         plt.title(title)
-    #     plt.yticks(np.arange(lat_min, lat_max, step=step))
+        #     plt.yticks(np.arange(lat_min, lat_max, step=step))
         if show:
             plt.show()
 
@@ -618,48 +663,46 @@ class Plotter():
         plt.title(title)
         plt.show()
 
-    def plot_reward(self, reward_history, name, suptitle="", start=0, end=100):
+    def plot_reward(self, reward_history, name, suptitle='', start=0, end=100):
         plt.clf()
-        fig = plt.figure(figsize=(10,5))
+        fig = plt.figure(figsize=(10, 5))
         fig.patch.set_facecolor('white')
 
         plt.xlim(start, end)
         plt.suptitle(suptitle, x=0)
-        plt.title("Reward history")
+        plt.title('Reward history')
         plt.xlabel('Episode')
         plt.ylabel('Reward (Steps played)')
         episodes = reward_history[0]
         reward_history = reward_history[1:]
-        labels = ('Steps per episode', 'Running reward')#, 'Custom reward', 'Lambda')
+        labels = ('Steps per episode', 'Running reward')  # , 'Custom reward', 'Lambda')
         for reward, label in zip(reward_history, labels):
-            plt.plot(episodes,
-                     reward,
-                     linewidth=3,
-                     label=label)
+            plt.plot(episodes, reward, linewidth=3, label=label)
 
         plt.legend(loc=4)
-        plt.savefig(path + '/images/reward_history_' + name + '.png', bbox_inches='tight')
+        plt.savefig(
+            path + '/images/reward_history_' + name + '.png', bbox_inches='tight'
+        )
         plt.show()
-        
+
     def plot_reward_rus(self, reward_history, name, start=0, end=100):
         plt.clf()
-        fig = plt.figure(figsize=(12,12))
+        fig = plt.figure(figsize=(12, 12))
         fig.patch.set_facecolor('white')
 
         plt.xlim(start, end)
-        plt.suptitle("A", x=0)
-        plt.title("История награды")
+        plt.suptitle('A', x=0)
+        plt.title('История награды')
         plt.xlabel('Эпизод')
         plt.ylabel('Награда (Шагов сыграно)')
         episodes = reward_history[0]
         reward_history = reward_history[1:]
-        labels = ('Шагов за эпизод', 'Бегущая награда')#, 'Custom reward', 'Lambda')
+        labels = ('Шагов за эпизод', 'Бегущая награда')  # , 'Custom reward', 'Lambda')
         for reward, label in zip(reward_history, labels):
-            plt.plot(episodes,
-                     reward,
-                     linewidth=3,
-                     label=label)
+            plt.plot(episodes, reward, linewidth=3, label=label)
 
         plt.legend(loc=4)
-        plt.savefig(path + '/images/reward_history_' + name + '_rus.png', bbox_inches='tight')
+        plt.savefig(
+            path + '/images/reward_history_' + name + '_rus.png', bbox_inches='tight'
+        )
         plt.show()

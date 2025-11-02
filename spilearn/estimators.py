@@ -11,17 +11,18 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
     def __init__(
-            self,
-            settings,
-            model,
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            **kwargs) -> None:
+        self,
+        settings,
+        model,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         self.model = model
         self.settings = settings
 
@@ -35,23 +36,22 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
 
         self._network = self._init_network(settings, model, **kwargs)
         self._devices_fit = None
-        self._weights = None   
+        self._weights = None
 
     def _init_network(self, settings, model, **kwargs):
         return EpochNetwork(
-            settings, model,
+            settings,
+            model,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
             spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
+                self.n_input, self.epochs, self.h_time
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
             h=self.h,
-            **kwargs
+            **kwargs,
         )
 
     def fit(self, X, y):
@@ -65,9 +65,8 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         output, self._devices_predict = self._network.test(X, self._weights)
 
         all_latency = split_spikes_and_senders(
-            output, len(X),
-            self.start_delta,
-            self.h_time)
+            output, len(X), self.start_delta, self.h_time
+        )
         out_latency = convert_latency(all_latency, self.n_layer_out)
         y_pred = predict_from_latency(out_latency)
         return y_pred.astype(int)
@@ -76,71 +75,21 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         output, self._devices_predict = self._network.test(X, self._weights)
 
         all_latency = split_spikes_and_senders(
-            output, len(X),
-            self.start_delta,
-            self.h_time)
+            output, len(X), self.start_delta, self.h_time
+        )
         out_latency = np.array(convert_latency(all_latency, self.n_layer_out))
-        return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1) if self.reshape else out_latency
-
-
-class SupervisedTemporalClassifier(BaseTemporalEstimator):
-
-    def __init__(
-            self,
-            settings,
-            model,
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            teacher_amplitude: Optional[float] = None,
-            reinforce_delta: Optional[float] = None,
-            reinforce_time: Optional[float] = None,
-            use_min_teacher=True,
-            **kwargs) -> None:
-        self.teacher_amplitude = teacher_amplitude or settings['learning'].get('teacher_amplitude', 1000)
-        self.reinforce_delta = reinforce_delta or settings['learning'].get('reinforce_delta', 0)
-        self.reinforce_time = reinforce_time or settings['learning'].get('reinforce_time', 0)
-        self.use_min_teacher = use_min_teacher
-        super().__init__(
-            settings, model, reshape, n_layer_out, 
-            n_input, epochs, h_time, start_delta, h,
-            **kwargs)
-
-    def _init_network(self, settings, model, **kwargs):
-        return EpochNetwork(
-            settings, model,
-            n_layer_out=self.n_layer_out,
-            n_input=self.n_input,
-            epochs=self.epochs,
-            spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
-            ),
-            teacher=Teacher(
-                n_layer_out=self.n_layer_out, 
-                teacher_amplitude=self.teacher_amplitude,
-                reinforce_delta=self.reinforce_delta,
-                reinforce_time=self.reinforce_time,
-                start=self.start_delta,
-                h_time=self.h_time,
-                h=self.h,
-                use_min=self.use_min_teacher
-            ),
-            h_time=self.h_time,
-            start_delta=self.start_delta,
-            h=self.h,
-            **kwargs
+        return (
+            out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1)
+            if self.reshape
+            else out_latency
         )
 
 
-class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
-
-    def __init__(self, settings, model, pool_size, 
+class SupervisedTemporalClassifier(BaseTemporalEstimator):
+    def __init__(
+        self,
+        settings,
+        model,
         reshape=True,
         n_layer_out: Optional[int] = None,
         n_input: Optional[int] = None,
@@ -152,30 +101,104 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
         reinforce_delta: Optional[float] = None,
         reinforce_time: Optional[float] = None,
         use_min_teacher=True,
-        **kwargs
+        **kwargs,
     ) -> None:
-        self.pool_size = pool_size
+        self.teacher_amplitude = teacher_amplitude or settings['learning'].get(
+            'teacher_amplitude', 1000
+        )
+        self.reinforce_delta = reinforce_delta or settings['learning'].get(
+            'reinforce_delta', 0
+        )
+        self.reinforce_time = reinforce_time or settings['learning'].get(
+            'reinforce_time', 0
+        )
+        self.use_min_teacher = use_min_teacher
         super().__init__(
-            settings, model, 
-            reshape, n_layer_out, n_input, 
-            epochs, h_time, start_delta, h,
-            teacher_amplitude, 
-            reinforce_delta, 
-            reinforce_time, 
-            use_min_teacher,
-            **kwargs
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
         )
 
     def _init_network(self, settings, model, **kwargs):
         return EpochNetwork(
-            settings, model, 
+            settings,
+            model,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
             spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
+                self.n_input, self.epochs, self.h_time
+            ),
+            teacher=Teacher(
+                n_layer_out=self.n_layer_out,
+                teacher_amplitude=self.teacher_amplitude,
+                reinforce_delta=self.reinforce_delta,
+                reinforce_time=self.reinforce_time,
+                start=self.start_delta,
+                h_time=self.h_time,
+                h=self.h,
+                use_min=self.use_min_teacher,
+            ),
+            h_time=self.h_time,
+            start_delta=self.start_delta,
+            h=self.h,
+            **kwargs,
+        )
+
+
+class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
+    def __init__(
+        self,
+        settings,
+        model,
+        pool_size,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        teacher_amplitude: Optional[float] = None,
+        reinforce_delta: Optional[float] = None,
+        reinforce_time: Optional[float] = None,
+        use_min_teacher=True,
+        **kwargs,
+    ) -> None:
+        self.pool_size = pool_size
+        super().__init__(
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            teacher_amplitude,
+            reinforce_delta,
+            reinforce_time,
+            use_min_teacher,
+            **kwargs,
+        )
+
+    def _init_network(self, settings, model, **kwargs):
+        return EpochNetwork(
+            settings,
+            model,
+            n_layer_out=self.n_layer_out,
+            n_input=self.n_input,
+            epochs=self.epochs,
+            spike_generator=TemporalSpikeGenerator(
+                self.n_input, self.epochs, self.h_time
             ),
             teacher=TeacherPool(
                 n_layer_out=self.n_layer_out,
@@ -186,192 +209,223 @@ class SupervisedTemporalPoolClassifier(SupervisedTemporalClassifier):
                 start=self.start_delta,
                 h_time=self.h_time,
                 h=self.h,
-                use_min=self.use_min_teacher
+                use_min=self.use_min_teacher,
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
             h=self.h,
-            **kwargs
+            **kwargs,
         )
 
     def predict(self, X):
         output, self._devices_predict = self._network.test(X, self._weights)
 
         all_latency = split_spikes_and_senders(
-            output, len(X),
-            self.start_delta,
-            self.h_time)
-        out_latency = convert_latency_pool(all_latency, self.n_layer_out, self.pool_size)
+            output, len(X), self.start_delta, self.h_time
+        )
+        out_latency = convert_latency_pool(
+            all_latency, self.n_layer_out, self.pool_size
+        )
         y_pred = predict_from_latency_pool(out_latency)
         return y_pred.astype(int)
 
 
 class SupervisedTemporalRLClassifier(BaseTemporalEstimator):
-
     def __init__(
-            self, 
-            settings, model,
-            learning_rate, 
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            **kwargs
-            ) -> None:
+        self,
+        settings,
+        model,
+        learning_rate,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         self.learning_rate = learning_rate
         super().__init__(
-            settings, model, reshape, n_layer_out, 
-            n_input, epochs, h_time, start_delta, h,
-            **kwargs)
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
+        )
 
-        
     def _init_network(self, settings, model, **kwargs):
         return LiteRlNetwork(
-            settings, model,
+            settings,
+            model,
             learning_rate=self.learning_rate,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
             spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
+                self.n_input, self.epochs, self.h_time
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
             h=self.h,
-            **kwargs
+            **kwargs,
         )
 
 
 class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
-
     def __init__(
-            self, 
-            settings, model,
-            pool_size,
-            learning_rate, 
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            **kwargs
-            ) -> None:
+        self,
+        settings,
+        model,
+        pool_size,
+        learning_rate,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         self.pool_size = pool_size
         super().__init__(
-            settings, model, learning_rate, reshape, n_layer_out, 
-            n_input, epochs, h_time, start_delta, h,
-            **kwargs)
+            settings,
+            model,
+            learning_rate,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
+        )
 
     def _init_network(self, settings, model, **kwargs):
         return LitePoolRlNetwork(
-            settings, model,
+            settings,
+            model,
             pool_size=self.pool_size,
             learning_rate=self.learning_rate,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
             spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
+                self.n_input, self.epochs, self.h_time
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
             h=self.h,
-            **kwargs
+            **kwargs,
         )
 
     def predict(self, X):
         output, self._devices_predict = self._network.test(X, self._weights)
 
         all_latency = split_spikes_and_senders(
-            output, len(X),
-            self.start_delta,
-            self.h_time)
-        out_latency = convert_latency_pool(all_latency, self.n_layer_out, self.pool_size)
+            output, len(X), self.start_delta, self.h_time
+        )
+        out_latency = convert_latency_pool(
+            all_latency, self.n_layer_out, self.pool_size
+        )
         y_pred = predict_from_latency_pool(out_latency)
         return y_pred.astype(int)
 
 
 class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
-
     def __init__(
-            self, settings, model,  
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            teacher_amplitude: Optional[float] = None,
-            reinforce_delta: Optional[float] = None,
-            reinforce_time: Optional[float] = None,
-            use_min_teacher=True,
-            **kwargs) -> None:
+        self,
+        settings,
+        model,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        teacher_amplitude: Optional[float] = None,
+        reinforce_delta: Optional[float] = None,
+        reinforce_time: Optional[float] = None,
+        use_min_teacher=True,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            settings, model,
-            reshape, n_layer_out, n_input,
-            epochs, h_time, start_delta, h,
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
             teacher_amplitude,
             reinforce_delta,
             reinforce_time,
             use_min_teacher,
-            **kwargs
+            **kwargs,
         )
 
     def _init_network(self, settings, model, **kwargs):
         return TwoLayerNetwork(
-            settings, model,
+            settings,
+            model,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
             spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
+                self.n_input, self.epochs, self.h_time
             ),
             teacher=Teacher(
-                n_layer_out=self.n_layer_out, 
+                n_layer_out=self.n_layer_out,
                 teacher_amplitude=self.teacher_amplitude,
                 reinforce_delta=self.reinforce_delta,
                 reinforce_time=self.reinforce_time,
                 start=self.start_delta,
                 h_time=self.h_time,
                 h=self.h,
-                use_min=self.use_min_teacher
+                use_min=self.use_min_teacher,
             ),
             h_time=self.h_time,
             start_delta=self.start_delta,
             h=self.h,
-            **kwargs
+            **kwargs,
         )
 
 
 class ClasswiseTemporalClassifier(BaseTemporalEstimator):
-
     def __init__(
-            self, settings, model, 
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            **kwargs) -> None:
+        self,
+        settings,
+        model,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            settings, model, 
-            reshape, n_layer_out, n_input, 
-            epochs, h_time, start_delta, h,
-            **kwargs
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
         )
 
     def fit(self, X, y):
@@ -392,9 +446,8 @@ class ClasswiseTemporalClassifier(BaseTemporalEstimator):
         for weights in self._weights:
             output, self._devices_predict = self._network.test(X, weights)
             all_latency = split_spikes_and_senders(
-                output, len(X),
-                self.start_delta,
-                self.h_time)
+                output, len(X), self.start_delta, self.h_time
+            )
             out_latency = convert_latency(all_latency, self.n_layer_out)
             full_output.append(out_latency)
         y_pred = predict_from_latency(np.concatenate(full_output, axis=1))
@@ -405,77 +458,23 @@ class ClasswiseTemporalClassifier(BaseTemporalEstimator):
         for weights in self._weights:
             output, self._devices_predict = self._network.test(X, weights)
             all_latency = split_spikes_and_senders(
-                output, len(X),
-                self.start_delta,
-                self.h_time)
+                output, len(X), self.start_delta, self.h_time
+            )
             out_latency = convert_latency(all_latency, self.n_layer_out)
             full_output.append(out_latency)
         out_latency = np.concatenate(full_output, axis=1)
-        return out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1) if self.reshape else out_latency
-
-
-class UnsupervisedTemporalTransformer(BaseTemporalEstimator):
-
-    def __init__(
-            self, settings, model,
-            reshape=True,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            **kwargs) -> None:
-        super().__init__(
-            settings, model, 
-            reshape, n_layer_out, n_input,
-            epochs, h_time, start_delta, h,
-            **kwargs)
-
-
-class UnsupervisedTemporalNoiseTransformer(BaseTemporalEstimator):
-
-    def __init__(
-            self, settings, model,
-            reshape=True,
-            noise: Optional[float] = None,
-            n_layer_out: Optional[int] = None,
-            n_input: Optional[int] = None,
-            epochs: Optional[int] = None,
-            h_time: Optional[float] = None,
-            start_delta: Optional[float] = None,
-            h: Optional[float] = None,
-            **kwargs) -> None:
-        self.noise = noise
-        super().__init__(
-            settings, model, 
-            reshape, n_layer_out, n_input,
-            epochs, h_time, start_delta, h,
-            **kwargs)
-
-    def _init_network(self, settings, model, **kwargs):
-        return EpochNetwork(
-            settings, model,
-            n_layer_out=self.n_layer_out,
-            n_input=self.n_input,
-            epochs=self.epochs,
-            spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
-            ),
-            noise=NoiseGenerator(noise_freq=self.noise, n_input=self.n_input),
-            h_time=self.h_time,
-            start_delta=self.start_delta,
-            h=self.h,
-            **kwargs
+        return (
+            out_latency.reshape(out_latency.shape[0], out_latency.shape[1], 1)
+            if self.reshape
+            else out_latency
         )
 
 
-class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
-
+class UnsupervisedTemporalTransformer(BaseTemporalEstimator):
     def __init__(
-        self, settings, model, kernel_size, stride,
+        self,
+        settings,
+        model,
         reshape=True,
         n_layer_out: Optional[int] = None,
         n_input: Optional[int] = None,
@@ -483,41 +482,27 @@ class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer
         h_time: Optional[float] = None,
         start_delta: Optional[float] = None,
         h: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
-        self.kernel_size = kernel_size
-        self.stride = stride
         super().__init__(
-            settings, model, 
-            reshape, n_layer_out, n_input, 
-            epochs, h_time, start_delta, h,
-            **kwargs
-        )
-
-    def _init_network(self, settings, model, **kwargs):
-        return ConvolutionNetwork(
-            settings, model, 
-            n_layer_out=self.n_layer_out,
-            n_input=self.n_input,
-            epochs=self.epochs,
-            spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
-            ),
-            kernel_size=self.kernel_size, 
-            stride=self.stride,
-            h_time=self.h_time,
-            start_delta=self.start_delta,
-            h=self.h,
-            **kwargs
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
         )
 
 
-class UnsupervisedConvolutionTemporalNoiseTransformer(UnsupervisedTemporalTransformer):
-
+class UnsupervisedTemporalNoiseTransformer(BaseTemporalEstimator):
     def __init__(
-        self, settings, model, kernel_size, stride,
+        self,
+        settings,
+        model,
         reshape=True,
         noise: Optional[float] = None,
         n_layer_out: Optional[int] = None,
@@ -526,43 +511,155 @@ class UnsupervisedConvolutionTemporalNoiseTransformer(UnsupervisedTemporalTransf
         h_time: Optional[float] = None,
         start_delta: Optional[float] = None,
         h: Optional[float] = None,
-        **kwargs
+        **kwargs,
+    ) -> None:
+        self.noise = noise
+        super().__init__(
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
+        )
+
+    def _init_network(self, settings, model, **kwargs):
+        return EpochNetwork(
+            settings,
+            model,
+            n_layer_out=self.n_layer_out,
+            n_input=self.n_input,
+            epochs=self.epochs,
+            spike_generator=TemporalSpikeGenerator(
+                self.n_input, self.epochs, self.h_time
+            ),
+            noise=NoiseGenerator(noise_freq=self.noise, n_input=self.n_input),
+            h_time=self.h_time,
+            start_delta=self.start_delta,
+            h=self.h,
+            **kwargs,
+        )
+
+
+class UnsupervisedConvolutionTemporalTransformer(UnsupervisedTemporalTransformer):
+    def __init__(
+        self,
+        settings,
+        model,
+        kernel_size,
+        stride,
+        reshape=True,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        self.kernel_size = kernel_size
+        self.stride = stride
+        super().__init__(
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
+        )
+
+    def _init_network(self, settings, model, **kwargs):
+        return ConvolutionNetwork(
+            settings,
+            model,
+            n_layer_out=self.n_layer_out,
+            n_input=self.n_input,
+            epochs=self.epochs,
+            spike_generator=TemporalSpikeGenerator(
+                self.n_input, self.epochs, self.h_time
+            ),
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            h_time=self.h_time,
+            start_delta=self.start_delta,
+            h=self.h,
+            **kwargs,
+        )
+
+
+class UnsupervisedConvolutionTemporalNoiseTransformer(UnsupervisedTemporalTransformer):
+    def __init__(
+        self,
+        settings,
+        model,
+        kernel_size,
+        stride,
+        reshape=True,
+        noise: Optional[float] = None,
+        n_layer_out: Optional[int] = None,
+        n_input: Optional[int] = None,
+        epochs: Optional[int] = None,
+        h_time: Optional[float] = None,
+        start_delta: Optional[float] = None,
+        h: Optional[float] = None,
+        **kwargs,
     ) -> None:
         self.kernel_size = kernel_size
         self.stride = stride
         self.noise = noise
         super().__init__(
-            settings, model, 
-            reshape, n_layer_out, n_input, 
-            epochs, h_time, start_delta, h,
-            **kwargs
+            settings,
+            model,
+            reshape,
+            n_layer_out,
+            n_input,
+            epochs,
+            h_time,
+            start_delta,
+            h,
+            **kwargs,
         )
 
     def _init_network(self, settings, model, **kwargs):
         return ConvolutionNetwork(
-            settings, model, 
+            settings,
+            model,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,
             spike_generator=TemporalSpikeGenerator(
-                self.n_input,
-                self.epochs,
-                self.h_time
+                self.n_input, self.epochs, self.h_time
             ),
             noise=NoiseGenerator(noise_freq=self.noise, n_input=self.n_input),
-            kernel_size=self.kernel_size, 
+            kernel_size=self.kernel_size,
             stride=self.stride,
             h_time=self.h_time,
             start_delta=self.start_delta,
             h=self.h,
-            **kwargs
+            **kwargs,
         )
 
 
 class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
-
-    def __init__(self, n_fields, sigma2=None, k_round=2, max_x=1.0, scale=1.0,
-                 reshape=True, reverse=False, no_last=False) -> None:
+    def __init__(
+        self,
+        n_fields,
+        sigma2=None,
+        k_round=2,
+        max_x=1.0,
+        scale=1.0,
+        reshape=True,
+        reverse=False,
+        no_last=False,
+    ) -> None:
         self.sigma2 = sigma2
         self.max_x = max_x
         self.n_fields = n_fields
@@ -574,12 +671,12 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
 
     def _get_sigma_squared(self, min_x, max_x, n_fields):
         # as in [Yu et al. 2014]
-        return (
-            2/3 * (max_x - min_x) / (n_fields - 2)
-        )**2
+        return (2 / 3 * (max_x - min_x) / (n_fields - 2)) ** 2
 
     def _get_gaussian(self, x, sigma2, mu):
-        return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+        return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (
+            -((x - mu) ** 2) / (2 * sigma2)
+        )
 
     def fit(self, X, y=None):
         h_mu = self.max_x / (self.n_fields - 1)
@@ -598,11 +695,23 @@ class ReceptiveFieldsTransformer(BaseEstimator, TransformerMixin):
             X[X == 0] = np.nan
         X = X if self.reverse else self.max_y - X
         X *= self.scale
-        return X.reshape(X.shape[0], X.shape[1], 1) if self.reshape else X.reshape(X.shape[0], X.shape[1])
+        return (
+            X.reshape(X.shape[0], X.shape[1], 1)
+            if self.reshape
+            else X.reshape(X.shape[0], X.shape[1])
+        )
 
 
 class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, pattern_length, k_round=2, max_x=1.0, reshape=True, reverse=False, no_last=False) -> None:
+    def __init__(
+        self,
+        pattern_length,
+        k_round=2,
+        max_x=1.0,
+        reshape=True,
+        reverse=False,
+        no_last=False,
+    ) -> None:
         self.pattern_length = pattern_length
         self.k_round = k_round
         self.max_x = max_x
@@ -619,7 +728,11 @@ class TemporalPatternTransformer(BaseEstimator, TransformerMixin):
 
         X = X if self.reverse else self.max_x - X
         X = np.round(self.pattern_length * X, self.k_round)
-        return X.reshape(X.shape[0], X.shape[1], 1) if self.reshape else X.reshape(X.shape[0], X.shape[1])
+        return (
+            X.reshape(X.shape[0], X.shape[1], 1)
+            if self.reshape
+            else X.reshape(X.shape[0], X.shape[1])
+        )
 
 
 class TemporalPatternReversedTransformer(BaseEstimator, TransformerMixin):
@@ -635,7 +748,11 @@ class TemporalPatternReversedTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X[X == 0] = self.max_x
         X = np.round(self.pattern_length * X, self.k_round)
-        return X.reshape(X.shape[0], X.shape[1], 1) if self.reshape else X.reshape(X.shape[0], X.shape[1])
+        return (
+            X.reshape(X.shape[0], X.shape[1], 1)
+            if self.reshape
+            else X.reshape(X.shape[0], X.shape[1])
+        )
 
 
 class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
@@ -652,7 +769,9 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
         min_latencies = [np.nan] * number_of_classes
         number_of_neurons_assigned_to_this_class = [0] * number_of_classes
         for class_number, current_class in enumerate(set_of_classes):
-            number_of_neurons_assigned_to_this_class = len(np.where(assignments == current_class)[0])
+            number_of_neurons_assigned_to_this_class = len(
+                np.where(assignments == current_class)[0]
+            )
             if number_of_neurons_assigned_to_this_class == 0:
                 continue
             min_latencies[class_number] = self.func(
@@ -683,11 +802,8 @@ class FirstSpikeVotingClassifier(BaseEstimator, ClassifierMixin):
 
     def predict(self, X):
         class_certainty_ranks = [
-            self._get_classes_rank_per_one_vector(
-                X[i], self.classes, self.assignments
-            )
+            self._get_classes_rank_per_one_vector(X[i], self.classes, self.assignments)
             for i in range(len(X))
         ]
         y_predicted = np.array(class_certainty_ranks)[:, 0]
         return y_predicted
-

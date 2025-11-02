@@ -30,9 +30,9 @@ class NpEncoder(json.JSONEncoder):
         return super(NpEncoder, self).default(obj)
 
 
-def get_labeled_data(picklename, MNIST_data_path, bTrain = True):
+def get_labeled_data(picklename, MNIST_data_path, bTrain=True):
     """Read input-vector (image) and target class (label, 0-9) and return
-       it as list of tuples.
+    it as list of tuples.
     """
     picklename = MNIST_data_path + picklename
     if os.path.isfile('%s.pickle' % picklename):
@@ -40,11 +40,11 @@ def get_labeled_data(picklename, MNIST_data_path, bTrain = True):
     else:
         # Open the images with gzip in read binary mode
         if bTrain:
-            images = open(MNIST_data_path + 'train-images.idx3-ubyte','rb')
-            labels = open(MNIST_data_path + 'train-labels.idx1-ubyte','rb')
+            images = open(MNIST_data_path + 'train-images.idx3-ubyte', 'rb')
+            labels = open(MNIST_data_path + 'train-labels.idx1-ubyte', 'rb')
         else:
-            images = open(MNIST_data_path + 't10k-images.idx3-ubyte','rb')
-            labels = open(MNIST_data_path + 't10k-labels.idx1-ubyte','rb')
+            images = open(MNIST_data_path + 't10k-images.idx3-ubyte', 'rb')
+            labels = open(MNIST_data_path + 't10k-labels.idx1-ubyte', 'rb')
         # Get metadata for images
         images.read(4)  # skip the magic_number
         number_of_images = unpack('>I', images.read(4))[0]
@@ -60,11 +60,14 @@ def get_labeled_data(picklename, MNIST_data_path, bTrain = True):
         y = np.zeros((N, 1), dtype=np.uint8)  # Initialize numpy array
         for i in range(N):
             if i % 1000 == 0:
-                print("i: %i" % i)
-            x[i] = [[unpack('>B', images.read(1))[0] for unused_col in range(cols)]  for unused_row in range(rows) ]
+                print('i: %i' % i)
+            x[i] = [
+                [unpack('>B', images.read(1))[0] for unused_col in range(cols)]
+                for unused_row in range(rows)
+            ]
             y[i] = unpack('>B', labels.read(1))[0]
         data = {'x': x, 'y': y, 'rows': rows, 'cols': cols}
-        pickle.dump(data, open("%s.pickle" % picklename, 'wb'))
+        pickle.dump(data, open('%s.pickle' % picklename, 'wb'))
     return data
 
 
@@ -75,7 +78,7 @@ def run_train_test(params, X, y, model_in, create_pipe, X_test=None, y_test=None
 
     pipe.fit(X, y)
     y_test_pred = pipe.predict(X_test)
-    train.report({"mean_accuracy": f1_score(y_test, y_test_pred, average='macro')})
+    train.report({'mean_accuracy': f1_score(y_test, y_test_pred, average='macro')})
 
 
 def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
@@ -83,44 +86,66 @@ def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
 
     pipe = create_pipe(model, params)
 
-    scores = cross_val_score(
-        pipe, X, y, cv=5, scoring='f1_macro', n_jobs=5)
-    train.report({"mean_accuracy": scores.mean()})
+    scores = cross_val_score(pipe, X, y, cv=5, scoring='f1_macro', n_jobs=5)
+    train.report({'mean_accuracy': scores.mean()})
 
 
-def optimize_ray(X, y, func, create_pipe, space, model, exp_name, new_trial=True, max_evals=100, 
-                 X_test=None, y_test=None, max_concurrent=11):
-    ray_path = os.path.expanduser("~/ray_results")
+def optimize_ray(
+    X,
+    y,
+    func,
+    create_pipe,
+    space,
+    model,
+    exp_name,
+    new_trial=True,
+    max_evals=100,
+    X_test=None,
+    y_test=None,
+    max_concurrent=11,
+):
+    ray_path = os.path.expanduser('~/ray_results')
     exp_dir = os.path.join(ray_path, exp_name)
 
     if tune.Tuner.can_restore(exp_dir) and not new_trial:
         tuner = tune.Tuner.restore(
             exp_dir,
             trainable=tune.with_parameters(
-                func, X=X, y=y, model_in=model,
-                create_pipe=create_pipe, X_test=X_test, y_test=y_test
+                func,
+                X=X,
+                y=y,
+                model_in=model,
+                create_pipe=create_pipe,
+                X_test=X_test,
+                y_test=y_test,
             ),
-            resume_errored=True)
+            resume_errored=True,
+        )
     else:
         search_alg = OptunaSearch(seed=42)
 
         search_alg = ConcurrencyLimiter(search_alg, max_concurrent=max_concurrent)
         tuner = tune.Tuner(
             tune.with_parameters(
-                func, X=X, y=y, model_in=model,
-                create_pipe=create_pipe, X_test=X_test, y_test=y_test
+                func,
+                X=X,
+                y=y,
+                model_in=model,
+                create_pipe=create_pipe,
+                X_test=X_test,
+                y_test=y_test,
             ),
             tune_config=tune.TuneConfig(
                 num_samples=max_evals,
                 search_alg=search_alg,
                 scheduler=ASHAScheduler(),
-                metric="mean_accuracy",
-                mode="max",
+                metric='mean_accuracy',
+                mode='max',
             ),
             run_config=train.RunConfig(
-                name=exp_name, 
+                name=exp_name,
             ),
-            param_space=space
+            param_space=space,
         )
     return tuner.fit()
 
@@ -141,7 +166,12 @@ def print_settings(settings):
                 if isinstance(settings[key][parameter], dict):
                     print('\t' + parameter)
                     for parameter2 in settings[key][parameter]:
-                        print('\t\t' + parameter2 + ' : ' + str(settings[key][parameter][parameter2]))
+                        print(
+                            '\t\t'
+                            + parameter2
+                            + ' : '
+                            + str(settings[key][parameter][parameter2])
+                        )
                 else:
                     print('\t' + parameter + ' : ' + str(settings[key][parameter]))
         else:
@@ -154,17 +184,15 @@ def split_spikes_and_senders(input_latency, n_examples, start_delta, h_time):
     input_latency['spikes'] = np.array(input_latency['spikes'])
     input_latency['senders'] = np.array(input_latency['senders'])
     for _ in range(n_examples):
-        mask = (input_latency['spikes'] > d_time) & \
-                (input_latency['spikes'] < d_time + h_time)
+        mask = (input_latency['spikes'] > d_time) & (
+            input_latency['spikes'] < d_time + h_time
+        )
         spikes_tmp = input_latency['spikes'][mask]
         senders_tmp = input_latency['senders'][mask]
-        tmp_dict = {
-                    'spikes': spikes_tmp - d_time,
-                    'senders': senders_tmp
-                    }
+        tmp_dict = {'spikes': spikes_tmp - d_time, 'senders': senders_tmp}
 
         d_time += h_time
-        output_latency.append(tmp_dict)    
+        output_latency.append(tmp_dict)
     return output_latency
 
 
@@ -183,9 +211,7 @@ def convert_latency(latency_list, n_neurons):
 def convert_latency_pool_mean(latency_list, n_neurons, pool_size):
     output_array = convert_latency(latency_list, n_neurons)
     output_array = np.array(output_array).reshape(
-        len(output_array),
-        int(n_neurons / pool_size),
-        pool_size
+        len(output_array), int(n_neurons / pool_size), pool_size
     )
     output_array = np.mean(output_array, axis=2)
     return output_array
@@ -202,9 +228,7 @@ def predict_from_latency(latency_list, func=np.nanargmin):
 def convert_latency_pool(latency_list, n_neurons, pool_size):
     output_array = convert_latency(latency_list, n_neurons)
     output_array = np.array(output_array).reshape(
-        len(output_array),
-        int(n_neurons / pool_size),
-        pool_size
+        len(output_array), int(n_neurons / pool_size), pool_size
     )
     return output_array
 

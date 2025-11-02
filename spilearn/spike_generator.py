@@ -13,17 +13,11 @@ class TemporalSpikeGenerator:
         self.input_generators = None
 
     def create_devices(self):
-        self.input_generators = nest.Create(
-            'spike_train_injector',
-            self.n_input
-        )
+        self.input_generators = nest.Create('spike_train_injector', self.n_input)
 
     def connect_devices(self, input_layer):
         nest.Connect(
-            self.input_generators,
-            input_layer,
-            'one_to_one',
-            syn_spec='static_synapse'
+            self.input_generators, input_layer, 'one_to_one', syn_spec='static_synapse'
         )
 
     def set_input_spikes(self, spike_dict):
@@ -42,24 +36,26 @@ class TemporalSpikeGenerator:
 
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
-            tmp_spikes = spike_times[:, input_neuron]#.reshape(len(spikes))
+            tmp_spikes = spike_times[:, input_neuron]  # .reshape(len(spikes))
             spike_dict[input_neuron] = {
                 'spike_times': tmp_spikes[np.isfinite(tmp_spikes)]
             }
         return spike_dict, full_time
 
-    def create_spike_times(self, current_spikes, start, end,
-                           pattern_start_shape):
+    def create_spike_times(self, current_spikes, start, end, pattern_start_shape):
         times = np.arange(start, end, self.h_time)
         pattern_start_times = np.expand_dims(
-            np.tile(times, pattern_start_shape).T, axis=2)
+            np.tile(times, pattern_start_shape).T, axis=2
+        )
         assert len(current_spikes) == len(pattern_start_times)
         spike_times = np.add(current_spikes, pattern_start_times)
         return spike_times
 
 
 class WeightedTemporalSpikeGenerator(TemporalSpikeGenerator):
-    def __init__(self, spike_weights_scale: float, n_input: int, epochs: int, h_time: float) -> None:
+    def __init__(
+        self, spike_weights_scale: float, n_input: int, epochs: int, h_time: float
+    ) -> None:
         super().__init__(n_input, epochs, h_time)
         self.spike_weights_scale = spike_weights_scale
 
@@ -75,9 +71,7 @@ class WeightedTemporalSpikeGenerator(TemporalSpikeGenerator):
             dataset, delta, full_time, pattern_start_shape
         )
 
-        spike_weights = self.create_spike_weights(
-            dataset, self.spike_weights_scale
-        )
+        spike_weights = self.create_spike_weights(dataset, self.spike_weights_scale)
 
         spike_dict = [None] * len(dataset[0])
         for input_neuron in range(len(dataset[0])):
@@ -85,7 +79,7 @@ class WeightedTemporalSpikeGenerator(TemporalSpikeGenerator):
             tmp_weights = spike_weights[:, input_neuron]
             spike_dict[input_neuron] = {
                 'spike_times': tmp_spikes[np.isfinite(tmp_spikes)],
-                'spike_weights': tmp_weights[np.isfinite(tmp_weights)]
+                'spike_weights': tmp_weights[np.isfinite(tmp_weights)],
             }
         return spike_dict, full_time
 
@@ -109,8 +103,9 @@ class FrequencySpikeGenerator(TemporalSpikeGenerator):
             for example in dataset:
                 tmp_spikes = []
                 for input_neuron in example:
-                    spike_dict[input_neuron]['spike_times'] \
-                        += map(lambda x: x + d_time, example[input_neuron])
+                    spike_dict[input_neuron]['spike_times'] += map(
+                        lambda x: x + d_time, example[input_neuron]
+                    )
                     tmp_spikes.append(example[input_neuron])
                 spikes.append(tmp_spikes)
                 d_time += self.h_time

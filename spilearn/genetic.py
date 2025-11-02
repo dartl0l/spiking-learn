@@ -24,18 +24,26 @@ def prepare_genomes(genome):
     print(traits.network_traits)
     print(traits.synapse_traits)
 
-    data_trait_values = {trait_name: trait_value
-                         for trait_name, trait_value in current_trait_values.items()
-                         if trait_name in traits.data_traits}
-    network_trait_values = {trait_name: trait_value
-                            for trait_name, trait_value in current_trait_values.items()
-                            if trait_name in traits.network_traits}
-    neuron_trait_values = {trait_name: trait_value
-                           for trait_name, trait_value in current_trait_values.items()
-                           if trait_name in traits.neuron_traits}
-    synapse_trait_values = {trait_name: trait_value
-                            for trait_name, trait_value in current_trait_values.items()
-                            if trait_name in traits.synapse_traits}
+    data_trait_values = {
+        trait_name: trait_value
+        for trait_name, trait_value in current_trait_values.items()
+        if trait_name in traits.data_traits
+    }
+    network_trait_values = {
+        trait_name: trait_value
+        for trait_name, trait_value in current_trait_values.items()
+        if trait_name in traits.network_traits
+    }
+    neuron_trait_values = {
+        trait_name: trait_value
+        for trait_name, trait_value in current_trait_values.items()
+        if trait_name in traits.neuron_traits
+    }
+    synapse_trait_values = {
+        trait_name: trait_value
+        for trait_name, trait_value in current_trait_values.items()
+        if trait_name in traits.synapse_traits
+    }
     print(getcwd())
     settings = json.load(open('input/settings.json', 'r'))
     for trait in data_trait_values:
@@ -65,21 +73,20 @@ def evaluate(genome):
     from spiking_network_learning_algorithm.solver import solve_task
 
     directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
-    print("Start sim in " + str(directory_name))
+    print('Start sim in ' + str(directory_name))
     fitness, res = solve_task(directory_name)
-    print("Stop sim in " + str(directory_name))
+    print('Stop sim in ' + str(directory_name))
     return fitness
 
 
 def evaluate_futures(genome):
     directory_name = getcwd() + '/genome' + str(genome.GetID()) + '/'
-    print("Start sim in " + str(directory_name))
-    system("cd " + directory_name + " ;"
-           "python solver.py " + directory_name + ";")
+    print('Start sim in ' + str(directory_name))
+    system('cd ' + directory_name + ' ;python solver.py ' + directory_name + ';')
     with open('fitness.txt') as fitness_file:
         fitness = fitness_file.readline()
     chdir('../..')
-    print("Stop sim in " + str(directory_name))
+    print('Stop sim in ' + str(directory_name))
     return fitness
 
 
@@ -95,11 +102,11 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
     else:
         population = create_population(network_parameters)
 
-    print("Start solving generations")
+    print('Start solving generations')
     outfile = open('output/fitness.txt', 'w')
 
     for generation_number in range(network_parameters['generations']):
-        print("Generation " + str(generation_number) + " started")
+        print('Generation ' + str(generation_number) + ' started')
         genome_list = neat.GetGenomeList(population)
         fitness_list = []
 
@@ -119,13 +126,19 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
         population.GetBestGenome().Save('output/best_genome.txt')
 
         genome_file = open('output/best_genome.txt', 'a')
-        genome_file.write('\n' + str(population.GetBestGenome().GetNeuronTraits()) +
-                          '\n' + str(population.GetBestGenome().GetGenomeTraits()))
+        genome_file.write(
+            '\n'
+            + str(population.GetBestGenome().GetNeuronTraits())
+            + '\n'
+            + str(population.GetBestGenome().GetGenomeTraits())
+        )
         genome_file.close()
 
         try:
-            copytree('genome' + str(population.GetBestGenome().GetID()), 
-                     'output/generation' + str(generation_number) + '_best_genome')
+            copytree(
+                'genome' + str(population.GetBestGenome().GetID()),
+                'output/generation' + str(generation_number) + '_best_genome',
+            )
         except FileExistsError:
             print('folder generation' + str(generation_number) + '_best_genome exists')
 
@@ -133,9 +146,13 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
         outfile.flush()
 
         # advance to the next generation
-        print("Generation " + str(generation_number) +
-              ": fitness = " + str(population.GetBestGenome().GetFitness()))
-        print("Generation " + str(generation_number) + " finished")
+        print(
+            'Generation '
+            + str(generation_number)
+            + ': fitness = '
+            + str(population.GetBestGenome().GetFitness())
+        )
+        print('Generation ' + str(generation_number) + ' finished')
         population.Epoch()
         pickle.dump(population, open('output/last_population.pkl', 'wb'))
     # outfile.Close()
@@ -143,11 +160,13 @@ def main(use_futures, continue_genetic=False, redirect_out=True):
 
 
 def create_population(network_parameters):
-    print("Prepare traits and genomes")
+    print('Prepare traits and genomes')
     neat_params = neat.Parameters()
-    system("grep -v '//' < input/neat_parameters.txt | grep . > input/neat_parameters.filtered.txt")
+    system(
+        "grep -v '//' < input/neat_parameters.txt | grep . > input/neat_parameters.filtered.txt"
+    )
     neat_params.Load('input/neat_parameters.filtered.txt')
-    system("rm input/neat_parameters.filtered.txt")
+    system('rm input/neat_parameters.filtered.txt')
 
     for trait_name, trait_value in traits.network_traits.items():
         neat_params.SetGenomeTraitParameters(trait_name, trait_value)
@@ -169,14 +188,14 @@ def create_population(network_parameters):
         0,  # seedtype
         neat_params,  # global parameters object returned by neat.Parameters()
         0,  # number of hidden layers
-        0
+        0,
     )
     population = neat.Population(
         genome,
         neat_params,
         True,  # whether to randomize the population
         0.5,  # how much to randomize
-        0  # the RNG seed
+        0,  # the RNG seed
     )
     return population
 
@@ -185,4 +204,3 @@ if __name__ == '__main__':
     use_fut = False
     continue_population = False
     main(use_fut)
-

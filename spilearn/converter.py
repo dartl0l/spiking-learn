@@ -8,18 +8,18 @@ from sklearn import preprocessing
 
 from .andrews_curve import AndrewsCurve
 
+
 class Converter:
     def __init__(self):
         pass
 
     def convert(self, x, y):
-        output = {'input': x,
-                  'class': y}
+        output = {'input': x, 'class': y}
         return output
-    
+
     def convert_data_to_patterns(self, x, y, pattern_time, h):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
         input_for_nn = []
         #     h = 0.1
@@ -65,7 +65,7 @@ class Converter:
 
     def convert_data_to_patterns_spatio_temp(self, x, y, min_time, h):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
         rad = 2 * np.pi
         # rad_to_deg = 57
@@ -89,7 +89,7 @@ class Converter:
 
     def convert_data_to_patterns_uniform(self, x, y, pattern_time, h, mult):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
         output = []
 
@@ -104,7 +104,9 @@ class Converter:
                 time = x * pattern_time
 
                 for _ in range(mult):
-                    tmp_dict[i] = np.sort(np.random.uniform(0, int(time), int(time / h)) + 0.1)
+                    tmp_dict[i] = np.sort(
+                        np.random.uniform(0, int(time), int(time / h)) + 0.1
+                    )
                     # get_poisson_train(time, firing_rate, h)
                     # tmp_dict[i] = get_poisson_train(time, firing_rate, h)
                     i += 1
@@ -115,16 +117,19 @@ class Converter:
             output.append(pattern)
         return output
 
-    def convert_data_to_patterns_gaussian_receptive_field(self, x, y, sigma2, max_x,
-                                                          n_fields, k_round, duplicate=False):
+    def convert_data_to_patterns_gaussian_receptive_field(
+        self, x, y, sigma2, max_x, n_fields, k_round, duplicate=False
+    ):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
-        def get_gaussian(x, sigma2, mu):
-            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
 
-        output = {'input': [],
-                  'class': []}
+        def get_gaussian(x, sigma2, mu):
+            return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (
+                -((x - mu) ** 2) / (2 * sigma2)
+            )
+
+        output = {'input': [], 'class': []}
 
         h_mu = max_x / (n_fields - 1)
 
@@ -147,37 +152,41 @@ class Converter:
                 tmp_fields += n_fields
             output['input'].append(tmp_dict)
             output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
+        output = {
+            'input': np.array(output['input']),
+            'class': np.array(output['class']),
+        }
         return output, max_y
-    
+
     def convert_image_to_spikes_without_last(self, x, y, pattern_length, k_round):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
         zero_values = x == 0
-        
+
         X = pattern_length * (1 - x)
         X[zero_values] = 0
-        
-        output = {'input': [],
-                  'class': []}
+
+        output = {'input': [], 'class': []}
         for xx, yy in zip(X, y):
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
             for i, x in enumerate(xx):
                 time = np.round(x, k_round)
                 tmp_dict[i] = [time] if time != 0 else []
-                    
+
             output['input'].append(tmp_dict)
             output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
+        output = {
+            'input': np.array(output['input']),
+            'class': np.array(output['class']),
+        }
         return output
-    
+
     def convert_data_to_patterns_poisson(self, x, y, pattern_time, firing_rate, h):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
+
         def get_poisson_train(time, firing_rate, h):
             np.random.seed()
             dt = 1.0 / 1000.0 * h
@@ -186,8 +195,7 @@ class Converter:
             spike_times = times[mask]
             return spike_times
 
-        output = {'input': [],
-                  'class': []}
+        output = {'input': [], 'class': []}
 
         for xx, yy in zip(x, y):
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
@@ -196,17 +204,29 @@ class Converter:
                 tmp_dict[i] = get_poisson_train(time, firing_rate, h)
             output['input'].append(tmp_dict)
             output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
+        output = {
+            'input': np.array(output['input']),
+            'class': np.array(output['class']),
+        }
         return output
 
 
 class ReceptiveFieldsConverter(Converter):
     """
-        Class for receptive fields data conversion
+    Class for receptive fields data conversion
     """
-    def __init__(self, sigma2, max_x, n_fields, k_round, scale=1.0,
-                 reshape=True, reverse=False, no_last=False):
+
+    def __init__(
+        self,
+        sigma2,
+        max_x,
+        n_fields,
+        k_round,
+        scale=1.0,
+        reshape=True,
+        reverse=False,
+        no_last=False,
+    ):
         self.sigma2 = sigma2
         self.max_x = max_x
         self.n_fields = n_fields
@@ -217,11 +237,13 @@ class ReceptiveFieldsConverter(Converter):
         self.no_last = no_last
 
     def get_gaussian(self, x, sigma2, mu):
-        return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (- (x - mu) ** 2 / (2 * sigma2))
+        return (1 / np.sqrt(2 * sigma2 * np.pi)) * np.e ** (
+            -((x - mu) ** 2) / (2 * sigma2)
+        )
 
     def convert(self, x, y):
         """
-            Function must be updated to O(n) complexity 
+        Function must be updated to O(n) complexity
         """
 
         h_mu = self.max_x / (self.n_fields - 1)
@@ -248,16 +270,18 @@ class ReceptiveFieldsConverter(Converter):
         if self.reshape:
             x = x.reshape(x.shape[0], x.shape[1], 1)
 
-        output = {'input': x,
-                  'class': y}
+        output = {'input': x, 'class': y}
         return output  # , max_y
 
 
 class TemporalConverter(Converter):
-    '''
-        Class for receptive fields data conversion
-    '''
-    def __init__(self, pattern_length, k_round, reshape=True, reverse=False, no_last=False):
+    """
+    Class for receptive fields data conversion
+    """
+
+    def __init__(
+        self, pattern_length, k_round, reshape=True, reverse=False, no_last=False
+    ):
         self.pattern_length = pattern_length
         self.k_round = k_round
         self.reshape = reshape
@@ -265,9 +289,9 @@ class TemporalConverter(Converter):
         self.no_last = no_last
 
     def convert(self, x, y):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
+        """
+        Function must be updated to O(n) complexity
+        """
 
         if self.no_last:
             zero_values = x == 0
@@ -280,16 +304,16 @@ class TemporalConverter(Converter):
         if self.reshape:
             x = x.reshape(x.shape[0], x.shape[1], 1)
 
-        output = {'input': x,
-                  'class': y}
+        output = {'input': x, 'class': y}
 
         return output
 
 
 class BinaryConverter(Converter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, pattern_length, k_round):
         self.pattern_length = pattern_length
         self.k_round = k_round
@@ -297,8 +321,7 @@ class BinaryConverter(Converter):
     def convert(self, x, y):
         x[x != 0] = 1
         x = np.round(self.pattern_length * (1 - x), self.k_round)
-        output = {'input': x.reshape(x.shape[0], x.shape[1], 1),
-                  'class': y}
+        output = {'input': x.reshape(x.shape[0], x.shape[1], 1), 'class': y}
 
         return output
 
@@ -311,7 +334,7 @@ class BinaryConverter(Converter):
 #         self.pattern_length = pattern_length
 #         self.k_round = k_round
 #         self.reshape = reshape
-    
+
 #     def convert(self, x, y):
 #         zero_values = x == 0
 #         x[zero_values] = np.nan
@@ -321,11 +344,12 @@ class BinaryConverter(Converter):
 #                   'class': y}
 #         return output
 
-    
+
 class FrequencyConverter(Converter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, pattern_time, firing_rate, dt, h):
         self.pattern_time = pattern_time
         self.firing_rate = firing_rate
@@ -333,9 +357,10 @@ class FrequencyConverter(Converter):
         self.h = h
 
     def convert(self, x, y):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
+        """
+        Function must be updated to O(n) complexity
+        """
+
         def get_poisson_train(time, firing_rate, h):
             np.random.seed()
             times = np.arange(0, time, h)
@@ -344,8 +369,7 @@ class FrequencyConverter(Converter):
             spike_times = times[mask]
             return spike_times
 
-        output = {'input': [],
-                  'class': []}
+        output = {'input': [], 'class': []}
 
         for xx, yy in zip(x, y):
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
@@ -354,15 +378,18 @@ class FrequencyConverter(Converter):
                 tmp_dict[i] = get_poisson_train(self.pattern_time, frequency, self.h)
             output['input'].append(tmp_dict)
             output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
+        output = {
+            'input': np.array(output['input']),
+            'class': np.array(output['class']),
+        }
         return output
 
 
 class SobelConverter(Converter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, pattern_time, firing_rate, dt, h):
         self.pattern_time = pattern_time
         self.firing_rate = firing_rate
@@ -370,9 +397,10 @@ class SobelConverter(Converter):
         self.dt = dt
 
     def convert(self, x, y):
-        '''
-            Function must be updated to O(n) complexity 
-        '''
+        """
+        Function must be updated to O(n) complexity
+        """
+
         def get_sobel_image(image):
             import scipy
             from scipy import ndimage
@@ -384,8 +412,7 @@ class SobelConverter(Converter):
             mag *= 255.0 / np.max(mag)  # normalize (Q&D)
             return mag
 
-        output = {'input': [],
-                  'class': []}
+        output = {'input': [], 'class': []}
 
         for xx, yy in zip(x, y):
             tmp_dict = dict.fromkeys(np.arange(0, len(xx)))
@@ -394,15 +421,18 @@ class SobelConverter(Converter):
                 # tmp_dict[i] = get_poisson_train(self.pattern_time, frequency, self.h)
             output['input'].append(tmp_dict)
             output['class'].append(yy)
-        output = {'input': np.array(output['input']),
-                  'class': np.array(output['class'])}
+        output = {
+            'input': np.array(output['input']),
+            'class': np.array(output['class']),
+        }
         return output
 
 
 class AudioConverter(Converter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, pattern_length, k_round=2, reshape=True, **kwargs):
         super().__init__(**kwargs)
         self.reshape = reshape
@@ -415,7 +445,7 @@ class AudioConverter(Converter):
     def _framing(self, X: np.array) -> np.array:
         return [X]
 
-    def _parse_audio(self, x : list, y : list):
+    def _parse_audio(self, x: list, y: list):
         flattened_data = list()
         mod_class_list = list()
         examples_list = list()
@@ -432,17 +462,18 @@ class AudioConverter(Converter):
 
     def convert(self, x, y):
         x, y, ex = self._parse_audio(x, y)
-        x = np.round(1 - preprocessing.minmax_scale(np.array(x)), self.k_round) * self.pattern_length
+        x = (
+            np.round(1 - preprocessing.minmax_scale(np.array(x)), self.k_round)
+            * self.pattern_length
+        )
         if self.reshape:
             x = x.reshape(x.shape[0], x.shape[1], 1)
-        
-        output = {'input': x,
-                  'class': y}
+
+        output = {'input': x, 'class': y}
         return output
 
 
 class FramingAudioConverter(AudioConverter):
-    
     def __init__(self, frame_length, overlapping_fraction, **kwargs):
         super().__init__(**kwargs)
         self.frame_length = frame_length
@@ -450,13 +481,16 @@ class FramingAudioConverter(AudioConverter):
 
     def _framing(self, X: np.array) -> np.array:
         stride = int((1 - self.overlapping_fraction) * self.frame_length)
-        return librosa.util.frame(audio, frame_length=self.frame_length, hop_length=stride, axis=0)
+        return librosa.util.frame(
+            audio, frame_length=self.frame_length, hop_length=stride, axis=0
+        )
 
 
 class FullAudioConverter(AudioConverter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, n_mfcc, sr, **kwargs):
         super().__init__(**kwargs)
 
@@ -464,26 +498,38 @@ class FullAudioConverter(AudioConverter):
         self.sr = sr
 
     def _extract_feature(self, X: np.array) -> np.array:
-        mfccs = np.mean(librosa.feature.mfcc(y=np.array(X), sr=self.sr, n_mfcc=self.mfcc), axis=-1)
-        mel = np.mean(librosa.feature.melspectrogram(y=np.array(X), sr=self.sr), axis=-1)
-        tonnetz = np.mean(librosa.feature.tonnetz(y=librosa.effects.harmonic(np.array(X)), sr=self.sr), axis=-1)
+        mfccs = np.mean(
+            librosa.feature.mfcc(y=np.array(X), sr=self.sr, n_mfcc=self.mfcc), axis=-1
+        )
+        mel = np.mean(
+            librosa.feature.melspectrogram(y=np.array(X), sr=self.sr), axis=-1
+        )
+        tonnetz = np.mean(
+            librosa.feature.tonnetz(
+                y=librosa.effects.harmonic(np.array(X)), sr=self.sr
+            ),
+            axis=-1,
+        )
 
         stft = np.abs(librosa.stft(np.array(X)))
         chroma = np.mean(librosa.feature.chroma_stft(S=stft, sr=self.sr), axis=-1)
-        contrast = np.mean(librosa.feature.spectral_contrast(S=stft, sr=self.sr), axis=-1)
+        contrast = np.mean(
+            librosa.feature.spectral_contrast(S=stft, sr=self.sr), axis=-1
+        )
 
         return np.hstack([mfccs, mel, chroma, tonnetz, contrast])
 
-    
+
 class FullFrameAudioConverter(FramingAudioConverter, FullAudioConverter):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 
 class MFCCConverter(AudioConverter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, n_mfcc, sr, **kwargs):
         super().__init__(**kwargs)
 
@@ -491,7 +537,9 @@ class MFCCConverter(AudioConverter):
         self.sr = sr
 
     def _extract_feature(self, X: np.array) -> np.array:
-        mfccs = np.mean(librosa.feature.mfcc(y=np.array(X), sr=self.sr, n_mfcc=self.mfcc), axis=-1)
+        mfccs = np.mean(
+            librosa.feature.mfcc(y=np.array(X), sr=self.sr, n_mfcc=self.mfcc), axis=-1
+        )
         return np.hstack([mfccs])
 
 
@@ -501,20 +549,22 @@ class MFCCFrameConverter(FramingAudioConverter, MFCCConverter):
 
 
 class MelConverter(AudioConverter):
-    '''
-        Class for receptive fields data conversion
-    '''
+    """
+    Class for receptive fields data conversion
+    """
+
     def __init__(self, sr, **kwargs):
         super().__init__(**kwargs)
 
         self.sr = sr
 
     def _extract_feature(self, X: np.array) -> np.array:
-        mel = np.mean(librosa.feature.melspectrogram(y=np.array(X), sr=self.sr), axis=-1)
+        mel = np.mean(
+            librosa.feature.melspectrogram(y=np.array(X), sr=self.sr), axis=-1
+        )
         return np.hstack([mel])
 
 
 class MelFrameConverter(FramingAudioConverter, MelConverter):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-

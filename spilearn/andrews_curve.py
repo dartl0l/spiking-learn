@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 class AndrewsCurve:
     def __init__(self, vector, rad, h):
         self._rad = rad
@@ -26,9 +27,10 @@ class AndrewsCurve:
         return curve
 
     def discrete_curve(self):
-        return np.around(self.curve()).astype(int) + 1 # + np.abs(np.amin(np.around(self.curve())))
+        return (
+            np.around(self.curve()).astype(int) + 1
+        )  # + np.abs(np.amin(np.around(self.curve())))
 
 
 if __name__ == '__main__':
     pass
-
