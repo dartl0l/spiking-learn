@@ -258,7 +258,7 @@ class Plotter:
             HTML(weights_anim.to_html5_video())
         return weights_anim
 
-    def plot_voltage(self, voltmeter, legend=True):
+    def plot_voltage(self, voltmeter, title='Membrane potential', legend=True):
         plt.clf()
         fig = plt.figure()
         fig.patch.set_facecolor('white')
@@ -269,7 +269,7 @@ class Plotter:
             == len(voltmeter['times'])
         )
 
-        plt.title('Membrane potential')
+        plt.title(title)
         plt.xlabel('Time (ms)')
         plt.ylabel('Membrane potential (mV)')
         for neuron in neurons:
@@ -283,14 +283,14 @@ class Plotter:
         if legend:
             plt.legend()
 
-    def plot_spikes(self, spike_detector, legend=False):
+    def plot_spikes(self, spike_detector, title='Spikes', legend=False):
         plt.clf()
         fig = plt.figure()
         fig.patch.set_facecolor('white')
         neurons = set(spike_detector['senders'])
         assert len(spike_detector['senders']) == len(spike_detector['times'])
 
-        plt.title('Spikes')
+        plt.title(title)
         plt.xlabel('Time (ms)')
         plt.ylabel('Neuron')
         for neuron in neurons:
@@ -307,31 +307,31 @@ class Plotter:
     def plot_devices(
         self, devices, start=None, end=None, plot_last_detector=False, **kwargs
     ):
-        if 'multimeter' in devices:
-            self.plot_voltage(devices['multimeter'], **kwargs)
-            if start is not None and end is not None:
-                plt.xlim(start, end)
-            plt.show()
-
         if 'multimeter_hidden' in devices:
-            self.plot_voltage(devices['multimeter_hidden'], **kwargs)
+            self.plot_voltage(devices['multimeter_hidden'], title='Membrane potential hidden', **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
 
-        if 'spike_detector_hidden' in devices:
-            self.plot_spikes(devices['spike_detector_hidden'], **kwargs)
+        if 'multimeter' in devices:
+            self.plot_voltage(devices['multimeter'], title='Membrane potential output', **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
 
         if 'spike_detector_input' in devices:
-            self.plot_spikes(devices['spike_detector_input'], **kwargs)
+            self.plot_spikes(devices['spike_detector_input'], title='Spikes input', **kwargs)
             if start is not None and end is not None:
                 plt.xlim(start, end)
             plt.show()
 
-        self.plot_spikes(devices['spike_detector_out'], **kwargs)
+        if 'spike_detector_hidden' in devices:
+            self.plot_spikes(devices['spike_detector_hidden'], title='Spikes hidden', **kwargs)
+            if start is not None and end is not None:
+                plt.xlim(start, end)
+            plt.show()
+
+        self.plot_spikes(devices['spike_detector_out'], title='Spikes out', **kwargs)
         if start is not None and end is not None:
             plt.xlim(start, end)
         plt.show()

@@ -409,7 +409,8 @@ class EpochNetwork(Network):
                     if (
                         self.normalize_step and i % self.normalize_step == 0
                     ) or not self.normalize_step:
-                        self.normalize(self.layer_out)
+                        for layer in self.layers[1:]:
+                            self.normalize(layer)
             elif self.progress:
                 nest.Run(self.start_delta)
                 for _ in range(self.data_len):
@@ -443,11 +444,20 @@ class ConvolutionNetwork(EpochNetwork):
             kernel_size={self.kernel_size}, stride={self.stride}'
         )
 
-        self.n_combination_neurons = self.n_layer_out // self.n_combinations
+        self.n_combination_neurons = self.get_neuron_number() // self.n_combinations
 
         self.two_dimensional_image_indices = np.arange(self.n_input).reshape(
             self.image_dimension, self.image_dimension
         )
+
+    def get_neuron_number(self):
+        return self.n_layer_out
+    
+    def get_layer_conv(self):
+        return self.layer_out
+    
+    def get_layer_in(self):
+        return self.input_layer
 
     def get_indexes(self, image_row, image_column, current_combination):
         input_indexes = np.concatenate(
@@ -456,9 +466,10 @@ class ConvolutionNetwork(EpochNetwork):
                 image_column : image_column + self.kernel_size,
             ]
         )
-        input_indexes = np.array(self.input_layer)[input_indexes]
+        out_layer = self.get_layer_conv()
+        input_indexes = np.array(self.get_layer_in())[input_indexes]
         output_indexes = np.array(
-            self.layer_out[
+            out_layer[
                 current_combination : current_combination + self.n_combination_neurons
             ]
         )
@@ -482,14 +493,8 @@ class ConvolutionNetwork(EpochNetwork):
                     syn_spec=spec,
                 )
                 current_combination += self.n_combination_neurons
-
-    def connect_layers(self):
-        self.connect_exc(self.model['syn_dict_exc'])
-
-    def connect_layers_static(self):
-        self.connect_exc('static_synapse')
-
-    def connect_layers_inh(self):
+    
+    def connect_inh(self, syn_dict, conn_spec):
         current_combination = 0
         for image_row in range(
             0, self.image_dimension - self.kernel_size + 1, self.stride
@@ -503,10 +508,21 @@ class ConvolutionNetwork(EpochNetwork):
 
                 self.interconnect_layer(
                     nest.NodeCollection(output_indexes),
-                    self.model['syn_dict_inh'],
-                    self.model.get('conn_dict_inh', {'rule': 'all_to_all'}),
+                    syn_dict, conn_spec,
                 )
                 current_combination += self.n_combination_neurons
+
+    def connect_layers(self):
+        self.connect_exc(self.model['syn_dict_exc'])
+
+    def connect_layers_static(self):
+        self.connect_exc('static_synapse')
+
+    def connect_layers_inh(self):
+        self.connect_inh(
+            self.model['syn_dict_inh'],
+            self.model.get('conn_dict_inh', {'rule': 'all_to_all'})
+        )
 
 
 class TwoLayerNetwork(Network):
@@ -627,13 +643,16 @@ class LiteRlNetwork(EpochNetwork):
         self.spikes_length = 0
         self.time = 0
 
+    def get_previous_layer(self):
+        return self.input_layer
+
     def update_learning_rate(self, learning_rate):
-        connection = nest.GetConnections(self.input_layer, target=self.layer_out)
+        connection = nest.GetConnections(self.get_previous_layer(), target=self.layer_out)
         nest.SetStatus(connection, 'lambda', learning_rate)
 
     def update_learning_rate_separate(self, learning_rate, action):
         connection = nest.GetConnections(
-            self.input_layer, target=self.layer_out[action]
+            self.get_previous_layer(), target=self.layer_out[action]
         )
         nest.SetStatus(connection, 'lambda', learning_rate)
 
@@ -701,6 +720,11 @@ class LiteRlNetwork(EpochNetwork):
                         self.learning_rate = -1 * self.learning_rate_default * scale
                     self.learning_rate_scaled = self.learning_rate_default * scale
                     self.learn(pred, y[i])
+                    if normalize_weights and ((
+                        self.normalize_step and i % self.normalize_step == 0
+                    ) or not self.normalize_step):
+                        for layer in self.layers[1:]:
+                            self.normalize(layer)
                     progress_bar.update()
             else:
                 nest.Run(full_time)
@@ -794,3 +818,110 @@ class LitePoolRlNetwork(LiteRlNetwork):
         y_pred = predict_from_latency_pool([out_latency[0]])
 
         return int(y_pred[0])
+
+
+class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
+    def __init__(self, settings, model, n_layer_hid, kernel_size, stride, learning_rate, **kwargs):
+        self.n_layer_hid = n_layer_hid
+        self.layer_hid = None
+        self.spike_detector_hid = None
+        self.multimeter_hid = None
+
+        super().__init__(
+            settings=settings, 
+            model=model,
+            kernel_size=kernel_size, 
+            stride=stride, 
+            learning_rate=learning_rate, 
+            **kwargs
+        )
+        self.synapse_models = [
+            self.model['syn_dict_exc_hid']['synapse_model'],
+            self.model['syn_dict_exc']['synapse_model']
+        ]
+
+    def create_layers(self):
+        self.layer_out = nest.Create(self.model['neuron_out_model'], self.n_layer_out)
+        self.layer_hid = nest.Create(self.model['neuron_hid_model'], self.n_layer_hid)
+        self.input_layer = nest.Create('parrot_neuron', self.n_input)
+        self.layers = [self.input_layer, self.layer_hid, self.layer_out]
+
+    def create_devices(self):
+        super().create_devices()
+        if self.need_devices:
+            self.spike_detector_hid = nest.Create('spike_recorder')
+            self.multimeter_hid = nest.Create('multimeter', 1, {'record_from': ['V_m']})
+
+    def connect_devices(self):
+        super().connect_devices()
+        if self.spike_detector_hid:
+            nest.Connect(
+                self.layer_hid,
+                self.spike_detector_hid,
+                conn_spec={'rule': 'all_to_all'},
+            )
+        if self.multimeter_hid:
+            nest.Connect(self.multimeter_hid, self.layer_hid)
+
+
+    def connect_layers(self):
+        self.connect_exc(self.model['syn_dict_exc_hid'])
+        nest.Connect(
+            self.layer_hid,
+            self.layer_out,
+            conn_spec=self.model.get('conn_dict_exc', {'rule': 'all_to_all'}),
+            syn_spec=self.model['syn_dict_exc'],
+        )
+
+    def connect_layers_static(self):
+        self.connect_exc('static_synapse')
+        nest.Connect(
+            self.layer_hid,
+            self.layer_out,
+            conn_spec=self.model.get('conn_dict_exc', {'rule': 'all_to_all'}),
+            syn_spec='static_synapse',
+        )
+
+    def connect_layers_inh(self):
+        self.connect_inh(
+            self.model['syn_dict_inh_hid'],
+            self.model.get('conn_dict_inh_hid', {'rule': 'all_to_all'})
+        )
+        self.interconnect_layer(
+            self.layer_out,
+            self.model['syn_dict_inh'],
+            self.model.get('conn_dict_inh', {'rule': 'all_to_all'}),
+        )
+
+    def get_neuron_number(self):
+        return self.n_layer_hid
+    
+    def get_layer_conv(self):
+        return self.layer_hid
+
+    def get_previous_layer(self):
+        return self.layer_hid
+
+    def get_devices(self):
+        devices = {
+            'spike_detector_out': nest.GetStatus(
+                self.spike_detector_out, keys='events'
+            )[0]
+        }
+        if self.multimeter:
+            devices['multimeter'] = nest.GetStatus(self.multimeter, keys='events')[0]
+        if self.multimeter_hid:
+            devices['multimeter_hidden'] = nest.GetStatus(self.multimeter_hid, keys='events')[0]
+        if self.spike_detector_input:
+            devices['spike_detector_input'] = nest.GetStatus(
+                self.spike_detector_input, keys='events'
+            )[0]
+        if self.spike_detector_hid:
+            devices['spike_detector_hidden'] = nest.GetStatus(
+                self.spike_detector_hid, keys='events'
+            )[0]
+        return devices
+
+    def set_neuron_status(self, override_threshold=False):
+        super().set_neuron_status(override_threshold)
+        nest.SetStatus(self.layer_hid, self.model['neuron_hid'])
