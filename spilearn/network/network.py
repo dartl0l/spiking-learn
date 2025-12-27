@@ -1,18 +1,23 @@
 # coding: utf-8
 
-import os
-import nest
-import math
 import copy
-import numpy as np
-
+import math
+import os
 from typing import Optional
-from tqdm import trange, tqdm
 
-from .teacher import *
-from .noise import *
-from .utils import *
-from .spike_generator import *
+import nest
+import numpy as np
+from tqdm import tqdm, trange
+
+from ..noise import NoiseGenerator
+from ..spike_generator import TemporalSpikeGenerator
+from ..teacher import Teacher
+from ..utils import (
+    convert_latency,
+    convert_latency_pool,
+    predict_from_latency,
+    predict_from_latency_pool,
+)
 
 nest.set_verbosity('M_QUIET')
 
@@ -685,6 +690,13 @@ class LiteRlNetwork(EpochNetwork):
         nest.Run(self.h_time)
         self.time += self.h_time
         return
+    
+    # TODO: move somewhere
+    def ema_update(self, prev, acc, alpha=0.05):
+        return acc if prev is None else (1 - alpha) * prev + alpha * acc
+
+    def lr_scale(self, A, A0=0.75, k=4.0):
+        return 1.0 if A < A0 else np.exp(-k * (A - A0))
 
     def simulate(
         self,
@@ -704,37 +716,41 @@ class LiteRlNetwork(EpochNetwork):
         nest.Prepare()
         scale = 1
         counter = 0
+        A = None
         for _ in range(epochs):
             self.spike_generator.set_input_spikes(spike_dict=spike_dict)
 
-            counter_batch = 0
+            accuracy_train = 0
             if y is not None:
                 nest.Run(self.start_delta)
                 self.time += self.start_delta
                 for i in range(self.data_len):
+                    target = y[i]
                     pred = self.run(self.n_layer_out)
-                    if pred == y[i]:
+                    if pred == target:
                         counter += 1
                         self.learning_rate = self.learning_rate_default * scale
                     else:
                         self.learning_rate = -1 * self.learning_rate_default * scale
                     self.learning_rate_scaled = self.learning_rate_default * scale
-                    self.learn(pred, y[i])
+                    self.learn(pred, target)
                     if normalize_weights and ((
-                        self.normalize_step and i % self.normalize_step == 0
+                        self.normalize_step and counter % self.normalize_step == 0
                     ) or not self.normalize_step):
                         for layer in self.layers[1:]:
                             self.normalize(layer)
                     progress_bar.update()
+                accuracy_train /= self.data_len
+                A = self.ema_update(A, accuracy_train)
+                scale = self.lr_scale(A)
             else:
                 nest.Run(full_time)
                 progress_bar.update()
 
             for spikes in spike_dict:
                 spikes['spike_times'] += full_time
-            counter += counter_batch
-            counter /= self.data_len
-            scale = counter
+            # counter += counter_batch
+            # counter /= self.data_len
 
         nest.Cleanup()
         progress_bar.close()

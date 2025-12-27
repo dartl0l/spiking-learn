@@ -1,12 +1,29 @@
 # coding: utf-8
+from typing import Optional
 
-from .evaluation import *
-from .network import *
-from .teacher import *
-from .utils import *
+import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
 
-from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from ..network import (
+    ConvolutionNetwork,
+    ConvolutionRlNetwork,
+    EpochNetwork,
+    LitePoolRlNetwork,
+    LiteRlNetwork,
+    TwoLayerNetwork,
+)
+from ..noise import NoiseGenerator
+from ..spike_generator import TemporalSpikeGenerator
+from ..teacher import Teacher, TeacherPool
+from ..utils import (
+    convert_latency,
+    convert_latency_pool,
+    predict_from_latency,
+    predict_from_latency_pool,
+    split_spikes_and_senders,
+)
+
+# from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 
 class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
