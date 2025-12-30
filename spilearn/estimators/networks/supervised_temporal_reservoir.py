@@ -22,6 +22,7 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
         normalize_weights: bool = False,
         normalize_step: Optional[int] = None,
         w_target: Optional[float] = None,
+        w_target_hid: Optional[float] = None,
         teacher_amplitude: Optional[float] = None,
         reinforce_delta: Optional[float] = None,
         reinforce_time: Optional[float] = None,
@@ -45,6 +46,7 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
             reinforce_delta,
             reinforce_time,
             use_min_teacher,
+            w_target_hid=w_target_hid,
             **kwargs,
         )
 

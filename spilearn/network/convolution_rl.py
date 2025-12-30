@@ -7,11 +7,21 @@ from .rl import LiteRlNetwork
 
 
 class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
-    def __init__(self, settings, model, n_layer_hid, kernel_size, stride, learning_rate, **kwargs):
+    def __init__(
+        self,
+        settings,
+        model,
+        n_layer_hid,
+        kernel_size,
+        stride,
+        learning_rate,
+        **kwargs
+    ):
         self.n_layer_hid = n_layer_hid
         self.layer_hid = None
         self.spike_detector_hid = None
         self.multimeter_hid = None
+        self.w_target_hid = kwargs.get('w_target_hid') or 1
 
         super().__init__(
             settings=settings,
@@ -21,6 +31,7 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
             learning_rate=learning_rate,
             **kwargs
         )
+        self.w_targets = [self.w_target_hid, self.w_target]
         self.synapse_models = [
             self.model['syn_dict_exc_hid']['synapse_model'],
             self.model['syn_dict_exc']['synapse_model']

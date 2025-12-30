@@ -14,6 +14,7 @@ class EpochNetwork(Network):
         self.normalize_weights = kwargs.get('normalize_weights', False)
         self.normalize_step = kwargs.get('normalize_step', None)
         self.w_target = kwargs.get('w_target') or 1
+        self.w_targets = [self.w_target]
         self.tile_train = False
 
     # def normalize(self, w_target=1):
@@ -27,12 +28,12 @@ class EpochNetwork(Network):
     #             layer_weights[neuron] = w
     #     self.set_weights(weights)
 
-    def normalize(self, neurons_to_be_normalized, synapse_model):
+    def normalize(self, neurons_to_be_normalized, synapse_model, w_target):
         for neuron in neurons_to_be_normalized:
             conn = nest.GetConnections(target=neuron, synapse_model=synapse_model)
             w = np.array(conn.weight)
             w_normed = w / sum(abs(w))  # L1-norm
-            conn.weight = self.w_target * w_normed
+            conn.weight = w_target * w_normed
 
     def simulate(self, full_time, spike_dict, teacher_dicts=None, epochs=1):
         normalize_weights = self.normalize_weights
@@ -42,8 +43,7 @@ class EpochNetwork(Network):
             disable=not self.progress,
         )
 
-        assert len(self.layers[1:] == len(self.synapse_models)), "Number of layers and synapse models do not match."
-
+        assert len(self.layers[1:]) == len(self.synapse_models), "Number of layers and synapse models do not match."
         nest.Prepare()
         for _ in range(epochs):
             self.spike_generator.set_input_spikes(spike_dict=spike_dict)
@@ -58,8 +58,10 @@ class EpochNetwork(Network):
                         self.normalize_step and i % self.normalize_step == 0
                     ) or not self.normalize_step:
                         assert self.layers is not None
-                        for layer, model in zip(self.layers[1:], self.synapse_models):
-                            self.normalize(layer, model)
+                        for layer, model, w_target in zip(
+                            self.layers[1:], self.synapse_models, self.w_targets
+                        ):
+                            self.normalize(layer, model, w_target)
             elif self.progress:
                 nest.Run(self.start_delta)
                 for _ in range(self.data_len):

@@ -25,6 +25,7 @@ class SupervisedConvolutionRLClassifier(BaseTemporalEstimator):
         normalize_weights: bool = False,
         normalize_step: Optional[int] = None,
         w_target: Optional[float] = None,
+        w_target_hid: Optional[float] = None,
         **kwargs,
     ) -> None:
         self.learning_rate = learning_rate
@@ -44,6 +45,7 @@ class SupervisedConvolutionRLClassifier(BaseTemporalEstimator):
             normalize_weights,
             normalize_step,
             w_target,
+            w_target_hid=w_target_hid,
             **kwargs,
         )
 

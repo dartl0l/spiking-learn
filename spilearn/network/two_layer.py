@@ -2,10 +2,10 @@
 
 import nest
 
-from .base import Network
+from .epoch import EpochNetwork
 
 
-class TwoLayerNetwork(Network):
+class TwoLayerNetwork(EpochNetwork):
     def __init__(self, settings, model, **kwargs):
         super().__init__(settings, model, **kwargs)
         self.n_layer_hid = kwargs.get(
@@ -14,6 +14,8 @@ class TwoLayerNetwork(Network):
         self.use_reciprocal = kwargs.get(
             'use_reciprocal', False
         )
+        self.w_target_hid = kwargs.get('w_target_hid') or 1
+        self.w_targets = [self.w_target_hid, self.w_target]
         self.synapse_models = [
             self.model['syn_dict_exc_hid']['synapse_model'],
             self.model['syn_dict_exc']['synapse_model'],
