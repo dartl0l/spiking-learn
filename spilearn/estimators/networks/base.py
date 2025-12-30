@@ -16,7 +16,7 @@ from ...utils import (
 class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
     def __init__(
         self,
-        settings,
+        settings,  # deprecated
         model,
         reshape=True,
         n_layer_out: Optional[int] = None,
@@ -25,6 +25,9 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         h_time: Optional[float] = None,
         start_delta: Optional[float] = None,
         h: Optional[float] = None,
+        normalize_weights: bool = False,
+        normalize_step: Optional[int] = None,
+        w_target: Optional[float] = None,
         **kwargs,
     ) -> None:
         self.model = model
@@ -37,8 +40,18 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         self.h_time = h_time or settings['network'].get('h_time', 50)
         self.h = h or settings['network'].get('h', 0.01)
         self.reshape = reshape
+        self.normalize_weights = normalize_weights
+        self.normalize_step = normalize_step
+        self.w_target = w_target
 
-        self._network = self._init_network(settings, model, **kwargs)
+        self._network = self._init_network(
+            settings,
+            model,
+            normalize_weights=self.normalize_weights,
+            normalize_step=self.normalize_step,
+            w_target=self.w_target,
+            **kwargs,
+        )
         self._devices_fit = None
         self._weights = None
 

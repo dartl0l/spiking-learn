@@ -111,8 +111,8 @@ class LiteRlNetwork(EpochNetwork):
                     if normalize_weights and ((
                         self.normalize_step and counter % self.normalize_step == 0
                     ) or not self.normalize_step):
-                        for layer in self.layers[1:]:
-                            self.normalize(layer)
+                        for layer, model in zip(self.layers[1:], self.synapse_models):
+                            self.normalize(layer, model)
                     progress_bar.update()
                 accuracy_train /= self.data_len
                 A = self.ema_update(A, accuracy_train)

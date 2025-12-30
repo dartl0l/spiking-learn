@@ -19,6 +19,9 @@ class SupervisedTemporalRLClassifier(BaseTemporalEstimator):
         h_time: Optional[float] = None,
         start_delta: Optional[float] = None,
         h: Optional[float] = None,
+        normalize_weights: bool = False,
+        normalize_step: Optional[int] = None,
+        w_target: Optional[float] = None,
         **kwargs,
     ) -> None:
         self.learning_rate = learning_rate
@@ -32,6 +35,9 @@ class SupervisedTemporalRLClassifier(BaseTemporalEstimator):
             h_time,
             start_delta,
             h,
+            normalize_weights,
+            normalize_step,
+            w_target,
             **kwargs,
         )
 
