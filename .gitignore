@@ -6,3 +6,5 @@ venv/
 __init__.pyc
 *.pyc
 .code-workspace
+.DS_Store
+.vscode/*

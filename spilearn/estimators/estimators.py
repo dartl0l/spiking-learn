@@ -8,7 +8,7 @@ from ..network import (
     ConvolutionNetwork,
     ConvolutionRlNetwork,
     EpochNetwork,
-    LitePoolRlNetwork,
+    LiteRlPoolNetwork,
     LiteRlNetwork,
     TwoLayerNetwork,
 )
@@ -326,7 +326,7 @@ class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
         )
 
     def _init_network(self, settings, model, **kwargs):
-        return LitePoolRlNetwork(
+        return LiteRlPoolNetwork(
             settings,
             model,
             pool_size=self.pool_size,
