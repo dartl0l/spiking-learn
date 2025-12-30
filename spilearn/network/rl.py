@@ -101,6 +101,7 @@ class LiteRlNetwork(EpochNetwork):
                     target = y[i]
                     pred = self.run(self.n_layer_out)
                     if pred == target:
+                        accuracy_train += 1
                         counter += 1
                         self.learning_rate = self.learning_rate_default * scale
                     else:
