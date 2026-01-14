@@ -95,8 +95,21 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
     def get_layer_conv(self):
         return self.layer_hid
 
-    def get_previous_layer(self):
-        return self.layer_hid
+    def update_learning_rate(self, learning_rate):
+        connection = nest.GetConnections(self.input_layer, target=self.layer_hid)
+        nest.SetStatus(connection, 'lambda', learning_rate)
+        connection = nest.GetConnections(self.layer_hid, target=self.layer_out)
+        nest.SetStatus(connection, 'lambda', learning_rate)
+
+    def update_learning_rate_hid(self, learning_rate):
+        connection = nest.GetConnections(self.input_layer, target=self.layer_hid)
+        nest.SetStatus(connection, 'lambda', learning_rate)
+
+    def update_learning_rate_separate_out(self, learning_rate, action):
+        connection = nest.GetConnections(
+            self.layer_hid, target=self.layer_out[action]
+        )
+        nest.SetStatus(connection, 'lambda', learning_rate)
 
     def get_devices(self):
         devices = {

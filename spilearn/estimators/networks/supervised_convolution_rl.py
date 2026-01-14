@@ -32,6 +32,7 @@ class SupervisedConvolutionRLClassifier(BaseTemporalEstimator):
         self.kernel_size = kernel_size
         self.stride = stride
         self.n_layer_hid = n_layer_hid
+        self.w_target_hid = w_target_hid
         super().__init__(
             settings,
             model,

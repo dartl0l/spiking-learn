@@ -21,16 +21,16 @@ class LiteRlNetwork(EpochNetwork):
         self.spikes_length = 0
         self.time = 0
 
-    def get_previous_layer(self):
-        return self.input_layer
-
     def update_learning_rate(self, learning_rate):
-        connection = nest.GetConnections(self.get_previous_layer(), target=self.layer_out)
+        connection = nest.GetConnections(self.input_layer, target=self.layer_out)
         nest.SetStatus(connection, 'lambda', learning_rate)
 
-    def update_learning_rate_separate(self, learning_rate, action):
+    def update_learning_rate_hid(self, learning_rate):
+        pass
+
+    def update_learning_rate_separate_out(self, learning_rate, action):
         connection = nest.GetConnections(
-            self.get_previous_layer(), target=self.layer_out[action]
+            self.input_layer, target=self.layer_out[action]
         )
         nest.SetStatus(connection, 'lambda', learning_rate)
 
@@ -57,8 +57,9 @@ class LiteRlNetwork(EpochNetwork):
 
     def learn(self, action, correct_class):
         self.update_learning_rate(0)
-        self.update_learning_rate_separate(self.learning_rate, action)
-        self.update_learning_rate_separate(self.learning_rate_scaled, correct_class)
+        self.update_learning_rate_hid(self.learning_rate_default)
+        self.update_learning_rate_separate_out(self.learning_rate, action)
+        self.update_learning_rate_separate_out(self.learning_rate_scaled, correct_class)
 
         nest.Run(self.h_time)
         self.time += self.h_time

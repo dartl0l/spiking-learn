@@ -547,7 +547,7 @@ class NeuronCriticSimulation(Simulation):
         )
         nest.SetStatus(connection, 'lambda', learning_rate)
 
-    def update_learning_rate_separate(self, learning_rate, action):
+    def update_learning_rate_separate_out(self, learning_rate, action):
         connection = nest.GetConnections(
             self.network.input_layer, target=self.network.layer_out[action]
         )
@@ -589,8 +589,8 @@ class NeuronCriticSimulation(Simulation):
         self.network.spike_generator.set_input_spikes(spike_dict=spike_dict)
 
         self.update_learning_rate(0)
-        self.update_learning_rate_separate(self.learning_rate, action)
-        self.update_learning_rate_separate(self.learning_rate_critic, -1)
+        self.update_learning_rate_separate_out(self.learning_rate, action)
+        self.update_learning_rate_separate_out(self.learning_rate_critic, -1)
 
         nest.Simulate(self.h_time)
         self.time += full_time

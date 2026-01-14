@@ -29,6 +29,7 @@ class SupervisedTemporalReservoirClassifier(SupervisedTemporalClassifier):
         use_min_teacher=True,
         **kwargs,
     ) -> None:
+        self.w_target_hid = w_target_hid
         super().__init__(
             settings,
             model,

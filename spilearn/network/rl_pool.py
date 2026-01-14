@@ -15,7 +15,7 @@ class LiteRlPoolNetwork(LiteRlNetwork):
 
         self.pool_size = pool_size
 
-    def update_learning_rate_separate(self, learning_rate, action):
+    def update_learning_rate_separate_out(self, learning_rate, action):
         neurons = self.layer_out[
             action * self.pool_size : action * self.pool_size + self.pool_size
         ]

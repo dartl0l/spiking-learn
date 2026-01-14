@@ -10,7 +10,7 @@ from struct import unpack
 
 from scipy.stats import mode
 
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.metrics import f1_score
 
 from ray import train, tune
@@ -85,8 +85,8 @@ def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
     model = copy.deepcopy(model_in)
 
     pipe = create_pipe(model, params)
-
-    scores = cross_val_score(pipe, X, y, cv=5, scoring='f1_macro', n_jobs=5)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scores = cross_val_score(pipe, X, y, cv=cv, scoring='f1_macro', n_jobs=5)
     train.report({'mean_accuracy': scores.mean()})
 
 
