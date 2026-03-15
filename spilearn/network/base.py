@@ -90,7 +90,8 @@ class Network:
         self.spike_detector_input = None
         self.multimeter = None
 
-    def _create_parameters(self, parameters):
+    @staticmethod
+    def _create_parameters(parameters):
         for parameter in parameters:
             if not isinstance(parameters[parameter], str):
                 for param in parameters[parameter]:
@@ -112,7 +113,8 @@ class Network:
     def reset_voltmeter(self):
         nest.SetStatus(self.multimeter, {'n_events': 0})
 
-    def interconnect_layer(self, layer, syn_dict, conn_spec):
+    @staticmethod
+    def interconnect_layer(layer, syn_dict, conn_spec):
         for neuron_1 in layer:
             for neuron_2 in layer:
                 if neuron_1 != neuron_2:
@@ -134,7 +136,8 @@ class Network:
             )[0]
         return devices
 
-    def get_spikes_of_pattern(self, spike_recorder, estimated_time, example_class):
+    @staticmethod
+    def get_spikes_of_pattern(spike_recorder, estimated_time, example_class):
         spikes = nest.GetStatus(spike_recorder, keys='events')[0]['times']
         senders = nest.GetStatus(spike_recorder, keys='events')[0]['senders']
         mask = spikes > estimated_time
@@ -147,7 +150,8 @@ class Network:
         }
         return tmp_dict
 
-    def save_weights(self, layers, synapse_models):
+    @staticmethod
+    def save_weights(layers, synapse_models):
         weights = [None] * len(layers[1:])
 
         for i, layer in enumerate(layers[1:]):

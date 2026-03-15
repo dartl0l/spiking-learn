@@ -11,7 +11,7 @@ from struct import unpack
 from scipy.stats import mode
 
 from sklearn.model_selection import cross_val_score, StratifiedKFold
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, accuracy_score
 
 from ray import train, tune
 from ray.tune.search import ConcurrencyLimiter
@@ -78,7 +78,7 @@ def run_train_test(params, X, y, model_in, create_pipe, X_test=None, y_test=None
 
     pipe.fit(X, y)
     y_test_pred = pipe.predict(X_test)
-    train.report({'mean_accuracy': f1_score(y_test, y_test_pred, average='macro')})
+    train.report({'metric': accuracy_score(y_test, y_test_pred)})
 
 
 def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
@@ -86,8 +86,10 @@ def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
 
     pipe = create_pipe(model, params)
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    scores = cross_val_score(pipe, X, y, cv=cv, scoring='f1_macro', n_jobs=5)
-    train.report({'mean_accuracy': scores.mean()})
+    scores = cross_val_score(pipe, X, y, cv=cv, scoring='accuracy', n_jobs=5)
+    m, s = scores.mean(), scores.std()
+    objective = m - 0.5 * s
+    train.report({"metric": float(objective), "mean_accuracy": float(m), "std_accuracy": float(s)})
 
 
 def optimize_ray(
@@ -139,7 +141,7 @@ def optimize_ray(
                 num_samples=max_evals,
                 search_alg=search_alg,
                 scheduler=ASHAScheduler(),
-                metric='mean_accuracy',
+                metric='metric',
                 mode='max',
             ),
             run_config=train.RunConfig(

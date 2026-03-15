@@ -32,3 +32,14 @@ class LiteRlPoolNetwork(LiteRlNetwork):
         y_pred = predict_from_latency_pool([out_latency[0]])
 
         return int(y_pred[0])
+
+    def connect_layers_inh(self):
+        for i in range(0, self.n_layer_out, self.pool_size):
+            neurons = self.layer_out[
+                i : i + self.pool_size
+            ]
+            self.interconnect_layer(
+                nest.NodeCollection(neurons),
+                self.model['syn_dict_inh'],
+                self.model.get('conn_dict_inh', {'rule': 'all_to_all'}),
+            )

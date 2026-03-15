@@ -25,9 +25,6 @@ class LiteRlNetwork(EpochNetwork):
         connection = nest.GetConnections(self.input_layer, target=self.layer_out)
         nest.SetStatus(connection, 'lambda', learning_rate)
 
-    def update_learning_rate_hid(self, learning_rate):
-        pass
-
     def update_learning_rate_separate_out(self, learning_rate, action):
         connection = nest.GetConnections(
             self.input_layer, target=self.layer_out[action]
@@ -57,7 +54,6 @@ class LiteRlNetwork(EpochNetwork):
 
     def learn(self, action, correct_class):
         self.update_learning_rate(0)
-        self.update_learning_rate_hid(self.learning_rate_default)
         self.update_learning_rate_separate_out(self.learning_rate, action)
         self.update_learning_rate_separate_out(self.learning_rate_scaled, correct_class)
 
@@ -66,12 +62,20 @@ class LiteRlNetwork(EpochNetwork):
         return
 
     # TODO: move somewhere
-    def ema_update(self, prev, acc, alpha=0.05):
+    @staticmethod
+    def ema_update(prev, acc, alpha=0.05):
         return acc if prev is None else (1 - alpha) * prev + alpha * acc
 
-    def lr_scale(self, A, A0=0.75, k=4.0):
+    @staticmethod
+    def lr_scale(A, A0=0.75, k=4.0):
         return 1.0 if A < A0 else np.exp(-k * (A - A0))
-
+    
+    def normalize(self, neurons_to_be_normalized, synapse_models, w_targets):
+        for layer, model, w_target in zip(
+            neurons_to_be_normalized[1:], synapse_models, w_targets
+        ):
+            EpochNetwork.normalize(self, layer, model, w_target)
+    
     def simulate(
         self,
         full_time,
@@ -113,10 +117,7 @@ class LiteRlNetwork(EpochNetwork):
                     if normalize_weights and ((
                         self.normalize_step and counter % self.normalize_step == 0
                     ) or not self.normalize_step):
-                        for layer, model, w_target in zip(
-                            self.layers[1:], self.synapse_models, self.w_targets
-                        ):
-                            self.normalize(layer, model, w_target)
+                        self.normalize(self.layers, self.synapse_models, self.w_targets)
                     progress_bar.update()
                 accuracy_train /= self.data_len
                 running_accuracy = self.ema_update(running_accuracy, accuracy_train)

@@ -14,6 +14,7 @@ class SupervisedConvolutionRLClassifier(BaseTemporalEstimator):
         kernel_size,
         stride,
         learning_rate,
+        learning_rate_hid,
         n_layer_hid,
         reshape=True,
         n_layer_out: Optional[int] = None,
@@ -29,6 +30,7 @@ class SupervisedConvolutionRLClassifier(BaseTemporalEstimator):
         **kwargs,
     ) -> None:
         self.learning_rate = learning_rate
+        self.learning_rate_hid = learning_rate_hid
         self.kernel_size = kernel_size
         self.stride = stride
         self.n_layer_hid = n_layer_hid
@@ -55,6 +57,7 @@ class SupervisedConvolutionRLClassifier(BaseTemporalEstimator):
             settings,
             model,
             learning_rate=self.learning_rate,
+            learning_rate_hid=self.learning_rate_hid,
             n_layer_out=self.n_layer_out,
             n_layer_hid=self.n_layer_hid,
             n_input=self.n_input,

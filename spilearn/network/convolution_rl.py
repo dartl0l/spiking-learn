@@ -4,6 +4,7 @@ import nest
 
 from .convolution import ConvolutionNetwork
 from .rl import LiteRlNetwork
+from .epoch import EpochNetwork
 
 
 class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
@@ -15,6 +16,7 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
         kernel_size,
         stride,
         learning_rate,
+        learning_rate_hid,
         **kwargs
     ):
         self.n_layer_hid = n_layer_hid
@@ -22,6 +24,7 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
         self.spike_detector_hid = None
         self.multimeter_hid = None
         self.w_target_hid = kwargs.get('w_target_hid') or 1
+        self.learning_rate_hid = learning_rate_hid
 
         super().__init__(
             settings=settings,
@@ -36,6 +39,7 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
             self.model['syn_dict_exc_hid']['synapse_model'],
             self.model['syn_dict_exc']['synapse_model']
         ]
+        # self.layer_classes = [ConvolutionNetwork, EpochNetwork]
 
     def create_layers(self):
         self.layer_out = nest.Create(self.model['neuron_out_model'], self.n_layer_out)
@@ -89,6 +93,13 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
             self.model.get('conn_dict_inh', {'rule': 'all_to_all'}),
         )
 
+    # def normalize(self, neurons_to_be_normalized, synapse_models, w_targets):
+    #     for layer, model, w_target, cls in zip(
+    #         neurons_to_be_normalized[1:], synapse_models, w_targets,
+    #         self.layer_classes
+    #     ):
+    #         cls.normalize(self, layer, model, w_target)
+
     def get_neuron_number(self):
         return self.n_layer_hid
 
@@ -110,6 +121,16 @@ class ConvolutionRlNetwork(LiteRlNetwork, ConvolutionNetwork):
             self.layer_hid, target=self.layer_out[action]
         )
         nest.SetStatus(connection, 'lambda', learning_rate)
+
+    def learn(self, action, correct_class):
+        self.update_learning_rate(0)
+        self.update_learning_rate_hid(self.learning_rate_hid)
+        self.update_learning_rate_separate_out(self.learning_rate, action)
+        self.update_learning_rate_separate_out(self.learning_rate_scaled, correct_class)
+
+        nest.Run(self.h_time)
+        self.time += self.h_time
+        return
 
     def get_devices(self):
         devices = {
