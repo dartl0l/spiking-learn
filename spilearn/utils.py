@@ -74,22 +74,38 @@ def get_labeled_data(picklename, MNIST_data_path, bTrain=True):
 def run_train_test(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
     model = copy.deepcopy(model_in)
 
-    pipe = create_pipe(model, params)
+    try:
+        pipe = create_pipe(model, params)
 
-    pipe.fit(X, y)
-    y_test_pred = pipe.predict(X_test)
-    train.report({'metric': accuracy_score(y_test, y_test_pred)})
+        pipe.fit(X, y)
+        y_test_pred = pipe.predict(X_test)
+        train.report({'metric': accuracy_score(y_test, y_test_pred)})
+    except ValueError as exc:
+        if 'All-NaN slice encountered' not in str(exc):
+            raise
+        train.report({'metric': 0.0})
 
 
 def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
     model = copy.deepcopy(model_in)
 
-    pipe = create_pipe(model, params)
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    scores = cross_val_score(pipe, X, y, cv=cv, scoring='accuracy', n_jobs=5)
-    m, s = scores.mean(), scores.std()
-    objective = m - 0.5 * s
-    train.report({"metric": float(objective), "mean_accuracy": float(m), "std_accuracy": float(s)})
+    try:
+        pipe = create_pipe(model, params)
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        scores = cross_val_score(pipe, X, y, cv=cv, scoring='accuracy', n_jobs=5)
+        m, s = scores.mean(), scores.std()
+        objective = m - 0.5 * s
+        train.report(
+            {
+                "metric": float(objective),
+                "mean_accuracy": float(m),
+                "std_accuracy": float(s),
+            }
+        )
+    except ValueError as exc:
+        if 'All-NaN slice encountered' not in str(exc):
+            raise
+        train.report({"metric": 0.0, "mean_accuracy": 0.0, "std_accuracy": 0.0})
 
 
 def optimize_ray(
@@ -236,6 +252,17 @@ def convert_latency_pool(latency_list, n_neurons, pool_size):
 
 
 def predict_from_latency_pool(latency_list, func=np.nanargmin):
+    latency_list = np.array(latency_list)
+    mask = np.isnan(latency_list)
+    mask = np.all(mask, axis=1)
+    if np.any(mask):
+        prediction = np.full(len(latency_list), -1, dtype=int)
+        valid = np.logical_not(mask).all(axis=1)
+        if np.any(valid):
+            predictions = func(latency_list[valid], axis=1)
+            prediction[valid] = mode(predictions, axis=1).mode.flatten()
+        return prediction
+
     predictions = func(latency_list, axis=1)
     prediction = mode(predictions, axis=1).mode.flatten()
     return prediction

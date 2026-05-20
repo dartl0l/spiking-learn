@@ -114,13 +114,11 @@ class Network:
         nest.SetStatus(self.multimeter, {'n_events': 0})
 
     @staticmethod
-    def interconnect_layer(layer, syn_dict, conn_spec):
-        for neuron_1 in layer:
-            for neuron_2 in layer:
-                if neuron_1 != neuron_2:
-                    nest.Connect(
-                        neuron_1, neuron_2, syn_spec=syn_dict, conn_spec=conn_spec
-                    )
+    def interconnect_layer(layer, syn_dict, conn_spec=None):
+        conn_spec = conn_spec or {'rule': 'all_to_all'}
+        conn_spec = dict(conn_spec)
+        conn_spec['allow_autapses'] = False
+        nest.Connect(layer, layer, conn_spec=conn_spec, syn_spec=syn_dict)
 
     def get_devices(self):
         devices = {

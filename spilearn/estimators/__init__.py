@@ -7,6 +7,7 @@ from .encoders import (  # noqa
 from .networks import (  # noqa
     ClasswiseTemporalClassifier,
     SupervisedTemporalClassifier,
+    SupervisedMultilayerRLClassifier,
     SupervisedTemporalPoolClassifier,
     SupervisedTemporalReservoirClassifier,
     SupervisedTemporalRLClassifier,
@@ -24,6 +25,7 @@ __all__ = [
     'TemporalPatternReversedTransformer',
     'FirstSpikeVotingClassifier',
     'SupervisedTemporalClassifier',
+    'SupervisedMultilayerRLClassifier',
     'SupervisedTemporalPoolClassifier',
     'SupervisedTemporalRLClassifier',
     'SupervisedTemporalRLPoolClassifier',

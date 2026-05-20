@@ -4,6 +4,7 @@ from .supervised_temporal import SupervisedTemporalClassifier  # noqa
 from .supervised_temporal_pool import SupervisedTemporalPoolClassifier  # noqa
 from .supervised_temporal_reservoir import SupervisedTemporalReservoirClassifier  # noqa
 from .supervised_temporal_rl import SupervisedTemporalRLClassifier  # noqa
+from .supervised_multilayer_rl import SupervisedMultilayerRLClassifier  # noqa
 from .supervised_temporal_rl_pool import SupervisedTemporalRLPoolClassifier  # noqa
 from .supervised_convolution_rl import SupervisedConvolutionRLClassifier  # noqa
 from .unsupervised_temporal import UnsupervisedTemporalTransformer  # noqa
@@ -20,6 +21,7 @@ __all__ = [
     'ClasswiseTemporalClassifier',
     'SupervisedTemporalClassifier',
     'SupervisedTemporalPoolClassifier',
+    'SupervisedMultilayerRLClassifier',
     'SupervisedTemporalRLClassifier',
     'SupervisedTemporalRLPoolClassifier',
     'SupervisedTemporalReservoirClassifier',

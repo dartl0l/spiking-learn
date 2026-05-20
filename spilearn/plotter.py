@@ -215,6 +215,24 @@ class Plotter:
         if show:
             plt.show()
 
+    def plot_energies(self, energies, threshold=0.9, title='Hidden energy', show=True):
+        plt.clf()
+        fig = plt.figure()
+        fig.patch.set_facecolor('white')
+        plt.title(title)
+        plt.xlabel('Sample index')
+        plt.ylabel('Energy')
+        x = list(range(len(energies)))
+        energy_vals = [e[0] for e in energies]
+        mean_vals = [e[1] for e in energies]
+        plt.plot(x, energy_vals, '-', label='Energy')
+        plt.plot(x, mean_vals, '-', label='Running mean')
+        dynamic_thr = [threshold * m for m in mean_vals]
+        plt.plot(x, dynamic_thr, '--', label='Dynamic threshold')
+        plt.legend()
+        if show:
+            plt.show()
+
     def plot_norms(self, norm_history, show=True):
         plt.clf()
         plt.title('Weight norms')

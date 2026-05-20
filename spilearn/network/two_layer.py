@@ -30,10 +30,7 @@ class TwoLayerNetwork(EpochNetwork):
     def create_devices(self):
         super().create_devices()
         self.spike_detector_hidden = nest.Create('spike_recorder')
-
-        self.voltmeter_hidden = nest.Create(
-            'multimeter', 1, {'withgid': True, 'withtime': True}
-        )
+        self.voltmeter_hidden = nest.Create('multimeter', 1, {'record_from': ['V_m']})
 
     def connect_layers(self):
         nest.Connect(

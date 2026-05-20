@@ -33,10 +33,14 @@ class LiteRlNetwork(EpochNetwork):
 
     def sim(self):
         nest.Run(self.h_time)
+        raw_latency = self.get_raw_latency(self.spike_detector_out)
+        self.spikes_length += raw_latency['spikes'].size
+        return raw_latency
 
-        spikes = nest.GetStatus(self.spike_detector_out, keys='events')[0]['times']
-        senders = nest.GetStatus(self.spike_detector_out, keys='events')[0]['senders']
-        self.spikes_length += spikes.size
+    def get_raw_latency(self, spike_detector):
+        events = nest.GetStatus(spike_detector, keys='events')[0]
+        spikes = events['times']
+        senders = events['senders']
         mask = spikes > self.time
         raw_latency = {'spikes': spikes[mask], 'senders': senders[mask]}
         raw_latency['spikes'] -= self.time
