@@ -1,0 +1,12 @@
+# NEST simulator is NOT listed here - install it separately on the target
+# machine (https://www.nest-simulator.org/), together with the custom
+# `stdptanhmodule` NEST module that spilearn.network loads at import time.
+scikit-learn
+numpy
+scipy
+matplotlib
+hyperopt
+ray[tune]
+optuna
+tqdm
+gym
