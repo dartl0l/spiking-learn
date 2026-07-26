@@ -32,10 +32,17 @@ class MultilayerRLNetwork(LiteRlPoolNetwork):
         self.goodness_threshold_hid = goodness_threshold_hid or 0.9
         self.goodness_tau_hid = kwargs.get('goodness_tau_hid')
         self.goodness_mean_decay_hid = kwargs.get('goodness_mean_decay_hid', 0.995)
+        # P2 (CSDP-style contrastive goodness):
+        #   'graded'  -> hidden lambda = learning_rate_hid * (label - p),
+        #                p = sigmoid(goodness_gain * (energy - threshold))
+        #   'boolean' -> legacy gate (+lr if good else -0.1*lr)
+        self.goodness_mode = kwargs.get('goodness_mode', 'graded')
+        self.goodness_gain = kwargs.get('goodness_gain', 1.0)
         self.last_hidden_latency = None
         self.last_hidden_goodness = False
         self.last_hidden_energy = 0.0
-        self.last_hidden_threshold = goodness_threshold_hid
+        self.last_hidden_threshold = self.goodness_threshold_hid
+        self.last_hidden_p = 0.0
         self.goodness_running_mean = None
         self.hidden_energy_history = []
 
@@ -163,8 +170,12 @@ class MultilayerRLNetwork(LiteRlPoolNetwork):
         tau = self.goodness_tau_hid or (self.h_time / 3)
         return float(np.mean(np.exp(-spikes[finite] / tau)))
 
-    def get_hidden_goodness(self, raw_hidden_latency):
-        energy = self.get_hidden_energy(raw_hidden_latency)
+    @staticmethod
+    def _sigmoid(x):
+        return 1.0 / (1.0 + np.exp(-x))
+
+    def _update_goodness_threshold(self, energy):
+        """Update the EMA reference and return the current goodness threshold."""
         if self.goodness_running_mean is None:
             self.goodness_running_mean = energy
         else:
@@ -175,7 +186,27 @@ class MultilayerRLNetwork(LiteRlPoolNetwork):
 
         threshold = self.goodness_threshold_hid * self.goodness_running_mean
         self.last_hidden_threshold = threshold
+        return threshold
+
+    def get_hidden_goodness(self, raw_hidden_latency):
+        energy = self.get_hidden_energy(raw_hidden_latency)
+        threshold = self._update_goodness_threshold(energy)
         return energy > threshold
+
+    def hidden_goodness_modulator(self, label):
+        """Graded CSDP-style modulator for the hidden layer.
+
+        ``m = label - p`` with ``p = sigmoid(goodness_gain * (energy - threshold))``,
+        using the energy/threshold cached during ``run``. ``label`` is the
+        contrastive target: 1 for positive (push goodness up), 0 for negative
+        (push it down). Fed as the hidden learning rate, this is exactly the
+        reward-modulated (three-factor) STDP form of CSDP Eq. 10.
+        """
+        p = self._sigmoid(
+            self.goodness_gain * (self.last_hidden_energy - self.last_hidden_threshold)
+        )
+        self.last_hidden_p = p
+        return label - p
 
     def run(self, n_neurons):
         self.update_learning_rate(0.0)
@@ -195,11 +226,18 @@ class MultilayerRLNetwork(LiteRlPoolNetwork):
         return predict_from_latency_pool(latency)
 
     def learn(self, action, correct_class):
-        hidden_learning_rate = (
-            self.learning_rate_hid
-            if self.last_hidden_goodness
-            else -0.1 * self.learning_rate_hid
-        )
+        if self.goodness_mode == 'graded':
+            # reward-based contrast: correct prediction -> positive sample
+            label = 1.0 if action == correct_class else 0.0
+            hidden_learning_rate = (
+                self.learning_rate_hid * self.hidden_goodness_modulator(label)
+            )
+        else:
+            hidden_learning_rate = (
+                self.learning_rate_hid
+                if self.last_hidden_goodness
+                else -0.1 * self.learning_rate_hid
+            )
 
         self.update_learning_rate(0)
         self.update_learning_rate_hid(hidden_learning_rate)

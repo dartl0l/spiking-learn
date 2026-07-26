@@ -1,4 +1,5 @@
 from .base import Network  # noqa
+from .contrastive_multilayer_rl import ContrastiveMultilayerRLNetwork  # noqa
 from .convolution import ConvolutionNetwork  # noqa
 from .convolution_rl import ConvolutionRlNetwork  # noqa
 from .critic import CriticNetwork  # noqa
@@ -14,6 +15,7 @@ __all__ = [
     'ConvolutionNetwork',
     'CriticNetwork',
     'MultilayerRLNetwork',
+    'ContrastiveMultilayerRLNetwork',
     'LiteRlNetwork',
     'LiteRlPoolNetwork',
     'ConvolutionRlNetwork',
