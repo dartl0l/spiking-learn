@@ -5,7 +5,7 @@ import nest
 from .rl import LiteRlNetwork
 from ..utils import (
     convert_latency_pool,
-    predict_from_latency_pool,
+    predict_from_earliest_latency_pool,
 )
 
 
@@ -29,9 +29,12 @@ class LiteRlPoolNetwork(LiteRlNetwork):
         self.time += self.h_time
 
         out_latency = convert_latency_pool([raw_latency], n_neurons, self.pool_size)
-        y_pred = predict_from_latency_pool([out_latency[0]])
+        y_pred = self.predict_from_latency_pool([out_latency[0]])
 
         return int(y_pred[0])
+
+    def predict_from_latency_pool(self, latency):
+        return predict_from_earliest_latency_pool(latency)
 
     def connect_layers_inh(self):
         for i in range(0, self.n_layer_out, self.pool_size):

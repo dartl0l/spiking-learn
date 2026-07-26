@@ -268,6 +268,18 @@ def predict_from_latency_pool(latency_list, func=np.nanargmin):
     return prediction
 
 
+def predict_from_earliest_latency_pool(latency_list, func=np.argmin):
+    latency_list = np.array(latency_list)
+    class_latency = np.min(
+        np.where(np.isnan(latency_list), np.inf, latency_list),
+        axis=2,
+    )
+    valid = np.isfinite(class_latency).any(axis=1)
+    prediction = np.full(len(latency_list), -1, dtype=int)
+    prediction[valid] = func(class_latency[valid], axis=1)
+    return prediction
+
+
 def convert_layer_weights(weights):
     out_weights = {}
     for neuron_id in weights:

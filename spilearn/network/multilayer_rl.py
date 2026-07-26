@@ -191,6 +191,9 @@ class MultilayerRLNetwork(LiteRlPoolNetwork):
         y_pred = predict_from_latency_pool([out_latency[0]])
         return int(y_pred[0])
 
+    def predict_from_latency_pool(self, latency):
+        return predict_from_latency_pool(latency)
+
     def learn(self, action, correct_class):
         hidden_learning_rate = (
             self.learning_rate_hid

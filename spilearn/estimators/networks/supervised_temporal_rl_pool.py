@@ -5,7 +5,6 @@ from ...network import LiteRlPoolNetwork
 from ...spike_generator import TemporalSpikeGenerator
 from ...utils import (
     convert_latency_pool,
-    predict_from_latency_pool,
     split_spikes_and_senders,
 )
 from .supervised_temporal_rl import SupervisedTemporalRLClassifier
@@ -77,5 +76,5 @@ class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
         out_latency = convert_latency_pool(
             all_latency, self.n_layer_out, self.pool_size
         )
-        y_pred = predict_from_latency_pool(out_latency)
+        y_pred = self._network.predict_from_latency_pool(out_latency)
         return y_pred.astype(int)
