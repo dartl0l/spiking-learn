@@ -98,7 +98,6 @@ class LiteRlNetwork(EpochNetwork):
         assert len(self.layers[1:]) == len(self.synapse_models), "Number of layers and synapse models do not match."
         nest.Prepare()
         scale = 1
-        counter = 0
         running_accuracy = None
         for _ in range(epochs):
             self.spike_generator.set_input_spikes(spike_dict=spike_dict)
@@ -112,15 +111,14 @@ class LiteRlNetwork(EpochNetwork):
                     pred = self.run(self.n_layer_out)
                     if pred == target:
                         accuracy_train += 1
-                        counter += 1
                         self.learning_rate = self.learning_rate_default * scale
                     else:
                         self.learning_rate = -1 * self.learning_rate_default * scale
                     self.learning_rate_scaled = self.learning_rate_default * scale
                     self.learn(pred, target)
-                    if normalize_weights and ((
-                        self.normalize_step and counter % self.normalize_step == 0
-                    ) or not self.normalize_step):
+                    if normalize_weights and self.should_normalize(
+                        i, self.normalize_step
+                    ):
                         self.normalize(self.layers, self.synapse_models, self.w_targets)
                     progress_bar.update()
                 accuracy_train /= self.data_len

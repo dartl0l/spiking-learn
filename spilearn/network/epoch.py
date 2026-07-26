@@ -17,6 +17,10 @@ class EpochNetwork(Network):
         self.w_targets = [self.w_target]
         self.tile_train = False
 
+    @staticmethod
+    def should_normalize(sample_index, normalize_step):
+        return not normalize_step or (sample_index + 1) % normalize_step == 0
+
     # def normalize(self, w_target=1):
     #     weights = self.save_weights(self.layers, self.synapse_models)
 
@@ -54,9 +58,7 @@ class EpochNetwork(Network):
                 for i in range(self.data_len):
                     nest.Run(self.h_time)
                     progress_bar.update()
-                    if (
-                        self.normalize_step and i % self.normalize_step == 0
-                    ) or not self.normalize_step:
+                    if self.should_normalize(i, self.normalize_step):
                         assert self.layers is not None
                         for layer, model, w_target in zip(
                             self.layers[1:], self.synapse_models, self.w_targets
