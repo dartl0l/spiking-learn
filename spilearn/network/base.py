@@ -259,6 +259,88 @@ class Network:
                     if neuron_weights is not None:
                         nest.SetStatus(connection, 'weight', neuron_weights)
 
+    def connect_layers_from_weights(self, weights):
+        """Rebuild trained connections at test time from the saved topology.
+
+        Connects exactly the (pre -> post) pairs that existed during training,
+        with their learned weights, as static synapses. This makes train->test
+        weight transfer topology-exact for ANY connectivity. With a *random*
+        conn_spec (e.g. ``pairwise_bernoulli``), re-running the conn_spec at test
+        would draw a *different* topology and the trained weights would land on
+        the wrong/absent connections — so we reconstruct the exact trained graph
+        instead. For dense (``all_to_all``) / convolution topologies this rebuilds
+        the same graph, so behaviour is unchanged there.
+
+        Replaces ``connect_layers_static`` + ``set_weights`` at test time.
+        """
+        for layer_weights in weights:
+            pre, post, ws = [], [], []
+            for neuron_id, inputs in layer_weights.items():
+                for input_id, w in inputs.items():
+                    if w is None:
+                        continue
+                    pre.append(input_id)
+                    post.append(neuron_id)
+                    ws.append(w)
+            if not pre:
+                continue
+            # one_to_one with explicit node-id arrays (allows the repeated ids
+            # of an arbitrary edge list and aligns the weight array by index)
+            nest.Connect(
+                np.array(pre, dtype=np.uint64),
+                np.array(post, dtype=np.uint64),
+                conn_spec='one_to_one',
+                syn_spec={'synapse_model': 'static_synapse', 'weight': np.array(ws)},
+            )
+
+    def _adaptive_threshold_layers(self):
+        """Layers whose adaptive-threshold state is captured/restored.
+
+        Defaults to all trainable layers (``self.layers[1:]``, skipping the
+        input layer), so multi-layer networks (hidden + output) are covered
+        automatically — same iteration convention as ``normalize`` and
+        ``save_weights``. Every layer returned here must use a neuron model
+        that supports the fields declared in ``model['adaptive_threshold']``.
+        Override to restrict the set (e.g. ``return [self.layer_out]``).
+        """
+        return self.layers[1:]
+
+    def get_adaptive_threshold_state(self):
+        """Capture per-neuron threshold state at the end of training.
+
+        Fully driven by the optional ``model['adaptive_threshold']`` block, so
+        it works for any neuron model and any status fields::
+
+            model['adaptive_threshold'] = {
+                'capture': ['V_th_alpha_2'],       # carried from train to test
+                'freeze':  {'V_th_alpha_1': 0.0,   # set at test to freeze it
+                            'alpha_1': 0.0, 'alpha_2': 0.0,
+                            'tau_1': 1e9, 'tau_2': 1e9},
+            }
+
+        Returns ``None`` when the block is absent — non-adaptive models keep
+        their current behaviour.
+        """
+        spec = self.model.get('adaptive_threshold')
+        if not spec or not spec.get('capture'):
+            return None
+        keys = spec['capture']
+        state = []
+        for layer in self._adaptive_threshold_layers():
+            vals = nest.GetStatus(layer, keys)
+            state.append([dict(zip(keys, node_vals)) for node_vals in vals])
+        return state
+
+    def restore_adaptive_threshold_state(self, state):
+        """Restore captured threshold state and apply the freeze (test time)."""
+        if not state:
+            return
+        freeze = self.model.get('adaptive_threshold', {}).get('freeze', {})
+        for layer, layer_state in zip(self._adaptive_threshold_layers(), state):
+            if freeze:
+                nest.SetStatus(layer, freeze)
+            nest.SetStatus(layer, layer_state)
+
     def simulate(self, full_time, spike_dict, teacher_dicts=None, epochs=1):
         if self.spike_generator:
             self.spike_generator.set_input_spikes(spike_dict=spike_dict)
@@ -318,18 +400,21 @@ class Network:
         devices = self.get_devices() if self.need_devices else None
         return weights, output, devices
 
-    def test(self, x, weights):
+    def test(self, x, weights, threshold_state=None):
         self.init_network()
         self.create_layers()
         self.create_devices()
 
         self.connect_devices()
-        self.connect_layers_static()
+        # rebuild the exact trained topology + weights (topology-safe for random
+        # conn_spec like pairwise_bernoulli; equivalent to connect_layers_static
+        # + set_weights for dense/conv)
+        self.connect_layers_from_weights(weights)
         if self.use_inhibition and self.test_with_inhibition:
             self.connect_layers_inh()
 
         self.set_neuron_status()
-        self.set_weights(weights)
+        self.restore_adaptive_threshold_state(threshold_state)
 
         self.data_len = len(x)
         if self.spike_generator:

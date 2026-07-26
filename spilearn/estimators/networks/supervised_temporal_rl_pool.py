@@ -67,7 +67,9 @@ class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
         )
 
     def predict(self, X):
-        output, self._devices_predict = self._network.test(X, self._weights)
+        output, self._devices_predict = self._network.test(
+            X, self._weights, threshold_state=self._threshold_state
+        )
 
         all_latency = split_spikes_and_senders(
             output, len(X), self.start_delta, self.h_time

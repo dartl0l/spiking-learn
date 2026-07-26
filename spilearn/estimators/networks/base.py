@@ -54,6 +54,7 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         )
         self._devices_fit = None
         self._weights = None
+        self._threshold_state = None
 
     def _init_network(self, settings, model, **kwargs):
         return EpochNetwork(
@@ -76,10 +77,13 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         self._network.n_input = self.n_input
         self._network.spike_generator.n_input = self.n_input
         self._weights, _, self._devices_fit = self._network.train(X, y)
+        self._threshold_state = self._network.get_adaptive_threshold_state()
         return self
 
     def predict(self, X):
-        output, self._devices_predict = self._network.test(X, self._weights)
+        output, self._devices_predict = self._network.test(
+            X, self._weights, threshold_state=self._threshold_state
+        )
 
         all_latency = split_spikes_and_senders(
             output, len(X), self.start_delta, self.h_time
@@ -89,7 +93,9 @@ class BaseTemporalEstimator(BaseEstimator, TransformerMixin, ClassifierMixin):
         return y_pred.astype(int)
 
     def transform(self, X, y=None):
-        output, self._devices_predict = self._network.test(X, self._weights)
+        output, self._devices_predict = self._network.test(
+            X, self._weights, threshold_state=self._threshold_state
+        )
 
         all_latency = split_spikes_and_senders(
             output, len(X), self.start_delta, self.h_time
