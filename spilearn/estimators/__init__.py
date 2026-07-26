@@ -1,5 +1,6 @@
 from .decoders import FirstSpikeVotingClassifier  # noqa
 from .encoders import (  # noqa
+    DoGTransformer,
     ReceptiveFieldsTransformer,
     TemporalPatternTransformer,
     TemporalPatternReversedTransformer,
@@ -21,6 +22,7 @@ from .networks import (  # noqa
 )
 
 __all__ = [
+    'DoGTransformer',
     'ReceptiveFieldsTransformer',
     'TemporalPatternTransformer',
     'TemporalPatternReversedTransformer',
