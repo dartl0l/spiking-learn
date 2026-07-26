@@ -5,6 +5,7 @@ venv/
 .idea/
 __init__.pyc
 *.pyc
-.code-workspace
+*.code-workspace
 .DS_Store
 .vscode/*
+.claude/*
