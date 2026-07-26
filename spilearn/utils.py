@@ -214,14 +214,16 @@ def split_spikes_and_senders(input_latency, n_examples, start_delta, h_time):
     return output_latency
 
 
-def convert_latency(latency_list, n_neurons):
+def convert_latency(latency_list, n_neurons, offset=1):
     output_array = []
     for latencies in latency_list:
         tmp_list = [np.nan] * n_neurons
-        senders = set(latencies['senders'])
+        senders_array = np.array(latencies['senders'])
+        spikes_array = np.array(latencies['spikes'])
+        senders = set(senders_array)
         for sender in senders:
-            mask = latencies['senders'] == sender
-            tmp_list[sender - 1] = latencies['spikes'][mask][0]
+            mask = senders_array == sender
+            tmp_list[int(sender) - offset] = spikes_array[mask][0]
         output_array.append(tmp_list)
     return output_array
 
