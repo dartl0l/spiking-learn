@@ -1,4 +1,5 @@
 import os
+import sys
 import copy
 import json
 import math
@@ -10,7 +11,11 @@ from struct import unpack
 
 from scipy.stats import mode
 
-from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.model_selection import (
+    cross_val_score,
+    RepeatedStratifiedKFold,
+    train_test_split,
+)
 from sklearn.metrics import f1_score, accuracy_score
 
 from ray import train, tune
@@ -71,7 +76,16 @@ def get_labeled_data(picklename, MNIST_data_path, bTrain=True):
     return data
 
 
-def run_train_test(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
+def run_train_test(
+    params,
+    X,
+    y,
+    model_in,
+    create_pipe,
+    X_test=None,
+    y_test=None,
+    **_,
+):
     model = copy.deepcopy(model_in)
 
     try:
@@ -86,26 +100,76 @@ def run_train_test(params, X, y, model_in, create_pipe, X_test=None, y_test=None
         train.report({'metric': 0.0})
 
 
-def run_cv(params, X, y, model_in, create_pipe, X_test=None, y_test=None):
+def run_cv(
+    params,
+    X,
+    y,
+    model_in,
+    create_pipe,
+    X_test=None,
+    y_test=None,
+    subset_fractions=(0.1, 0.3, 1.0),
+    n_splits=5,
+    n_repeats_final=3,
+    n_jobs=5,
+    base_seed=42,
+):
+    """Multi-fidelity CV objective for ASHA, with subset-size as the fidelity.
+
+    Evaluates the config on an increasing stratified subset of the data
+    (``subset_fractions``) and ``train.report``s after each rung, so ASHA can
+    kill weak configs cheaply (most die on the smallest subset). The final
+    (full-data) rung uses ``RepeatedStratifiedKFold`` (``n_repeats_final``) to
+    average over several splits — de-biasing the score so the chosen config
+    generalizes (closer to a full-dataset run) instead of overfitting one split.
+
+    Each rung calls ``cross_val_score(n_jobs=...)`` as before, so per-rung fold
+    parallelism is preserved; reporting happens between rungs.
+    """
     model = copy.deepcopy(model_in)
 
     try:
         pipe = create_pipe(model, params)
-        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        scores = cross_val_score(pipe, X, y, cv=cv, scoring='accuracy', n_jobs=5)
-        m, s = scores.mean(), scores.std()
-        objective = m - 0.5 * s
+    except Exception:
+        train.report(
+            {"metric": 0.0, "mean_accuracy": 0.0, "std_accuracy": 0.0,
+             "subset_fraction": 1.0}
+        )
+        return
+
+    X = np.asarray(X)
+    y = np.asarray(y)
+    n_rungs = len(subset_fractions)
+
+    for i, frac in enumerate(subset_fractions):
+        is_final = (i == n_rungs - 1) or (frac >= 1.0)
+        if frac >= 1.0:
+            Xs, ys = X, y
+        else:
+            Xs, _, ys, _ = train_test_split(
+                X, y, train_size=frac, stratify=y, random_state=base_seed
+            )
+        n_rep = n_repeats_final if is_final else 1
+        cv = RepeatedStratifiedKFold(
+            n_splits=n_splits, n_repeats=n_rep, random_state=base_seed
+        )
+        try:
+            scores = cross_val_score(
+                pipe, Xs, ys, cv=cv, scoring='accuracy', n_jobs=n_jobs
+            )
+            m, s = float(scores.mean()), float(scores.std())
+        except ValueError as exc:
+            if 'All-NaN slice encountered' not in str(exc):
+                raise
+            m, s = 0.0, 0.0
         train.report(
             {
-                "metric": float(objective),
-                "mean_accuracy": float(m),
-                "std_accuracy": float(s),
+                "metric": m - 0.5 * s,
+                "mean_accuracy": m,
+                "std_accuracy": s,
+                "subset_fraction": float(frac),
             }
         )
-    except ValueError as exc:
-        if 'All-NaN slice encountered' not in str(exc):
-            raise
-        train.report({"metric": 0.0, "mean_accuracy": 0.0, "std_accuracy": 0.0})
 
 
 def optimize_ray(
@@ -121,22 +185,32 @@ def optimize_ray(
     X_test=None,
     y_test=None,
     max_concurrent=11,
+    subset_fractions=(0.1, 0.3, 1.0),
+    n_splits=5,
+    n_repeats_final=3,
+    n_jobs=5,
 ):
     ray_path = os.path.expanduser('~/ray_results')
     exp_dir = os.path.join(ray_path, exp_name)
 
+    trainable = tune.with_parameters(
+        func,
+        X=X,
+        y=y,
+        model_in=model,
+        create_pipe=create_pipe,
+        X_test=X_test,
+        y_test=y_test,
+        subset_fractions=subset_fractions,
+        n_splits=n_splits,
+        n_repeats_final=n_repeats_final,
+        n_jobs=n_jobs,
+    )
+
     if tune.Tuner.can_restore(exp_dir) and not new_trial:
         tuner = tune.Tuner.restore(
             exp_dir,
-            trainable=tune.with_parameters(
-                func,
-                X=X,
-                y=y,
-                model_in=model,
-                create_pipe=create_pipe,
-                X_test=X_test,
-                y_test=y_test,
-            ),
+            trainable=trainable,
             resume_errored=True,
         )
     else:
@@ -144,19 +218,18 @@ def optimize_ray(
 
         search_alg = ConcurrencyLimiter(search_alg, max_concurrent=max_concurrent)
         tuner = tune.Tuner(
-            tune.with_parameters(
-                func,
-                X=X,
-                y=y,
-                model_in=model,
-                create_pipe=create_pipe,
-                X_test=X_test,
-                y_test=y_test,
-            ),
+            trainable,
             tune_config=tune.TuneConfig(
                 num_samples=max_evals,
                 search_alg=search_alg,
-                scheduler=ASHAScheduler(),
+                # subset-size fidelity: one report per rung, so ASHA prunes on
+                # the cheap (small-subset) rungs and only survivors hit full data
+                scheduler=ASHAScheduler(
+                    time_attr='training_iteration',
+                    max_t=len(subset_fractions),
+                    grace_period=1,
+                    reduction_factor=3,
+                ),
                 metric='metric',
                 mode='max',
             ),
@@ -166,6 +239,93 @@ def optimize_ray(
             param_space=space,
         )
     return tuner.fit()
+
+
+def run_experiment(
+    exp_name_prefix,
+    space,
+    create_pipe,
+    model,
+    X,
+    y,
+    argv=None,
+    default_max_evals=200,
+    select_metric='mean_accuracy',
+    select_mode='max',
+    subset_fractions=(0.1, 0.3, 1.0),
+    n_splits=5,
+    n_repeats_final=3,
+    n_jobs=5,
+):
+    """Shared launcher for Ray Tune experiments.
+
+    An experiment script only defines `space`, `create_pipe`, its `model` dict and
+    the data, then calls this. All the common boilerplate lives here instead of
+    being copy-pasted per script:
+      - parse CLI args, run/resume the sweep via ``optimize_ray``,
+      - dump ``<path>/model.json`` and ``<path>/best_space.json``,
+      - print the best config + score.
+
+    CLI args (passed by the sbatch script):
+        <path> <new_trial 0|1> [max_evals] [synapse_model]
+      path          -> exp_name = exp_name_prefix + path; outputs go to ./<path>/
+      new_trial     -> 1 = fresh sweep, 0 = resume
+      synapse_model -> optional override of model['syn_dict_exc']['synapse_model']
+    """
+    argv = sys.argv if argv is None else argv
+    path = argv[1]
+    new_trial = bool(int(argv[2]))
+    max_evals = int(argv[3]) if len(argv) > 3 else default_max_evals
+    synapse_model = argv[4] if len(argv) > 4 else None
+
+    if synapse_model:
+        model['syn_dict_exc']['synapse_model'] = synapse_model
+
+    os.makedirs(path, exist_ok=True)
+    with open(os.path.join(path, 'model.json'), 'w') as fh:
+        json.dump(model, fh, indent=4)
+
+    exp_name = exp_name_prefix + path
+    results = optimize_ray(
+        X=X,
+        y=y,
+        func=run_cv,
+        create_pipe=create_pipe,
+        space=space,
+        model=model,
+        exp_name=exp_name,
+        new_trial=new_trial,
+        max_evals=max_evals,
+        subset_fractions=subset_fractions,
+        n_splits=n_splits,
+        n_repeats_final=n_repeats_final,
+        n_jobs=n_jobs,
+    )
+
+    # Select the best config among trials that reached the FULL-DATA rung, so the
+    # reported best is a real full-dataset score and not a small-subset fluke from
+    # a trial ASHA pruned early.
+    df = results.get_dataframe()
+    final_frac = max(subset_fractions)
+    full = df
+    if 'subset_fraction' in df.columns:
+        reached = df[df['subset_fraction'] >= final_frac]
+        if len(reached):
+            full = reached
+    if select_mode == 'min':
+        best_row = full.loc[full[select_metric].idxmin()]
+    else:
+        best_row = full.loc[full[select_metric].idxmax()]
+    best_params = {
+        c[len('config/'):]: best_row[c]
+        for c in best_row.index
+        if c.startswith('config/')
+    }
+    print('best', select_metric, '=', best_row[select_metric])
+    print(best_params)
+    with open(os.path.join(path, 'best_space.json'), 'w') as fh:
+        json.dump(best_params, fh, indent=4, cls=NpEncoder)
+    return results
 
 
 def round_decimals(value):
