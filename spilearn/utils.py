@@ -14,6 +14,7 @@ from scipy.stats import mode
 from sklearn.model_selection import (
     cross_val_score,
     RepeatedStratifiedKFold,
+    StratifiedGroupKFold,
     train_test_split,
 )
 from sklearn.metrics import f1_score, accuracy_score
@@ -113,6 +114,7 @@ def run_cv(
     n_repeats_final=3,
     n_jobs=5,
     base_seed=42,
+    groups=None,
 ):
     """Multi-fidelity CV objective for ASHA, with subset-size as the fidelity.
 
@@ -125,6 +127,7 @@ def run_cv(
 
     Each rung calls ``cross_val_score(n_jobs=...)`` as before, so per-rung fold
     parallelism is preserved; reporting happens between rungs.
+    When ``groups`` are provided, folds use ``StratifiedGroupKFold`` instead.
     """
     model = copy.deepcopy(model_in)
 
@@ -139,24 +142,45 @@ def run_cv(
 
     X = np.asarray(X)
     y = np.asarray(y)
+    groups = None if groups is None else np.asarray(groups)
     n_rungs = len(subset_fractions)
 
     for i, frac in enumerate(subset_fractions):
         is_final = (i == n_rungs - 1) or (frac >= 1.0)
         if frac >= 1.0:
-            Xs, ys = X, y
+            Xs, ys, group_subset = X, y, groups
         else:
-            Xs, _, ys, _ = train_test_split(
-                X, y, train_size=frac, stratify=y, random_state=base_seed
+            indices, _ = train_test_split(
+                np.arange(len(y)),
+                train_size=frac,
+                stratify=y,
+                random_state=base_seed,
             )
+            Xs, ys = X[indices], y[indices]
+            group_subset = None if groups is None else groups[indices]
         n_rep = n_repeats_final if is_final else 1
-        cv = RepeatedStratifiedKFold(
-            n_splits=n_splits, n_repeats=n_rep, random_state=base_seed
-        )
-        try:
-            scores = cross_val_score(
-                pipe, Xs, ys, cv=cv, scoring='accuracy', n_jobs=n_jobs
+        if group_subset is None:
+            cv = RepeatedStratifiedKFold(
+                n_splits=n_splits, n_repeats=n_rep, random_state=base_seed
             )
+        else:
+            cv = []
+            for repeat in range(n_rep):
+                splitter = StratifiedGroupKFold(
+                    n_splits=n_splits,
+                    shuffle=True,
+                    random_state=base_seed + repeat,
+                )
+                cv.extend(splitter.split(Xs, ys, group_subset))
+        try:
+            score_kwargs = {
+                'cv': cv,
+                'scoring': 'accuracy',
+                'n_jobs': n_jobs,
+            }
+            if group_subset is not None:
+                score_kwargs['groups'] = group_subset
+            scores = cross_val_score(pipe, Xs, ys, **score_kwargs)
             m, s = float(scores.mean()), float(scores.std())
         except ValueError as exc:
             if 'All-NaN slice encountered' not in str(exc):
@@ -189,6 +213,7 @@ def optimize_ray(
     n_splits=5,
     n_repeats_final=3,
     n_jobs=5,
+    groups=None,
 ):
     ray_path = os.path.expanduser('~/ray_results')
     exp_dir = os.path.join(ray_path, exp_name)
@@ -205,6 +230,7 @@ def optimize_ray(
         n_splits=n_splits,
         n_repeats_final=n_repeats_final,
         n_jobs=n_jobs,
+        groups=groups,
     )
 
     if tune.Tuner.can_restore(exp_dir) and not new_trial:
@@ -256,6 +282,8 @@ def run_experiment(
     n_splits=5,
     n_repeats_final=3,
     n_jobs=5,
+    groups=None,
+    max_concurrent=11,
 ):
     """Shared launcher for Ray Tune experiments.
 
@@ -300,6 +328,8 @@ def run_experiment(
         n_splits=n_splits,
         n_repeats_final=n_repeats_final,
         n_jobs=n_jobs,
+        groups=groups,
+        max_concurrent=max_concurrent,
     )
 
     # Select the best config among trials that reached the FULL-DATA rung, so the
