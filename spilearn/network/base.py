@@ -34,6 +34,7 @@ class Network:
         h: Optional[float] = None,
         need_devices: bool = False,
         verbose: bool = False,
+        random_state: Optional[int] = None,
         **kwargs,
     ):
         self.model = copy.deepcopy(model)
@@ -41,6 +42,7 @@ class Network:
         self.noise = noise
         self.need_devices = need_devices
         self.verbose = verbose
+        self.random_state = random_state
 
         network_config = settings['network']
         topology_config = settings['topology']
@@ -171,9 +173,12 @@ class Network:
                         weights[i][neuron_id][input_id] = None
         return weights
 
+    def _seed_rng(self):
+        np.random.seed(self.random_state)
+        return int(np.random.randint(1, pow(2, 32) - 1))
+
     def init_network(self):
-        np.random.seed()
-        rng = np.random.randint(1, pow(2, 32) - 1)
+        rng = self._seed_rng()
         num_v_procs = self.n_threads * self.n_procs
 
         nest.ResetKernel()

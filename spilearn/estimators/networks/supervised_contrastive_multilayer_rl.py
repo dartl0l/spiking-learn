@@ -36,6 +36,7 @@ class SupervisedContrastiveMultilayerRLClassifier(SupervisedTemporalRLPoolClassi
         normalize_step: Optional[int] = None,
         w_target: Optional[float] = None,
         w_target_hid: Optional[float] = None,
+        random_state: Optional[int] = None,
         **kwargs,
     ) -> None:
         self.learning_rate_hid = learning_rate_hid
@@ -45,6 +46,7 @@ class SupervisedContrastiveMultilayerRLClassifier(SupervisedTemporalRLPoolClassi
         self.negative_fn = negative_fn
         self.n_layer_hid = n_layer_hid
         self.w_target_hid = w_target_hid
+        self.random_state = random_state
         super().__init__(
             settings,
             model,
@@ -61,6 +63,7 @@ class SupervisedContrastiveMultilayerRLClassifier(SupervisedTemporalRLPoolClassi
             normalize_step,
             w_target,
             w_target_hid=w_target_hid,
+            random_state=random_state,
             **kwargs,
         )
 
