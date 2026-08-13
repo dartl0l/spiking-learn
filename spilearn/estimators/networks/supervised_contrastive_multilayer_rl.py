@@ -1,8 +1,12 @@
 # coding: utf-8
 from typing import Optional
 
+import nest
+import numpy as np
+
 from ...network import ContrastiveMultilayerRLNetwork
 from ...spike_generator import TemporalSpikeGenerator
+from ...utils import convert_latency, split_spikes_and_senders
 from .supervised_temporal_rl_pool import SupervisedTemporalRLPoolClassifier
 
 
@@ -90,3 +94,21 @@ class SupervisedContrastiveMultilayerRLClassifier(SupervisedTemporalRLPoolClassi
             h=self.h,
             **kwargs,
         )
+
+    def transform_hidden(self, X):
+        self._network.test(
+            X, self._weights, threshold_state=self._threshold_state
+        )
+        events = nest.GetStatus(
+            self._network.spike_detector_hidden, keys='events'
+        )[0]
+        all_latency = split_spikes_and_senders(
+            {
+                'spikes': events['times'].copy(),
+                'senders': events['senders'].copy(),
+            },
+            len(X),
+            self.start_delta,
+            self.h_time,
+        )
+        return np.asarray(convert_latency(all_latency, self.n_layer_hid))
