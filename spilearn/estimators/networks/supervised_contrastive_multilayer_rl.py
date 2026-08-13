@@ -102,10 +102,11 @@ class SupervisedContrastiveMultilayerRLClassifier(SupervisedTemporalRLPoolClassi
         events = nest.GetStatus(
             self._network.spike_detector_hidden, keys='events'
         )[0]
+        hidden_offset = self._network.layer_hid.tolist()[0]
         all_latency = split_spikes_and_senders(
             {
                 'spikes': events['times'].copy(),
-                'senders': events['senders'].copy(),
+                'senders': events['senders'].copy() - hidden_offset + 1,
             },
             len(X),
             self.start_delta,

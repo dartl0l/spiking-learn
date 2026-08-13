@@ -2,6 +2,7 @@
 
 import copy
 
+import nest
 import numpy as np
 
 from spilearn.estimators import (
@@ -35,7 +36,7 @@ model = {
         'Wmax': 20.0,
     },
 }
-X = np.array([[1.0, 2.0], [2.0, 1.0], [1.5, 2.5], [2.5, 1.5]])[..., None]
+X = np.tile([1.0, 2.0] * 32, (4, 1))[..., None]
 y = np.array([0, 1, 0, 1])
 
 classifier = SupervisedContrastiveMultilayerRLClassifier(
@@ -44,9 +45,9 @@ classifier = SupervisedContrastiveMultilayerRLClassifier(
     pool_size=1,
     learning_rate=0.01,
     learning_rate_hid=0.01,
-    n_layer_hid=3,
-    n_layer_out=2,
-    n_input=2,
+    n_layer_hid=12,
+    n_layer_out=10,
+    n_input=64,
     epochs=1,
     h_time=20.0,
     start_delta=5.0,
@@ -55,6 +56,17 @@ classifier = SupervisedContrastiveMultilayerRLClassifier(
 )
 classifier.fit(X, y)
 weights_before = copy.deepcopy(classifier._weights)
+
+classifier._network.test(
+    X, classifier._weights, threshold_state=classifier._threshold_state
+)
+hidden_events = nest.GetStatus(
+    classifier._network.spike_detector_hidden, keys='events'
+)[0]
+hidden_ids = classifier._network.layer_hid.tolist()
+assert hidden_events['senders'].min() == min(hidden_ids)
+assert hidden_events['senders'].max() == max(hidden_ids)
+assert hidden_events['senders'].max() > classifier.n_layer_hid
 
 hidden_first = classifier.transform_hidden(X)
 hidden_second = classifier.transform_hidden(X)
