@@ -284,6 +284,7 @@ def run_experiment(
     n_jobs=5,
     groups=None,
     max_concurrent=11,
+    outer_test=None,
 ):
     """Shared launcher for Ray Tune experiments.
 
@@ -355,7 +356,142 @@ def run_experiment(
     print(best_params)
     with open(os.path.join(path, 'best_space.json'), 'w') as fh:
         json.dump(best_params, fh, indent=4, cls=NpEncoder)
+    if outer_test is not None:
+        _run_outer_test_stage(
+            exp_name,
+            path,
+            new_trial,
+            best_params,
+            select_metric,
+            best_row[select_metric],
+            X,
+            y,
+            model,
+            create_pipe,
+            outer_test,
+        )
     return results
+
+
+def _run_outer_test(params, X, y, model_in, create_pipe, X_test, y_test):
+    """Fit the selected configuration on development data and score the holdout."""
+    model = copy.deepcopy(model_in)
+    pipe = create_pipe(model, params)
+    pipe.fit(X, y)
+    predictions = pipe.predict(X_test)
+    train.report({
+        "outer_test_accuracy": accuracy_score(y_test, predictions),
+        "outer_test_macro_f1": f1_score(y_test, predictions, average="macro"),
+    })
+
+
+def _valid_outer_test_artifact(path):
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as artifact_file:
+            artifact = json.load(artifact_file)
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"Invalid outer-test artifact: {path}") from error
+    required = {
+        "selected_params": dict,
+        "selected_metric_name": str,
+        "selected_metric_value": (int, float),
+        "outer_train_count": int,
+        "outer_test_count": int,
+        "outer_test_accuracy": (int, float),
+        "outer_test_macro_f1": (int, float),
+        "ray_stage_path": str,
+    }
+    if not isinstance(artifact, dict) or any(
+        not isinstance(artifact.get(key), value_type)
+        for key, value_type in required.items()
+    ):
+        raise ValueError(f"Invalid outer-test artifact: {path}")
+    return artifact
+
+
+def _write_outer_test_artifact(path, artifact):
+    temporary_path = f"{path}.{os.getpid()}.tmp"
+    with open(temporary_path, "w") as artifact_file:
+        json.dump(artifact, artifact_file, cls=NpEncoder, indent=2, sort_keys=True)
+    os.replace(temporary_path, path)
+
+
+def _outer_result_row(result_grid):
+    dataframe = result_grid.get_dataframe()
+    if len(dataframe) and all(
+        metric in dataframe.columns
+        for metric in ("outer_test_accuracy", "outer_test_macro_f1")
+    ):
+        return dataframe.iloc[0]
+    return None
+
+
+def _run_outer_test_stage(
+    exp_name,
+    path,
+    new_trial,
+    best_params,
+    select_metric,
+    select_metric_value,
+    X,
+    y,
+    model_in,
+    create_pipe,
+    outer_test,
+):
+    X_test, y_test = outer_test
+    ray_path = os.path.expanduser("~/ray_results")
+    outer_exp_name = f"{exp_name}_outer_test"
+    outer_exp_dir = os.path.join(ray_path, outer_exp_name)
+    artifact_path = os.path.join(path, "outer_test.json")
+    if new_trial == 1 and (
+        os.path.exists(artifact_path)
+        or (os.path.isdir(outer_exp_dir) and os.listdir(outer_exp_dir))
+    ):
+        raise FileExistsError(f"Outer-test stage already exists: {outer_exp_dir}")
+    cached_artifact = _valid_outer_test_artifact(artifact_path)
+    if cached_artifact is not None:
+        return cached_artifact
+
+    trainable = tune.with_parameters(
+        _run_outer_test,
+        X=X,
+        y=y,
+        model_in=model_in,
+        create_pipe=create_pipe,
+        X_test=X_test,
+        y_test=y_test,
+    )
+    if tune.Tuner.can_restore(outer_exp_dir):
+        tuner = tune.Tuner.restore(outer_exp_dir, trainable=trainable, resume_errored=True)
+        outer_results = tuner.get_results()
+        row = _outer_result_row(outer_results)
+        if row is None:
+            outer_results = tuner.fit()
+    else:
+        tuner = tune.Tuner(
+            trainable,
+            tune_config=tune.TuneConfig(num_samples=1),
+            run_config=train.RunConfig(name=outer_exp_name, storage_path=ray_path),
+            param_space=best_params,
+        )
+        outer_results = tuner.fit()
+
+    row = _outer_result_row(outer_results)
+    if row is None:
+        raise RuntimeError("Outer-test Ray stage completed without final metrics")
+    _write_outer_test_artifact(artifact_path, {
+        "selected_params": best_params,
+        "selected_metric_name": select_metric,
+        "selected_metric_value": select_metric_value,
+        "outer_train_count": len(y),
+        "outer_test_count": len(y_test),
+        "outer_test_accuracy": row["outer_test_accuracy"],
+        "outer_test_macro_f1": row["outer_test_macro_f1"],
+        "ray_stage_path": outer_exp_dir,
+    })
 
 
 def round_decimals(value):
