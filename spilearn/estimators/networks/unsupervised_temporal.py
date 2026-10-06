@@ -25,6 +25,7 @@ class UnsupervisedTemporalTransformer(BaseTemporalEstimator):
         test_with_inhibition: Optional[bool] = None,
         threshold: Optional[float] = None,
         high_threshold_teacher: Optional[bool] = None,
+        random_state: Optional[int] = None,
         **kwargs,
     ) -> None:
         self.num_threads = num_threads
@@ -33,7 +34,9 @@ class UnsupervisedTemporalTransformer(BaseTemporalEstimator):
         self.test_with_inhibition = test_with_inhibition
         self.threshold = threshold
         self.high_threshold_teacher = high_threshold_teacher
+        self.random_state = random_state
         network_kwargs = dict(kwargs)
+        network_kwargs['random_state'] = random_state
         network_kwargs.update(
             {
                 name: value

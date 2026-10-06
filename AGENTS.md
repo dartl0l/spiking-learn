@@ -36,8 +36,7 @@ Exports are curated in the `__init__.py` of `spilearn`, `spilearn.estimators`, a
 - Estimators and networks take a legacy `settings` dict **plus** a `model` dict (NEST neuron/synapse parameters).
 - `settings` is **deprecated as the source of truth**: estimators now accept explicit keyword args (`n_input`, `n_layer_out`, `epochs`, `h_time`, `start_delta`, `h`, `teacher_amplitude`, …) that **override** the corresponding `settings`/`model` values via the `kwarg or settings[...].get(...)` pattern. Prefer explicit kwargs in new code; keep the `settings` fallback working.
 - The `model` dict keys (e.g. `neuron_out`, `syn_dict_exc`, `syn_dict_inh`, `syn_dict_stdp`, `*_model`) map directly onto NEST `Create`/`SetStatus` calls.
-- Public usage examples live in `examples/`; keep cluster-specific launchers and search
-  configurations outside the library repository.
+- Public usage examples live in `examples/`.
 
 ## Conventions
 
@@ -47,8 +46,6 @@ Exports are curated in the `__init__.py` of `spilearn`, `spilearn.estimators`, a
 
 ## Gaps / watch-outs
 
-- NEST and `stdptanhmodule` must be installed separately; Python dependencies are listed in
-  `requirements.txt`.
-- Tests are lightweight standalone Python files under `tests/`; run NEST-dependent tests in
-  a NEST-capable environment.
+- Python dependencies are listed in `requirements.txt`.
+- Tests are lightweight standalone Python files under `tests/`.
 - `tasks/` is git-ignored (scratch task specs, e.g. adaptive-threshold work).

@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.dummy import DummyClassifier
 
-import spilearn.utils as utils
+import spilearn.experiments._tuning as utils
 
 
 reports = []
@@ -34,4 +34,4 @@ utils.run_cv(
     n_jobs=1,
 )
 
-assert reports[-1]["mean_accuracy"] == 0.5
+assert reports[-1]["mean_score"] == 0.5
