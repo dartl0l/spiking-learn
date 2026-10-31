@@ -162,12 +162,14 @@ class ExperimentsTest(unittest.TestCase):
             results = Results([
                 SimpleNamespace(
                     error=None,
-                    metrics={'subset_fraction': 1.0, 'metric': .6, 'mean_score': .6},
+                    metrics={'trial_id': 'current', 'subset_fraction': 1.0,
+                             'metric': .6, 'mean_score': .6},
                     config={'winner': 'current'},
                 ),
                 SimpleNamespace(
                     error=None,
-                    metrics={'subset_fraction': 1.0, 'metric': .4, 'mean_accuracy': .4},
+                    metrics={'trial_id': 'historical', 'subset_fraction': 1.0,
+                             'metric': .4, 'mean_accuracy': .4},
                     config={'winner': 'historical'},
                 ),
             ])
@@ -193,12 +195,14 @@ class ExperimentsTest(unittest.TestCase):
             results = [
                 SimpleNamespace(
                     error=None,
-                    metrics={'subset_fraction': 1.0, 'mean_score': np.nan, 'mean_accuracy': .9},
+                    metrics={'trial_id': 'invalid', 'subset_fraction': 1.0,
+                             'mean_score': np.nan, 'mean_accuracy': .9},
                     config={'winner': 'invalid'},
                 ),
                 SimpleNamespace(
                     error=None,
-                    metrics={'subset_fraction': .2, 'mean_accuracy': .5},
+                    metrics={'trial_id': 'historical', 'subset_fraction': 1.0,
+                             'mean_accuracy': .5},
                     config={'winner': 'historical'},
                 ),
             ]
@@ -217,11 +221,11 @@ class ExperimentsTest(unittest.TestCase):
             output = Path(directory) / 'output'; output.mkdir()
             results = [SimpleNamespace(
                 error=None,
-                metrics={'subset_fraction': 1.0, 'mean_score': np.nan},
+                metrics={'trial_id': 'invalid', 'subset_fraction': 1.0, 'mean_score': np.nan},
                 config={'winner': 'invalid'},
             )]
             with patch.object(utils, 'optimize_ray', return_value=results), self.assertRaisesRegex(
-                ValueError, "no finite result for select_metric='mean_score'",
+                ValueError, "no finite result at final-subset for select_metric='mean_score'",
             ):
                 utils._run_search_backend(
                     exp_name_prefix='search_', space={}, create_pipe=lambda model, params: None,
@@ -241,8 +245,8 @@ class ExperimentsTest(unittest.TestCase):
                     raise AssertionError('full-fidelity result should be selected')
 
             results = Results([
-                SimpleNamespace(error=None, metrics={'subset_fraction': .2, 'metric': .9}, config={'winner': 'partial'}),
-                SimpleNamespace(error=None, metrics={'subset_fraction': 1.0, 'metric': .5}, config={'winner': 'full'}),
+                SimpleNamespace(error=None, metrics={'trial_id': 'partial', 'subset_fraction': .2, 'metric': .9}, config={'winner': 'partial'}),
+                SimpleNamespace(error=None, metrics={'trial_id': 'full', 'subset_fraction': 1.0, 'metric': .5}, config={'winner': 'full'}),
             ])
             with patch.object(utils, 'optimize_ray', return_value=results):
                 utils._run_search_backend(
@@ -318,7 +322,7 @@ class ExperimentsTest(unittest.TestCase):
             results = Results([
                 SimpleNamespace(
                     error=None,
-                    metrics={'subset_fraction': 1.0, 'mean_score': .5},
+                    metrics={'trial_id': 'storage-check', 'subset_fraction': 1.0, 'mean_score': .5},
                     config={'x': 1},
                 ),
             ])

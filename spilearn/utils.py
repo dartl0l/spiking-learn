@@ -170,6 +170,32 @@ def predict_from_earliest_latency_pool(latency_list, func=np.argmin):
     return prediction
 
 
+CLASS_POOL_DECODERS = ('vote', 'mean_latency', 'min_latency')
+
+
+def predict_from_class_pool(latency_list, decoder='min_latency'):
+    """Decode class pools; silent outputs are NaN/inf and all-silent is -1."""
+    if decoder not in CLASS_POOL_DECODERS:
+        raise ValueError(f'Unknown class-pool decoder: {decoder!r}')
+    if decoder == 'min_latency':
+        return predict_from_earliest_latency_pool(latency_list)
+
+    latency = np.asarray(latency_list, dtype=float)
+    latency = np.where(np.isnan(latency), np.inf, latency)
+    earliest = latency.min(axis=2)
+    valid = np.isfinite(latency).any(axis=(1, 2))
+    if decoder == 'vote':
+        scores = np.isfinite(latency).sum(axis=2)
+        tied = scores == scores.max(axis=1, keepdims=True)
+    else:
+        scores = latency.mean(axis=2)
+        tied = scores == scores.min(axis=1, keepdims=True)
+    # argmin chooses the lowest class ID if earliest latencies also tie.
+    prediction = np.where(tied, earliest, np.inf).argmin(axis=1)
+    prediction[~valid] = -1
+    return prediction
+
+
 def convert_layer_weights(weights):
     out_weights = {}
     for neuron_id in weights:

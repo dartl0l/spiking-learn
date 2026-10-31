@@ -4,6 +4,7 @@ from typing import Optional
 from ...network import LiteRlPoolNetwork
 from ...spike_generator import TemporalSpikeGenerator
 from ...utils import (
+    CLASS_POOL_DECODERS,
     convert_latency_pool,
     split_spikes_and_senders,
 )
@@ -27,9 +28,15 @@ class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
         normalize_weights: bool = False,
         normalize_step: Optional[int] = None,
         w_target: Optional[float] = None,
+        decoder: str = 'min_latency',
+        random_state: Optional[int] = None,
         **kwargs,
     ) -> None:
+        if decoder not in CLASS_POOL_DECODERS:
+            raise ValueError(f'Unknown class-pool decoder: {decoder!r}')
         self.pool_size = pool_size
+        self.decoder = decoder
+        self.random_state = random_state
         super().__init__(
             settings,
             model,
@@ -44,6 +51,7 @@ class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
             normalize_weights,
             normalize_step,
             w_target,
+            random_state=random_state,
             **kwargs,
         )
 
@@ -53,6 +61,7 @@ class SupervisedTemporalRLPoolClassifier(SupervisedTemporalRLClassifier):
             model,
             pool_size=self.pool_size,
             learning_rate=self.learning_rate,
+            decoder=self.decoder,
             n_layer_out=self.n_layer_out,
             n_input=self.n_input,
             epochs=self.epochs,

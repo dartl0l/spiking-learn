@@ -16,8 +16,10 @@ np.testing.assert_array_equal(
     predict_from_earliest_latency_pool(latency),
     [0, 1, -1],
 )
+pool_network = LiteRlPoolNetwork.__new__(LiteRlPoolNetwork)
+pool_network.decoder = 'min_latency'
 np.testing.assert_array_equal(
-    LiteRlPoolNetwork.predict_from_latency_pool(None, latency),
+    pool_network.predict_from_latency_pool(latency),
     [0, 1, -1],
 )
 np.testing.assert_array_equal(

@@ -5,12 +5,17 @@ import nest
 from .rl import LiteRlNetwork
 from ..utils import (
     convert_latency_pool,
-    predict_from_earliest_latency_pool,
+    CLASS_POOL_DECODERS,
+    predict_from_class_pool,
 )
 
 
 class LiteRlPoolNetwork(LiteRlNetwork):
-    def __init__(self, settings, model, pool_size, learning_rate, **kwargs):
+    def __init__(self, settings, model, pool_size, learning_rate,
+                 decoder='min_latency', **kwargs):
+        if decoder not in CLASS_POOL_DECODERS:
+            raise ValueError(f'Unknown class-pool decoder: {decoder!r}')
+        self.decoder = decoder
         super().__init__(settings, model, learning_rate, **kwargs)
 
         self.pool_size = pool_size
@@ -34,7 +39,7 @@ class LiteRlPoolNetwork(LiteRlNetwork):
         return int(y_pred[0])
 
     def predict_from_latency_pool(self, latency):
-        return predict_from_earliest_latency_pool(latency)
+        return predict_from_class_pool(latency, self.decoder)
 
     def connect_layers_inh(self):
         for i in range(0, self.n_layer_out, self.pool_size):
